@@ -99,6 +99,8 @@ export const TIMING = {
   bannerHold: 1800,
   toast: 2600,
   turboDivisor: 3,
+  // prefers-reduced-motion 에서 당첨 연출을 더 짧게 줄이는 배수
+  reducedMotionDivisor: 6,
   autoSpinGap: 520,
 };
 

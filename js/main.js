@@ -5,9 +5,11 @@ import {
   JACKPOT_CONTRIB_RATE,
   MODES,
   MODE_KEYS,
+  JACKPOT_ROLL_MS,
   NICKNAME_RULES,
   REFILL_AMOUNT,
   TIMING,
+  WIN_TIERS,
 } from './config.js';
 import { evaluateSpin, totalBetOf } from './engine.js';
 import { buildGrid, drawStops } from './rng.js';
@@ -34,6 +36,19 @@ function delay(ms) {
 
 function animationSpeed() {
   return game.state.settings.turbo ? TIMING.turboDivisor : 1;
+}
+
+// 당첨 연출은 모션 최소화 설정에서 한 번 더 짧아진다.
+function presentationSpeed() {
+  return animationSpeed() * (reducedMotion.matches ? TIMING.reducedMotionDivisor : 1);
+}
+
+// 당첨금이 클수록 카운트업이 길어진다. 상한은 TIMING.countUpMax.
+function countUpDuration(result) {
+  if (reducedMotion.matches) return 0;
+  const ratio = result.totalWin / result.totalBet;
+  const span = TIMING.countUpMax - TIMING.countUpMin;
+  return (TIMING.countUpMin + Math.min(1, ratio / WIN_TIERS.mega) * span) / animationSpeed();
 }
 
 function currentTotalBet() {
@@ -122,6 +137,28 @@ function resultMessage(result) {
   return '';
 }
 
+// 꽝이면 아무 연출도 하지 않는다. 조용히 다음 스핀을 받는다.
+async function presentWin(result, coinsBeforeWin) {
+  if (result.totalWin === 0) return;
+  const speed = presentationSpeed();
+
+  await ui.playLineWins(result.lineWins, result.scatter, {
+    speed,
+    instant: reducedMotion.matches,
+  });
+
+  if (result.jackpot.hit) {
+    await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, speed);
+  } else if (result.tier === 'mega') {
+    await ui.showMegaWin(result.totalWin, speed);
+  } else if (result.tier === 'big') {
+    // 배너는 카운트업과 나란히 진행된다.
+    ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, speed);
+  }
+
+  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result));
+}
+
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
 async function revealSpin(spin) {
   if (reducedMotion.matches) {
@@ -141,6 +178,7 @@ async function runSpin() {
   }
 
   clearHighlights(ui.reelsHost());
+  ui.clearLines();
   ui.setWin(0);
   ui.setMessage(isFree ? `프리스핀 ${game.freeSpinsLeft}회 남음 · 당첨금 2배` : '', true);
 
@@ -148,9 +186,14 @@ async function runSpin() {
     game.freeSpinsLeft -= 1;
   } else {
     game.state.wallet.coins -= totalBet;
+    const poolBefore = game.state.jackpot.pool;
+    // 잭팟 적립은 프리스핀에서는 하지 않는다.
     game.state.jackpot.pool += totalBet * JACKPOT_CONTRIB_RATE;
+    ui.rollJackpot(poolBefore, game.state.jackpot.pool, JACKPOT_ROLL_MS / animationSpeed());
   }
-  syncMeters();
+  ui.setCredit(game.state.wallet.coins);
+  ui.setBet(game.lineBet, game.mode);
+  ui.setFreeSpinBadge(game.freeSpinsLeft);
 
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
   const stops = drawStops(game.mode.strips);
@@ -165,6 +208,7 @@ async function runSpin() {
 
   await revealSpin({ stops, grid });
 
+  const coinsBeforeWin = game.state.wallet.coins;
   if (result.jackpot.hit) game.state.jackpot.pool = game.state.jackpot.seed;
   game.state.wallet.coins += result.totalWin;
   game.freeSpinsLeft += result.freeSpinsAwarded;
@@ -174,10 +218,12 @@ async function runSpin() {
   ui.setWin(result.totalWin);
   ui.setMessage(resultMessage(result));
   ui.setReadout(result.totalWin === 0 ? '당첨 없음' : `${ui.formatCoins(result.totalWin)} 코인 당첨`);
-  syncMeters();
 
   // 스핀 1회당 저장은 여기 한 번뿐이다. 자동스핀 중에도 같다.
   storage.save(game.state);
+
+  await presentWin(result, coinsBeforeWin);
+  syncMeters();
   return true;
 }
 

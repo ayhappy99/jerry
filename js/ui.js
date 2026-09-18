@@ -17,6 +17,7 @@ import {
   WILD,
   modePaylines,
 } from './config.js';
+import { cellAt, clearHighlights } from './reels.js';
 import { symbolMarkup } from './symbols.js';
 
 const MARQUEE_BULBS = 18;
@@ -179,6 +180,192 @@ export function showFatal(text) {
   el.fatal.textContent = text;
 }
 
+// ── 숫자 카운트업 ─────────────────────────
+
+// 같은 요소에서 굴러가던 이전 카운트업은 취소한다.
+const counters = new WeakMap();
+
+export function countUp(element, from, to, duration, onTick = null) {
+  const previous = counters.get(element);
+  if (previous !== undefined) previous.cancelled = true;
+  const token = { cancelled: false };
+  counters.set(element, token);
+
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let lastTick = start;
+    const step = (now) => {
+      if (token.cancelled) {
+        resolve();
+        return;
+      }
+      const progress = duration <= 0 ? 1 : Math.min(1, (now - start) / duration);
+      const eased = 1 - (1 - progress) ** 3;
+      element.textContent = formatCoins(from + (to - from) * eased);
+      if (onTick !== null && now - lastTick >= TIMING.countUpTickMs) {
+        lastTick = now;
+        onTick();
+      }
+      if (progress < 1) {
+        requestAnimationFrame(step);
+        return;
+      }
+      resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+export function countUpCredit(from, to, duration, onTick) {
+  return countUp(el.credit, from, to, duration, onTick);
+}
+
+export function rollJackpot(from, to, duration) {
+  return countUp(el.jackpotMeter, from, to, duration);
+}
+
+// ── 당첨 라인 하이라이트 ──────────────────
+
+function windowRect() {
+  return el.window.getBoundingClientRect();
+}
+
+function syncLinesViewBox() {
+  const rect = windowRect();
+  el.lines.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+}
+
+function cellCenter(rect, cell) {
+  const box = cell.getBoundingClientRect();
+  return `${box.left - rect.left + box.width / 2},${box.top - rect.top + box.height / 2}`;
+}
+
+function winPath(win, className) {
+  const rect = windowRect();
+  const points = win.cells.map(({ reel, row }) => cellCenter(rect, cellAt(el.reels, reel, row))).join(' ');
+  return `<polyline class="${className}" points="${points}"/>`;
+}
+
+export function clearLines() {
+  el.lines.innerHTML = '';
+}
+
+function markCells(win, className) {
+  for (const { reel, row } of win.cells) {
+    cellAt(el.reels, reel, row).classList.add(className);
+  }
+}
+
+function showAllWins(lineWins, scatter) {
+  clearHighlights(el.reels);
+  syncLinesViewBox();
+  el.lines.innerHTML = lineWins.map((win) => winPath(win, 'line-path line-path--all')).join('');
+  for (const win of lineWins) markCells(win, 'cell--win');
+  if (scatter !== null) markCells(scatter, 'cell--scatter');
+}
+
+function showSingleWin(win) {
+  clearHighlights(el.reels);
+  syncLinesViewBox();
+  el.lines.innerHTML = winPath(win, 'line-path');
+  markCells(win, 'cell--win');
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 당첨 라인을 하나씩 순서대로 보여준 뒤 마지막에 전체를 함께 보여준다.
+ * instant=true면 순차 연출 없이 전체를 한 번에 정적으로 표시한다.
+ */
+export async function playLineWins(lineWins, scatter, { speed = 1, instant = false, onLine = () => {} } = {}) {
+  if (lineWins.length === 0 && scatter === null) return;
+  if (instant) {
+    showAllWins(lineWins, scatter);
+    return;
+  }
+  if (lineWins.length > 1) {
+    for (const win of lineWins) {
+      showSingleWin(win);
+      onLine(win);
+      await wait(TIMING.lineHighlight / speed);
+    }
+  }
+  showAllWins(lineWins, scatter);
+  if (lineWins.length > 1) await wait(TIMING.lineHighlightAll / speed);
+}
+
+// ── 빅윈 / 메가윈 / 잭팟 ──────────────────
+
+const PARTICLE_COUNT = 34;
+
+function spawnParticles(duration) {
+  const layer = document.createElement('div');
+  layer.className = 'particles';
+  layer.setAttribute('aria-hidden', 'true');
+  layer.innerHTML = Array.from(
+    { length: PARTICLE_COUNT },
+    () => `<span class="particle" style="--x:${(Math.random() * 100).toFixed(1)}%;--d:${(Math.random() * 0.7).toFixed(2)}s"></span>`,
+  ).join('');
+  el.overlayRoot.append(layer);
+  setTimeout(() => layer.remove(), duration);
+}
+
+// 빅윈: 상단 배너 + 금색 파티클. 카운트업과 나란히 진행되도록 기다리지 않는다.
+export function showBigWin(text, speed = 1) {
+  const hold = TIMING.bannerHold / speed;
+  const banner = document.createElement('div');
+  banner.className = 'banner';
+  banner.setAttribute('role', 'status');
+  banner.textContent = text;
+  el.overlayRoot.append(banner);
+  spawnParticles(hold + 600);
+  setTimeout(() => banner.remove(), hold);
+}
+
+// 메가윈: 전체 화면 오버레이. 금액이 오버레이 안에서 굴러 올라간다.
+export async function showMegaWin(amount, speed = 1) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.setAttribute('role', 'status');
+  overlay.innerHTML =
+    '<p class="overlay__kicker">MEGA WIN</p>' +
+    '<h2 class="overlay__title">메가 윈</h2>' +
+    '<p class="overlay__amount">0</p>';
+  el.overlayRoot.append(overlay);
+  spawnParticles(TIMING.countUpMega / speed + 600);
+  await countUp(overlay.querySelector('.overlay__amount'), 0, amount, TIMING.countUpMega / speed);
+  await wait(TIMING.bannerHold / speed);
+  overlay.remove();
+}
+
+// 잭팟: 전용 풀스크린. 확인 버튼을 눌러야 닫힌다.
+export function showJackpot(nickname, amount, speed = 1) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay overlay--jackpot';
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', '잭팟 당첨');
+  overlay.innerHTML =
+    '<p class="overlay__kicker">PROGRESSIVE JACKPOT</p>' +
+    '<h2 class="overlay__title">JACKPOT</h2>' +
+    `<p class="overlay__who">${escapeHtml(nickname)}님, 잭팟!</p>` +
+    '<p class="overlay__amount">0</p>' +
+    '<button class="btn btn--primary" type="button" data-confirm>확인</button>';
+  el.overlayRoot.append(overlay);
+  spawnParticles(TIMING.countUpMega / speed + 1200);
+
+  const confirm = overlay.querySelector('[data-confirm]');
+  confirm.focus();
+  countUp(overlay.querySelector('.overlay__amount'), 0, amount, TIMING.countUpMega / speed);
+
+  return new Promise((resolve) => {
+    confirm.addEventListener('click', () => {
+      overlay.remove();
+      resolve();
+    });
+  });
+}
+
 // ── 모달 ──────────────────────────────────
 
 let lastFocused = null;
@@ -240,11 +427,6 @@ export function setFieldError(input, errorEl, message) {
   errorEl.hidden = !hasError;
   errorEl.textContent = hasError ? message : '';
   input.setAttribute('aria-invalid', String(hasError));
-}
-
-export function focusNicknameInput(value) {
-  el.nicknameInput.value = value;
-  el.nicknameInput.focus();
 }
 
 // ── 설정 ──────────────────────────────────
