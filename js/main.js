@@ -6,13 +6,16 @@ import {
   MODES,
   MODE_KEYS,
   REFILL_AMOUNT,
+  TIMING,
 } from './config.js';
 import { evaluateSpin, totalBetOf } from './engine.js';
 import { buildGrid, drawStops } from './rng.js';
-import { renderReels } from './reels.js';
+import { clearHighlights, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const game = {
   state: null,
@@ -21,7 +24,16 @@ const game = {
   freeSpinsLeft: 0,
   busy: false,
   auto: false,
+  looping: false,
 };
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function animationSpeed() {
+  return game.state.settings.turbo ? TIMING.turboDivisor : 1;
+}
 
 function currentTotalBet() {
   return totalBetOf(game.mode, game.lineBet);
@@ -31,8 +43,8 @@ function syncMeters() {
   ui.setCredit(game.state.wallet.coins);
   ui.setBet(game.lineBet, game.mode);
   ui.setJackpot(game.state.jackpot.pool);
-  ui.setBetButtons(game.state.settings.betIdx);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
+  if (!game.busy) ui.setBetButtons(game.state.settings.betIdx);
 }
 
 function syncJackpotHint() {
@@ -43,15 +55,11 @@ function syncJackpotHint() {
   );
 }
 
-function blankGrid(mode) {
-  return buildGrid(mode.strips, drawStops(mode.strips), mode.rows);
-}
-
 function selectMode(modeKey) {
   game.mode = MODES[modeKey];
   game.state.settings.mode = modeKey;
   ui.renderModeTabs(modeKey);
-  renderReels(ui.reelsHost(), game.mode, blankGrid(game.mode));
+  renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
   syncJackpotHint();
   syncMeters();
   storage.save(game.state);
@@ -109,16 +117,17 @@ function recordWinHistory(result) {
 function resultMessage(result) {
   if (result.jackpot.hit) return `잭팟! ${ui.formatCoins(result.jackpot.amount)} 획득`;
   if (result.freeSpinsAwarded > 0) return `스캐터 ${result.scatter.count}개! 프리스핀 10회`;
-  if (result.totalWin > 0) {
-    const lines = result.lineWins.length;
-    return `${lines}개 라인 당첨 · ${ui.formatCoins(result.totalWin)}`;
-  }
+  if (result.totalWin > 0) return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(result.totalWin)}`;
   return '';
 }
 
-function readoutText(result) {
-  if (result.totalWin === 0) return '당첨 없음';
-  return `${ui.formatCoins(result.totalWin)} 코인 당첨`;
+// 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
+async function revealSpin(spin) {
+  if (reducedMotion.matches) {
+    renderReels(ui.reelsHost(), game.mode, spin.stops);
+    return;
+  }
+  await spinReels(ui.reelsHost(), game.mode, spin, { turbo: game.state.settings.turbo });
 }
 
 async function runSpin() {
@@ -127,13 +136,12 @@ async function runSpin() {
   if (!isFree && game.state.wallet.coins < totalBet) {
     ui.toast('코인이 부족합니다. 충전 버튼을 눌러 주세요.');
     stopAuto();
-    return;
+    return false;
   }
 
-  game.busy = true;
-  ui.setBusy(true, game.auto);
+  clearHighlights(ui.reelsHost());
   ui.setWin(0);
-  ui.setMessage('');
+  ui.setMessage(isFree ? `프리스핀 ${game.freeSpinsLeft}회 남음 · 당첨금 2배` : '', true);
 
   if (isFree) {
     game.freeSpinsLeft -= 1;
@@ -141,8 +149,7 @@ async function runSpin() {
     game.state.wallet.coins -= totalBet;
     game.state.jackpot.pool += totalBet * JACKPOT_CONTRIB_RATE;
   }
-  ui.setCredit(game.state.wallet.coins);
-  ui.setJackpot(game.state.jackpot.pool);
+  syncMeters();
 
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
   const stops = drawStops(game.mode.strips);
@@ -155,7 +162,7 @@ async function runSpin() {
     jackpotPool: game.state.jackpot.pool,
   });
 
-  renderReels(ui.reelsHost(), game.mode, grid);
+  await revealSpin({ stops, grid });
 
   if (result.jackpot.hit) game.state.jackpot.pool = game.state.jackpot.seed;
   game.state.wallet.coins += result.totalWin;
@@ -165,20 +172,50 @@ async function runSpin() {
 
   ui.setWin(result.totalWin);
   ui.setMessage(resultMessage(result));
-  ui.setReadout(readoutText(result));
+  ui.setReadout(result.totalWin === 0 ? '당첨 없음' : `${ui.formatCoins(result.totalWin)} 코인 당첨`);
   syncMeters();
 
-  // 스핀 1회당 저장은 여기 한 번뿐이다.
+  // 스핀 1회당 저장은 여기 한 번뿐이다. 자동스핀 중에도 같다.
   storage.save(game.state);
+  return true;
+}
+
+function hasPendingSpin() {
+  return game.freeSpinsLeft > 0 || game.auto;
+}
+
+async function runSpinLoop() {
+  if (game.looping) return;
+  game.looping = true;
+  game.busy = true;
+  ui.setBusy(true, game.auto);
+
+  let running = true;
+  while (running) {
+    running = await runSpin();
+    if (!running || !hasPendingSpin()) break;
+    await delay(TIMING.autoSpinGap / animationSpeed());
+  }
 
   game.busy = false;
+  game.looping = false;
   ui.setBusy(false, game.auto);
+  syncMeters();
 }
 
 function stopAuto() {
   game.auto = false;
   ui.setAutoButton(false);
-  ui.setBusy(game.busy, false);
+}
+
+function toggleAuto() {
+  if (game.auto) {
+    stopAuto();
+    return;
+  }
+  game.auto = true;
+  ui.setAutoButton(true);
+  runSpinLoop();
 }
 
 // ── 이벤트 배선 ───────────────────────────
@@ -194,7 +231,8 @@ function wireControls() {
   ui.el.betUp.addEventListener('click', () => changeBet(game.state.settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
 
-  ui.el.spin.addEventListener('click', () => { runSpin(); });
+  ui.el.spin.addEventListener('click', () => { runSpinLoop(); });
+  ui.el.auto.addEventListener('click', toggleAuto);
 
   ui.el.refill.addEventListener('click', () => {
     game.state.wallet.coins += REFILL_AMOUNT;
@@ -222,6 +260,7 @@ function boot() {
   ui.setSeat(game.state.player.nickname ?? '손님');
   ui.showScreen('cabinet');
   selectMode(modeKey);
+  ui.setAutoButton(false);
   ui.setMessage('스핀을 눌러 시작하세요.', true);
   ui.setWin(0);
   wireControls();
