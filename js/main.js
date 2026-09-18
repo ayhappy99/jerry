@@ -5,6 +5,7 @@ import {
   JACKPOT_CONTRIB_RATE,
   MODES,
   MODE_KEYS,
+  NICKNAME_RULES,
   REFILL_AMOUNT,
   TIMING,
 } from './config.js';
@@ -218,6 +219,65 @@ function toggleAuto() {
   runSpinLoop();
 }
 
+// ── 닉네임 ────────────────────────────────
+
+// 무엇이 잘못됐는지 그대로 알려준다. 모호한 "오류"를 쓰지 않는다.
+function validateNickname(raw) {
+  const value = raw.trim();
+  const length = Array.from(value).length;
+  if (length === 0) {
+    return { value, error: '닉네임을 입력해 주세요. 공백만으로는 만들 수 없습니다.' };
+  }
+  if (length < NICKNAME_RULES.min) {
+    return { value, error: `${NICKNAME_RULES.min}자 이상이어야 합니다. 지금 ${length}자입니다.` };
+  }
+  if (length > NICKNAME_RULES.max) {
+    return { value, error: `${NICKNAME_RULES.max}자 이하여야 합니다. 지금 ${length}자입니다.` };
+  }
+  return { value, error: null };
+}
+
+function saveNickname(raw) {
+  const { value, error } = validateNickname(raw);
+  if (error !== null) return error;
+  game.state.player.nickname = value;
+  storage.save(game.state);
+  ui.setSeat(value);
+  return null;
+}
+
+function openSettings() {
+  ui.openSettings({
+    nickname: game.state.player.nickname,
+    turbo: game.state.settings.turbo,
+    sound: game.state.settings.sound,
+    onNickname: (raw) => {
+      const error = saveNickname(raw);
+      if (error === null) ui.toast('닉네임을 변경했습니다. 기존 기록은 그대로 유지됩니다.');
+      return error;
+    },
+    onTurbo: (on) => {
+      game.state.settings.turbo = on;
+      storage.save(game.state);
+    },
+    onSound: (on) => {
+      setSound(on);
+    },
+    onReset: () => {
+      const ok = window.confirm('코인·통계·잭팟 기록·닉네임이 모두 지워집니다. 초기화할까요?');
+      if (!ok) return;
+      storage.reset();
+      window.location.reload();
+    },
+  });
+}
+
+function setSound(on) {
+  game.state.settings.sound = on;
+  ui.setSoundButton(on);
+  storage.save(game.state);
+}
+
 // ── 이벤트 배선 ───────────────────────────
 
 function wireControls() {
@@ -242,11 +302,38 @@ function wireControls() {
     ui.toast(`${ui.formatCoins(REFILL_AMOUNT)} 코인을 충전했습니다.`);
   });
 
+  ui.el.soundToggle.addEventListener('click', () => setSound(!game.state.settings.sound));
+
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');
     if (opener === null) return;
     if (opener.dataset.open === 'paytable') ui.openPaytable(game.mode.key);
+    if (opener.dataset.open === 'settings') openSettings();
   });
+}
+
+function wireOnboarding() {
+  ui.el.nicknameForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const { value, error } = validateNickname(ui.el.nicknameInput.value);
+    ui.setFieldError(ui.el.nicknameInput, ui.el.nicknameError, error);
+    if (error !== null) return;
+    game.state.player.nickname = value;
+    game.state.player.createdAt = Date.now();
+    storage.save(game.state);
+    enterCabinet();
+  });
+}
+
+function enterCabinet() {
+  const modeKey = MODE_KEYS.includes(game.state.settings.mode) ? game.state.settings.mode : MODE_KEYS[1];
+  ui.setSeat(game.state.player.nickname);
+  ui.showScreen('cabinet');
+  selectMode(modeKey);
+  ui.setAutoButton(false);
+  ui.setSoundButton(game.state.settings.sound);
+  ui.setMessage('스핀을 눌러 시작하세요.', true);
+  ui.setWin(0);
 }
 
 function boot() {
@@ -254,16 +341,16 @@ function boot() {
   ui.mountBulbs();
 
   game.state = storage.load();
-  const modeKey = MODE_KEYS.includes(game.state.settings.mode) ? game.state.settings.mode : MODE_KEYS[1];
   game.lineBet = BETS[game.state.settings.betIdx];
-
-  ui.setSeat(game.state.player.nickname ?? '손님');
-  ui.showScreen('cabinet');
-  selectMode(modeKey);
-  ui.setAutoButton(false);
-  ui.setMessage('스핀을 눌러 시작하세요.', true);
-  ui.setWin(0);
+  wireOnboarding();
   wireControls();
+
+  if (storage.hasPlayer(game.state)) {
+    enterCabinet();
+    return;
+  }
+  ui.showScreen('onboarding');
+  ui.el.nicknameInput.focus();
 }
 
 try {

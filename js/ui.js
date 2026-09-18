@@ -2,6 +2,7 @@
 
 import {
   BETS,
+  NICKNAME_RULES,
   CLASSIC_PAYS,
   LINE_PAYS,
   MIN_MATCH,
@@ -58,6 +59,13 @@ export const el = {
 
 export function reelsHost() {
   return el.reels;
+}
+
+// 닉네임은 사용자 입력이다. innerHTML에 넣기 전에 반드시 이스케이프한다.
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+export function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
 }
 
 export function formatCoins(value) {
@@ -136,7 +144,7 @@ export function setBetButtons(betIdx) {
 
 export function setSoundButton(on) {
   el.soundToggle.setAttribute('aria-pressed', String(on));
-  el.soundToggle.lastChild.textContent = on ? '소리' : '소리 끔';
+  el.soundToggle.querySelector('.tool__label').textContent = on ? '소리' : '소리 끔';
 }
 
 export function setBusy(busy, autoRunning) {
@@ -224,6 +232,56 @@ export function openModal({ title, body, foot = '' }) {
 
   el.modalRoot.append(wrap);
   wrap.querySelector('[data-close]').focus();
+  return wrap;
+}
+
+export function setFieldError(input, errorEl, message) {
+  const hasError = message !== null;
+  errorEl.hidden = !hasError;
+  errorEl.textContent = hasError ? message : '';
+  input.setAttribute('aria-invalid', String(hasError));
+}
+
+export function focusNicknameInput(value) {
+  el.nicknameInput.value = value;
+  el.nicknameInput.focus();
+}
+
+// ── 설정 ──────────────────────────────────
+
+export function openSettings({ nickname, turbo, sound, onNickname, onTurbo, onSound, onReset }) {
+  const wrap = openModal({
+    title: '설정',
+    body:
+      '<div class="field">' +
+      '<label class="field__label" for="settings-nickname">닉네임</label>' +
+      `<input id="settings-nickname" class="field__input" type="text" maxlength="${NICKNAME_RULES.max}" ` +
+      `autocomplete="off" spellcheck="false" value="${escapeHtml(nickname)}" aria-describedby="settings-nickname-error">` +
+      '<p class="field__error" id="settings-nickname-error" role="alert" hidden></p>' +
+      '</div>' +
+      '<button class="btn btn--primary btn--wide" type="button" data-save-nickname>닉네임 저장</button>' +
+      '<p class="modal__note">바꿔도 코인·통계·기록은 그대로 유지됩니다. 이미 남은 잭팟 기록에는 당첨 당시 닉네임이 그대로 남습니다.</p>' +
+      '<h3 class="modal__section">연출</h3>' +
+      `<label class="switch"><input type="checkbox" data-turbo ${turbo ? 'checked' : ''}>` +
+      '<span>터보 모드<span class="switch__desc">전체 애니메이션 시간을 1/3로 줄입니다.</span></span></label>' +
+      `<label class="switch"><input type="checkbox" data-sound ${sound ? 'checked' : ''}>` +
+      '<span>소리<span class="switch__desc">효과음을 켭니다. 첫 조작 시점에 오디오가 준비됩니다.</span></span></label>' +
+      '<h3 class="modal__section">초기화</h3>' +
+      '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
+      '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
+  });
+
+  const input = wrap.querySelector('#settings-nickname');
+  const error = wrap.querySelector('#settings-nickname-error');
+
+  wrap.querySelector('[data-save-nickname]').addEventListener('click', () => {
+    const message = onNickname(input.value);
+    setFieldError(input, error, message);
+    if (message === null) closeModal();
+  });
+  wrap.querySelector('[data-turbo]').addEventListener('change', (event) => onTurbo(event.target.checked));
+  wrap.querySelector('[data-sound]').addEventListener('change', (event) => onSound(event.target.checked));
+  wrap.querySelector('[data-reset]').addEventListener('click', onReset);
   return wrap;
 }
 

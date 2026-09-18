@@ -319,3 +319,28 @@
   .reel--anticipate::after { animation: none; opacity: 0.5; }
   .line-path { filter: none; }
 }
+
+/* ── 설정 스위치 ────────────────────────── */
+.switch {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid rgba(201, 150, 47, 0.18);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.switch input {
+  width: 20px; height: 20px;
+  accent-color: var(--brass);
+  flex: 0 0 auto;
+}
+
+.switch__desc { display: block; font-size: var(--fs-xs); opacity: 0.55; }
+
+.modal__section {
+  margin: var(--sp-5) 0 var(--sp-2);
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-md);
+  color: var(--brass);
+}
+
+.btn--danger { border-color: var(--neon); color: #ffd9e2; }
