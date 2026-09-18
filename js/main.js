@@ -166,12 +166,16 @@ async function presentWin(result, coinsBeforeWin) {
   });
 
   if (result.jackpot.hit) {
+    // 팡파르가 묻히지 않게 배경음만 낮춘다.
+    audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playJackpot();
     await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, speed);
   } else if (result.tier === 'mega') {
+    audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playBigWin();
     await ui.showMegaWin(result.totalWin, speed);
   } else if (result.tier === 'big') {
+    audio.duckMusic(TIMING.bannerHold / speed / 1000);
     audio.playBigWin();
     // 배너는 카운트업과 나란히 진행된다.
     ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, speed);
@@ -331,6 +335,7 @@ function openSettings() {
     nickname: game.state.player.nickname,
     turbo: game.state.settings.turbo,
     sound: game.state.settings.sound,
+    music: game.state.settings.music,
     onNickname: (raw) => {
       const error = saveNickname(raw);
       if (error === null) ui.toast('닉네임을 변경했습니다. 기존 기록은 그대로 유지됩니다.');
@@ -342,6 +347,9 @@ function openSettings() {
     },
     onSound: (on) => {
       setSound(on);
+    },
+    onMusic: (on) => {
+      setMusic(on);
     },
     onReset: () => {
       const ok = window.confirm('코인·통계·잭팟 기록·닉네임이 모두 지워집니다. 초기화할까요?');
@@ -361,7 +369,22 @@ function setSound(on) {
   storage.save(game.state);
 }
 
+// 배경음은 효과음 마스터에 종속된다. 소리가 꺼져 있으면 컨텍스트가 없어 재생되지 않는다.
+function setMusic(on) {
+  game.state.settings.music = on;
+  audio.setMusicEnabled(on);
+  storage.save(game.state);
+}
+
 // ── 이벤트 배선 ───────────────────────────
+
+// 탭을 벗어나면 배경음을 멈춘다. 돌아오면 다시 시작한다.
+function wireVisibility() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) audio.stopMusic();
+    else audio.startMusic();
+  });
+}
 
 // 첫 제스처에서 오디오를 준비한다. 소리가 꺼져 있으면 컨텍스트를 만들지 않는다.
 function wireAudioUnlock() {
@@ -466,7 +489,9 @@ function boot() {
   game.state = storage.load();
   game.lineBet = BETS[game.state.settings.betIdx];
   audio.setEnabled(game.state.settings.sound);
+  audio.setMusicEnabled(game.state.settings.music);
   wireAudioUnlock();
+  wireVisibility();
   wireOnboarding();
   wireControls();
 
