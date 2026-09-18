@@ -83,6 +83,19 @@ export const SCATTER_MIN = 3;
 // 총 베팅 배수 기준 당첨 등급
 export const WIN_TIERS = { big: 20, mega: 100 };
 
+// 당첨 등급별 연출 세기. 코인 파티클 개수와 흔들림 강도(px).
+export const EFFECTS = {
+  coinRain: { win: 0, big: 24, mega: 34, jackpot: 40 },
+  coinFountain: { win: 0, big: 16, mega: 26, jackpot: 32 },
+  shakePx: { win: 3, big: 7, mega: 12, jackpot: 14 },
+  // 섬광 세기. 일반 당첨은 자주 나오므로 약하게 터뜨린다.
+  flashPeak: { win: 0.4, big: 0.72, mega: 0.95, jackpot: 1 },
+  // 오버레이가 오래 열려 있는 동안 금화를 다시 쏟는 주기. 한 파동의 수명보다 길게 잡아
+  // 파동이 겹쳐 노드가 쌓이지 않게 한다.
+  coinWaveMs: 2200,
+  coinLifeMs: 2400,
+};
+
 export const HISTORY_LIMITS = { jackpotHistory: 20, bigWins: 10 };
 
 export const NICKNAME_RULES = { min: 2, max: 12 };
@@ -94,7 +107,12 @@ export const TIMING = {
   blurClearBefore: 200,   // 정지 직전 블러를 해제하는 구간
   anticipationExtra: 900, // 앤티시페이션 시 남은 릴이 더 도는 시간
   lineHighlight: 420,     // 라인 하나당 하이라이트 유지 시간
-  lineHighlightAll: 900,  // 마지막에 전체 라인을 함께 보여주는 시간
+  lineHighlightAll: 1100, // 마지막에 전체 라인을 함께 보여주는 시간
+  lineDraw: 300,          // 라인 경로를 그려 나가는 시간
+  flash: 280,             // 당첨 확정 순간의 섬광
+  shake: 460,             // 캐비닛 흔들림
+  burst: 640,             // 당첨 셀에서 퍼지는 링
+  celebrateHold: 1600,    // 마퀴 전구 고속 점등 유지 시간
   countUpMin: 420,
   countUpMax: 2500,
   countUpMega: 5000,

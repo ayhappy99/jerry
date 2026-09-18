@@ -156,6 +156,15 @@ function resultMessage(result) {
 async function presentWin(result, coinsBeforeWin) {
   if (result.totalWin === 0) return;
   const speed = presentationSpeed();
+  const effects = !reducedMotion.matches;
+  const tier = result.jackpot.hit ? 'jackpot' : result.tier;
+
+  // 당첨이 확정된 순간: 섬광 → 캐비닛 흔들림 → 마퀴·프레임 고속 점등
+  if (effects) {
+    ui.flashWindow(tier, speed);
+    ui.shakeCabinet(tier, speed);
+    ui.celebrate(TIMING.celebrateHold / speed);
+  }
 
   // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
   if (result.tier === 'win') audio.playWin();
@@ -165,20 +174,24 @@ async function presentWin(result, coinsBeforeWin) {
     onLine: () => audio.playLineTick(),
   });
 
+  if (result.freeSpinsAwarded > 0) {
+    ui.showBigWin(`프리스핀 ${result.freeSpinsAwarded}회 획득!`, { speed, tier: 'free', effects });
+  }
+
   if (result.jackpot.hit) {
     // 팡파르가 묻히지 않게 배경음만 낮춘다.
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playJackpot();
-    await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, speed);
+    await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, { speed, effects });
   } else if (result.tier === 'mega') {
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playBigWin();
-    await ui.showMegaWin(result.totalWin, speed);
+    await ui.showMegaWin(result.totalWin, { speed, effects });
   } else if (result.tier === 'big') {
     audio.duckMusic(TIMING.bannerHold / speed / 1000);
     audio.playBigWin();
     // 배너는 카운트업과 나란히 진행된다.
-    ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, speed);
+    ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, { speed, tier: 'big', effects });
   }
 
   await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result), () =>

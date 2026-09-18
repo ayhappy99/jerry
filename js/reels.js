@@ -65,6 +65,8 @@ export function clearHighlights(host) {
   for (const cell of host.querySelectorAll('.cell--win, .cell--scatter')) {
     cell.classList.remove('cell--win', 'cell--scatter');
   }
+  for (const burst of host.querySelectorAll('.burst')) burst.remove();
+  host.classList.remove('reels--focus');
 }
 
 // 현재 화면에 보이는 심볼. 회전 시작 프레임을 이 심볼로 채워 튀는 느낌을 없앤다.
