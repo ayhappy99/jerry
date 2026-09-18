@@ -1,0 +1,76 @@
+/* 디자인 토큰만 정의한다. 선택자 스타일은 cabinet.css / ui.css 에 둔다. */
+
+:root {
+  /* 팔레트: 잉크(옻칠) · 목재 · 황동 · 네온 · 크레딧 발광 · 크림. 6색으로 제한한다. */
+  --ink: #120b08;
+  --ink-2: #1d100c;
+  --wood: #3a1a12;
+  --wood-2: #24100b;
+  --brass: #c9962f;
+  --brass-lite: #f7e2a3;
+  --brass-dark: #6d4a10;
+  --neon: #ff2f62;
+  --credit: #7ff0c0;
+  --cream: #f2e4c6;
+
+  /* 심볼 아트는 SVG 안에서 자체 그라디언트를 쓰고, UI에서 참조할 대표색만 토큰으로 둔다. */
+  --sym-cherry: #d81f3c;
+  --sym-lemon: #f5c518;
+  --sym-bell: #e8ae2c;
+  --sym-bar: #e4d6b4;
+  --sym-seven: #e01b3c;
+  --sym-diamond: #5fd7f0;
+  --sym-crown: #f0bb3a;
+  --sym-star: #ffe066;
+
+  /* 타이포 */
+  --font-display: 'Black Han Sans', system-ui, sans-serif;
+  --font-body: 'Gothic A1', system-ui, sans-serif;
+  --fs-xs: 0.72rem;
+  --fs-sm: 0.82rem;
+  --fs-md: 0.95rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.7rem;
+  --fs-2xl: 2.4rem;
+
+  /* 간격 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* 릴 셀 크기. 브레이크포인트에서 이 값만 바꾼다. */
+  --cell: 108px;
+  --cell-gap: 6px;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  --shadow-inset: inset 0 8px 24px rgba(0, 0, 0, 0.75);
+  --shadow-raised: 0 6px 0 var(--brass-dark), 0 10px 24px rgba(0, 0, 0, 0.55);
+  --brass-frame: linear-gradient(180deg, var(--brass-lite) 0%, var(--brass) 38%, var(--brass-dark) 100%);
+  --wood-face: linear-gradient(180deg, var(--wood) 0%, var(--wood-2) 100%);
+
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+@media (max-width: 900px) {
+  :root { --cell: 92px; }
+}
+
+@media (max-width: 680px) {
+  :root { --cell: 76px; --cell-gap: 5px; }
+}
+
+@media (max-width: 480px) {
+  :root { --cell: 56px; --cell-gap: 4px; }
+}
+
+@media (max-width: 360px) {
+  :root { --cell: 48px; --cell-gap: 3px; --sp-4: 10px; --sp-5: 14px; }
+}

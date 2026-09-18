@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lucky Cabinet</title>
+<meta name="description" content="가상 코인으로 돌리는 개인용 슬롯머신. 실제 금전 요소는 없습니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/cabinet.css">
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+<div id="sprite" class="sprite" aria-hidden="true"></div>
+
+<!-- 치명적 오류를 사용자에게 알리는 자리. main.js 한 곳에서만 채운다. -->
+<div id="fatal" class="fatal" role="alert" hidden></div>
+
+<!-- 첫 방문 온보딩 -->
+<main id="screen-onboarding" class="screen screen--onboarding" hidden>
+  <section class="onboard">
+    <p class="onboard__kicker">LUCKY CABINET</p>
+    <h1 class="onboard__title">자리에 앉기</h1>
+    <p class="onboard__desc">닉네임을 정하면 캐비닛이 열립니다.<br>가상 코인 10,000,000으로 시작합니다.</p>
+    <form id="nickname-form" novalidate>
+      <div class="field">
+        <label class="field__label" for="nickname-input">닉네임</label>
+        <input id="nickname-input" class="field__input" type="text" inputmode="text"
+               autocomplete="off" spellcheck="false" maxlength="12" placeholder="2~12자"
+               aria-describedby="nickname-error">
+        <p id="nickname-error" class="field__error" role="alert" hidden></p>
+      </div>
+      <button class="btn btn--primary btn--wide" type="submit">캐비닛 열기</button>
+    </form>
+    <p class="onboard__note">가상 코인만 사용하며 실제 금전 요소는 없습니다.</p>
+  </section>
+</main>
+
+<!-- 캐비닛 -->
+<main id="screen-cabinet" class="screen screen--cabinet" hidden>
+  <header class="marquee">
+    <div class="marquee__bulbs" aria-hidden="true"></div>
+    <div class="marquee__inner">
+      <h1 class="marquee__title">LUCKY<span>CABINET</span></h1>
+      <p class="marquee__seat" id="seat-label"></p>
+    </div>
+    <button class="icon-btn marquee__settings" type="button" data-open="settings" aria-label="설정 열기">
+      <span aria-hidden="true">⚙</span>
+    </button>
+  </header>
+
+  <section class="jackpot" aria-labelledby="jackpot-label">
+    <p class="jackpot__label" id="jackpot-label">PROGRESSIVE JACKPOT</p>
+    <output class="jackpot__meter" id="jackpot-meter" aria-live="off">0</output>
+    <p class="jackpot__hint" id="jackpot-hint"></p>
+  </section>
+
+  <nav class="modes" id="modes" role="tablist" aria-label="게임 모드"></nav>
+
+  <section class="cabinet">
+    <div class="cabinet__frame">
+      <div class="cabinet__window">
+        <div class="reels" id="reels"></div>
+        <svg class="lines" id="lines" aria-hidden="true" preserveAspectRatio="none"></svg>
+        <div class="glass" aria-hidden="true"></div>
+        <div class="freespin-badge" id="freespin-badge" hidden></div>
+      </div>
+    </div>
+    <p class="sr-only" id="reel-readout" aria-live="polite"></p>
+  </section>
+
+  <section class="panel">
+    <div class="meters">
+      <div class="meter">
+        <span class="meter__label">크레딧</span>
+        <output class="meter__value meter__value--credit" id="credit-meter">0</output>
+      </div>
+      <div class="meter">
+        <span class="meter__label">베팅</span>
+        <output class="meter__value" id="bet-meter">0</output>
+        <span class="meter__sub" id="bet-sub"></span>
+      </div>
+      <div class="meter">
+        <span class="meter__label">당첨</span>
+        <output class="meter__value meter__value--win" id="win-meter">0</output>
+      </div>
+    </div>
+
+    <p class="message" id="message" aria-live="polite"></p>
+
+    <div class="controls">
+      <div class="controls__bet">
+        <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
+        <span class="controls__betlabel" id="bet-label">0</span>
+        <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
+        <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+      </div>
+      <button class="btn btn--spin" type="button" id="spin">SPIN</button>
+      <button class="btn btn--auto" type="button" id="auto">자동</button>
+    </div>
+  </section>
+
+  <footer class="toolbar">
+    <button class="tool" type="button" data-open="paytable"><span aria-hidden="true">▤</span>배당표</button>
+    <button class="tool" type="button" data-open="history"><span aria-hidden="true">★</span>기록</button>
+    <button class="tool" type="button" data-open="stats"><span aria-hidden="true">📊</span>통계</button>
+    <button class="tool" type="button" id="sound-toggle"><span aria-hidden="true">♪</span>소리</button>
+    <button class="tool" type="button" id="refill"><span aria-hidden="true">＋</span>충전</button>
+    <button class="tool" type="button" data-open="settings"><span aria-hidden="true">⚙</span>설정</button>
+  </footer>
+</main>
+
+<div id="modal-root"></div>
+<div id="overlay-root"></div>
+<div id="toast-root" class="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

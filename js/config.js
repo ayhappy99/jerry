@@ -70,9 +70,8 @@ export const REFILL_AMOUNT = 1000000;
 export const JACKPOT_SEED = 50000000;
 // 매 스핀 총 베팅의 1%를 잭팟 풀에 적립한다. 프리스핀은 적립하지 않는다.
 export const JACKPOT_CONTRIB_RATE = 0.01;
-// 잭팟 미터가 살아있어 보이도록 화면에서만 미세하게 올려 보여주는 값 (실제 풀에는 영향 없음)
-export const JACKPOT_TICK_MS = 1200;
-export const JACKPOT_TICK_AMOUNT = 1300;
+// 잭팟 미터는 실제 풀 값으로만 굴러간다. 화면에서만 올려 보여주는 가짜 증가는 넣지 않는다.
+export const JACKPOT_ROLL_MS = 900;
 
 export const FREE_SPIN_AWARD = 10;
 export const FREE_SPIN_MULTIPLIER = 2;
