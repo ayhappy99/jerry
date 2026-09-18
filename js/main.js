@@ -11,6 +11,7 @@ import {
   TIMING,
   WIN_TIERS,
 } from './config.js';
+import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf } from './engine.js';
 import { buildGrid, drawStops } from './rng.js';
 import { clearHighlights, renderReels, spinReels } from './reels.js';
@@ -142,21 +143,29 @@ async function presentWin(result, coinsBeforeWin) {
   if (result.totalWin === 0) return;
   const speed = presentationSpeed();
 
+  // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
+  if (result.tier === 'win') audio.playWin();
   await ui.playLineWins(result.lineWins, result.scatter, {
     speed,
     instant: reducedMotion.matches,
+    onLine: () => audio.playLineTick(),
   });
 
   if (result.jackpot.hit) {
+    audio.playJackpot();
     await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, speed);
   } else if (result.tier === 'mega') {
+    audio.playBigWin();
     await ui.showMegaWin(result.totalWin, speed);
   } else if (result.tier === 'big') {
+    audio.playBigWin();
     // 배너는 카운트업과 나란히 진행된다.
     ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, speed);
   }
 
-  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result));
+  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result), () =>
+    audio.playCountTick(),
+  );
 }
 
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
@@ -165,7 +174,16 @@ async function revealSpin(spin) {
     renderReels(ui.reelsHost(), game.mode, spin.stops);
     return;
   }
-  await spinReels(ui.reelsHost(), game.mode, spin, { turbo: game.state.settings.turbo });
+  const lastReel = game.mode.reels - 1;
+  audio.startReelLoop();
+  await spinReels(ui.reelsHost(), game.mode, spin, {
+    turbo: game.state.settings.turbo,
+    onAnticipate: () => audio.playAnticipation(),
+    onReelStop: (reel) => {
+      if (reel === lastReel) audio.stopReelLoop();
+      audio.playReelStop();
+    },
+  });
 }
 
 async function runSpin() {
@@ -322,11 +340,30 @@ function openSettings() {
 
 function setSound(on) {
   game.state.settings.sound = on;
+  audio.setEnabled(on);
+  // 이 함수는 사용자 조작에서만 호출되므로 여기서 컨텍스트를 만들어도 제스처 안이다.
+  if (on) audio.unlock();
   ui.setSoundButton(on);
   storage.save(game.state);
 }
 
 // ── 이벤트 배선 ───────────────────────────
+
+// 첫 제스처에서 오디오를 준비한다. 소리가 꺼져 있으면 컨텍스트를 만들지 않는다.
+function wireAudioUnlock() {
+  const handler = () => {
+    audio.unlock();
+    audio.playButton();
+  };
+  document.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button') === null) return;
+    handler();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    handler();
+  });
+}
 
 function wireControls() {
   ui.el.modes.addEventListener('click', (event) => {
@@ -392,6 +429,8 @@ function boot() {
 
   game.state = storage.load();
   game.lineBet = BETS[game.state.settings.betIdx];
+  audio.setEnabled(game.state.settings.sound);
+  wireAudioUnlock();
   wireOnboarding();
   wireControls();
 
