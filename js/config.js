@@ -2,7 +2,10 @@
 // 배당·가중치·베팅·연출 시간은 여기서만 정의하고, 다른 파일에는 숫자를 하드코딩하지 않는다.
 
 export const STORAGE_KEY = 'lucky-cabinet:v1';
-export const SCHEMA_VERSION = 1;
+// 스키마 이력. 버전이 올라가도 기존 데이터는 지우지 않고 누락 필드만 채운다.
+//   1: 최초
+//   2: settings.music(배경음) 추가
+export const SCHEMA_VERSION = 2;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';

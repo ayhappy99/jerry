@@ -441,7 +441,7 @@ export function setFieldError(input, errorEl, message) {
 
 // ── 설정 ──────────────────────────────────
 
-export function openSettings({ nickname, turbo, sound, onNickname, onTurbo, onSound, onReset }) {
+export function openSettings({ nickname, turbo, sound, music, onNickname, onTurbo, onSound, onMusic, onReset }) {
   const wrap = openModal({
     title: '설정',
     body:
@@ -456,8 +456,11 @@ export function openSettings({ nickname, turbo, sound, onNickname, onTurbo, onSo
       '<h3 class="modal__section">연출</h3>' +
       `<label class="switch"><input type="checkbox" data-turbo ${turbo ? 'checked' : ''}>` +
       '<span>터보 모드<span class="switch__desc">전체 애니메이션 시간을 1/3로 줄입니다.</span></span></label>' +
+      '<h3 class="modal__section">소리</h3>' +
       `<label class="switch"><input type="checkbox" data-sound ${sound ? 'checked' : ''}>` +
-      '<span>소리<span class="switch__desc">효과음을 켭니다. 첫 조작 시점에 오디오가 준비됩니다.</span></span></label>' +
+      '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
+      `<label class="switch"><input type="checkbox" data-music ${music ? 'checked' : ''}>` +
+      '<span>배경음<span class="switch__desc">라운지풍 4코드 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
       '<h3 class="modal__section">초기화</h3>' +
       '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
       '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
@@ -473,6 +476,7 @@ export function openSettings({ nickname, turbo, sound, onNickname, onTurbo, onSo
   });
   wrap.querySelector('[data-turbo]').addEventListener('change', (event) => onTurbo(event.target.checked));
   wrap.querySelector('[data-sound]').addEventListener('change', (event) => onSound(event.target.checked));
+  wrap.querySelector('[data-music]').addEventListener('change', (event) => onMusic(event.target.checked));
   wrap.querySelector('[data-reset]').addEventListener('click', onReset);
   return wrap;
 }

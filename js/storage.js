@@ -16,7 +16,7 @@ export function defaultState() {
     player: { nickname: null, createdAt: null },
     wallet: { coins: START_COINS, totalRefills: 0 },
     jackpot: { pool: JACKPOT_SEED, seed: JACKPOT_SEED },
-    settings: { mode: MODE_KEYS[1], betIdx: 2, sound: true, turbo: false },
+    settings: { mode: MODE_KEYS[1], betIdx: 2, sound: true, music: true, turbo: false },
     stats: {
       spins: 0,
       totalWagered: 0,
