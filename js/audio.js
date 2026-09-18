@@ -29,10 +29,6 @@ export function setEnabled(on) {
   if (!on) stopReelLoop();
 }
 
-export function isEnabled() {
-  return enabled;
-}
-
 // 첫 사용자 제스처에서 호출한다. 여기가 컨텍스트를 만드는 유일한 지점이다.
 export function unlock() {
   if (!enabled) return;

@@ -8,6 +8,7 @@ import {
   JACKPOT_ROLL_MS,
   NICKNAME_RULES,
   REFILL_AMOUNT,
+  SYMBOLS,
   TIMING,
   WIN_TIERS,
 } from './config.js';
@@ -131,6 +132,19 @@ function recordWinHistory(result) {
   }
 }
 
+function readoutText(result) {
+  if (result.jackpot.hit) {
+    return `잭팟 당첨. ${ui.formatCoins(result.jackpot.amount)} 코인. 총 ${ui.formatCoins(result.totalWin)} 코인 획득.`;
+  }
+  const parts = result.lineWins.map(
+    (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 라인 ${win.lineIndex + 1}`,
+  );
+  if (result.scatter !== null) parts.push(`스캐터 ${result.scatter.count}개`);
+  if (parts.length === 0) return '당첨 없음';
+  const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
+  return `${parts.join(', ')}. ${ui.formatCoins(result.totalWin)} 코인 획득.${free}`;
+}
+
 function resultMessage(result) {
   if (result.jackpot.hit) return `잭팟! ${ui.formatCoins(result.jackpot.amount)} 획득`;
   if (result.freeSpinsAwarded > 0) return `스캐터 ${result.scatter.count}개! 프리스핀 10회`;
@@ -237,7 +251,7 @@ async function runSpin() {
 
   ui.setWin(result.totalWin);
   ui.setMessage(resultMessage(result));
-  ui.setReadout(result.totalWin === 0 ? '당첨 없음' : `${ui.formatCoins(result.totalWin)} 코인 당첨`);
+  ui.setReadout(readoutText(result));
 
   // 스핀 1회당 저장은 여기 한 번뿐이다. 자동스핀 중에도 같다.
   storage.save(game.state);
@@ -372,6 +386,19 @@ function wireControls() {
     selectMode(tab.dataset.mode);
   });
 
+  // 탭 위젯 표준 키보드 조작: 좌우 화살표로 모드를 옮긴다.
+  ui.el.modes.addEventListener('keydown', (event) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    if (step === undefined) return;
+    const tabs = ui.modeTabs();
+    if (tabs.some((tab) => tab.disabled)) return;
+    event.preventDefault();
+    const current = MODE_KEYS.indexOf(game.mode.key);
+    const next = (current + step + MODE_KEYS.length) % MODE_KEYS.length;
+    selectMode(MODE_KEYS[next]);
+    ui.modeTabs()[next].focus();
+  });
+
   ui.el.betDown.addEventListener('click', () => changeBet(game.state.settings.betIdx - 1));
   ui.el.betUp.addEventListener('click', () => changeBet(game.state.settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
@@ -388,6 +415,15 @@ function wireControls() {
   });
 
   ui.el.soundToggle.addEventListener('click', () => setSound(!game.state.settings.sound));
+
+  // 스페이스바 = 스핀. 버튼·입력에 포커스가 있을 때는 그쪽 기본 동작을 방해하지 않는다.
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== ' ' && event.code !== 'Space') return;
+    if (ui.el.cabinet.hidden) return;
+    if (event.target.closest('button, input, textarea, select, [role="dialog"]') !== null) return;
+    event.preventDefault();
+    runSpinLoop();
+  });
 
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');

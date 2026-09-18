@@ -97,11 +97,19 @@ export function renderModeTabs(activeKey) {
   el.modes.innerHTML = MODE_KEYS.map((key) => {
     const mode = MODES[key];
     const sub = `${mode.reels}릴 · ${mode.lines}라인`;
+    const selected = key === activeKey;
+    // 선택된 탭만 탭 순서에 남기고(탭 위젯 표준), 패널의 이름표 역할도 맡는다.
     return (
       `<button class="mode-tab" type="button" role="tab" data-mode="${key}" ` +
-      `aria-selected="${key === activeKey}">${mode.label}<span class="mode-tab__sub">${sub}</span></button>`
+      `aria-controls="reels-panel" aria-selected="${selected}" tabindex="${selected ? 0 : -1}"` +
+      `${selected ? ' id="mode-tab-selected"' : ''}>` +
+      `${mode.label}<span class="mode-tab__sub">${sub}</span></button>`
     );
   }).join('');
+}
+
+export function modeTabs() {
+  return [...el.modes.querySelectorAll('.mode-tab')];
 }
 
 export function setSeat(nickname) {

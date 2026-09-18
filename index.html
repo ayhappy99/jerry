@@ -57,18 +57,18 @@
     <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
 
-  <nav class="modes" id="modes" role="tablist" aria-label="게임 모드"></nav>
+  <div class="modes" id="modes" role="tablist" aria-label="게임 모드"></div>
 
   <section class="cabinet">
     <div class="cabinet__frame">
-      <div class="cabinet__window">
+      <div class="cabinet__window" id="reels-panel" role="tabpanel" aria-labelledby="mode-tab-selected">
         <div class="reels" id="reels"></div>
         <svg class="lines" id="lines" aria-hidden="true" preserveAspectRatio="none"></svg>
         <div class="glass" aria-hidden="true"></div>
         <div class="freespin-badge" id="freespin-badge" hidden></div>
       </div>
     </div>
-    <p class="sr-only" id="reel-readout" aria-live="polite"></p>
+    <p class="sr-only" id="reel-readout" role="status" aria-live="polite"></p>
   </section>
 
   <section class="panel">
@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <p class="message" id="message" aria-live="polite"></p>
+    <p class="message" id="message"></p>
 
     <div class="controls">
       <div class="controls__bet">
@@ -97,7 +97,7 @@
         <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
         <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
       </div>
-      <button class="btn btn--spin" type="button" id="spin">SPIN</button>
+      <button class="btn btn--spin" type="button" id="spin" aria-keyshortcuts="Space">SPIN</button>
       <button class="btn btn--auto" type="button" id="auto">자동</button>
     </div>
   </section>

@@ -64,8 +64,8 @@ body {
   text-shadow: 0 2px 0 var(--brass-dark), 0 0 22px rgba(201, 150, 47, 0.45);
 }
 
-.onboard__desc { margin: 0 0 var(--sp-5); font-size: var(--fs-sm); line-height: 1.7; opacity: 0.82; }
-.onboard__note { margin: var(--sp-5) 0 0; font-size: var(--fs-xs); opacity: 0.5; }
+.onboard__desc { margin: 0 0 var(--sp-5); font-size: var(--fs-sm); line-height: 1.7; opacity: 0.85; }
+.onboard__note { margin: var(--sp-5) 0 0; font-size: var(--fs-xs); opacity: 0.7; }
 
 /* ── 마퀴 ───────────────────────────────── */
 .marquee {
@@ -108,7 +108,7 @@ body {
 }
 .marquee__title span { display: block; color: var(--neon); font-size: 0.72em; letter-spacing: 0.2em; }
 
-.marquee__seat { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--cream); opacity: 0.8; }
+.marquee__seat { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--cream); opacity: 0.9; }
 
 .marquee__settings { position: absolute; top: var(--sp-4); right: var(--sp-3); }
 
@@ -135,7 +135,7 @@ body {
   text-shadow: 0 0 14px rgba(255, 47, 98, 0.9), 0 0 32px rgba(255, 47, 98, 0.45);
 }
 
-.jackpot__hint { margin: 0; font-size: var(--fs-xs); opacity: 0.55; }
+.jackpot__hint { margin: 0; font-size: var(--fs-xs); opacity: 0.7; }
 
 /* ── 모드 탭 ────────────────────────────── */
 .modes {
@@ -155,7 +155,7 @@ body {
   transition: transform 0.12s ease, background 0.18s ease, color 0.18s ease;
 }
 
-.mode-tab__sub { display: block; font-size: var(--fs-xs); font-weight: 400; opacity: 0.6; }
+.mode-tab__sub { display: block; font-size: var(--fs-xs); font-weight: 400; opacity: 0.75; }
 
 .mode-tab[aria-selected="true"] {
   background: var(--brass-frame);
@@ -305,7 +305,7 @@ body {
   min-width: 0;
 }
 
-.meter__label { display: block; font-size: var(--fs-xs); letter-spacing: 0.06em; opacity: 0.55; }
+.meter__label { display: block; font-size: var(--fs-xs); letter-spacing: 0.06em; opacity: 0.75; }
 
 .meter__value {
   display: block;
@@ -318,7 +318,7 @@ body {
 
 .meter__value--credit { color: var(--credit); text-shadow: 0 0 12px rgba(127, 240, 192, 0.55); }
 .meter__value--win { color: var(--brass-lite); text-shadow: 0 0 12px rgba(247, 226, 163, 0.5); }
-.meter__sub { display: block; font-size: var(--fs-xs); opacity: 0.5; }
+.meter__sub { display: block; font-size: var(--fs-xs); opacity: 0.7; }
 
 .message {
   min-height: 1.6em;
@@ -328,7 +328,7 @@ body {
   color: var(--brass-lite);
 }
 
-.message--muted { color: var(--cream); opacity: 0.55; }
+.message--muted { color: var(--cream); opacity: 0.75; }
 
 .controls {
   display: grid;
