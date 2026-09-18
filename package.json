@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "name": "lucky-cabinet",
+  "description": "Node가 js/ 의 ES Module을 그대로 import 해 밸런스 시뮬레이션을 돌리기 위한 파일. 빌드 도구도, 의존성도 없다."
+}
