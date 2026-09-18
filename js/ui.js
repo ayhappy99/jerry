@@ -2,12 +2,13 @@
 
 import {
   BETS,
-  NICKNAME_RULES,
   CLASSIC_PAYS,
+  HISTORY_LIMITS,
   LINE_PAYS,
   MIN_MATCH,
   MODES,
   MODE_KEYS,
+  NICKNAME_RULES,
   SCATTER,
   SCATTER_MIN,
   SCATTER_PAYS,
@@ -15,6 +16,7 @@ import {
   SYMBOL_ORDER,
   TIMING,
   WILD,
+  WIN_TIERS,
   modePaylines,
 } from './config.js';
 import { cellAt, clearHighlights } from './reels.js';
@@ -465,6 +467,84 @@ export function openSettings({ nickname, turbo, sound, onNickname, onTurbo, onSo
   wrap.querySelector('[data-sound]').addEventListener('change', (event) => onSound(event.target.checked));
   wrap.querySelector('[data-reset]').addEventListener('click', onReset);
   return wrap;
+}
+
+// ── 기록 ──────────────────────────────────
+
+function recordRow(entry, extra = '') {
+  const mode = MODES[entry.mode]?.short ?? entry.mode;
+  return (
+    '<div class="record">' +
+    `<div><span class="record__who">${escapeHtml(entry.nickname)}</span>` +
+    `<span class="record__meta"> · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
+    `<span class="record__meta" style="display:block">${formatDateTime(entry.at)}</span></div>` +
+    `<span class="record__amount">${formatCoins(entry.amount)}</span>` +
+    '</div>'
+  );
+}
+
+function historySection(title, entries, emptyText, extraOf) {
+  const body =
+    entries.length === 0
+      ? `<p class="empty">${emptyText}</p>`
+      : entries.map((entry) => recordRow(entry, extraOf(entry))).join('');
+  return `<h3 class="modal__section">${title}</h3>${body}`;
+}
+
+export function openHistory({ jackpotHistory, bigWins }) {
+  openModal({
+    title: '기록',
+    body:
+      historySection(
+        `잭팟 (최신 ${HISTORY_LIMITS.jackpotHistory}건)`,
+        jackpotHistory,
+        '아직 잭팟이 없습니다. 프리스핀·잭팟 모드에서 다이아 5개를 노려보세요.',
+        () => '',
+      ) +
+      historySection(
+        `빅윈 (최신 ${HISTORY_LIMITS.bigWins}건)`,
+        bigWins,
+        `아직 빅윈이 없습니다. 총 베팅의 ${WIN_TIERS.big}배 이상 당첨되면 여기에 남습니다.`,
+        (entry) => ` · ${Math.floor(entry.multiple)}배`,
+      ),
+  });
+}
+
+// ── 통계 ──────────────────────────────────
+
+function stat(label, value, accent = false) {
+  return (
+    `<div class="stat"><span class="stat__label">${label}</span>` +
+    `<span class="stat__value${accent ? ' stat__value--accent' : ''}">${value}</span></div>`
+  );
+}
+
+export function openStats({ stats, wallet }) {
+  // 실측 환수율 = 총 획득 / 총 베팅. 프리스핀 당첨은 베팅 없이 얻으므로 분자에만 들어간다.
+  const rtp =
+    stats.totalWagered === 0
+      ? '스핀 기록 없음'
+      : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
+
+  openModal({
+    title: '통계',
+    body:
+      '<div class="stat-grid">' +
+      stat('총 스핀', `${formatCoins(stats.spins)}회`) +
+      stat('실측 환수율', rtp, true) +
+      stat('총 베팅', formatCoins(stats.totalWagered)) +
+      stat('총 획득', formatCoins(stats.totalWon)) +
+      stat('최고 당첨', formatCoins(stats.bestWin)) +
+      stat('프리스핀 발동', `${formatCoins(stats.freeSpinsTriggered)}회`) +
+      stat('최장 연속 꽝', `${formatCoins(stats.longestDrySpell)}회`) +
+      stat('충전 횟수', `${formatCoins(wallet.totalRefills)}회`) +
+      '</div>' +
+      (stats.bestWinAt === null
+        ? ''
+        : `<p class="modal__note">최고 당첨 시각 ${formatDateTime(stats.bestWinAt)}</p>`) +
+      '<p class="modal__note">실측 환수율은 총 획득 ÷ 총 베팅입니다. 스핀이 쌓일수록 ' +
+      '시뮬레이션 값(클래식 95.02% / 9라인 95.00% / 보너스 94.94%)에 수렴합니다.</p>',
+  });
 }
 
 // ── 배당표 ────────────────────────────────

@@ -212,6 +212,8 @@ async function runSpin() {
   if (result.jackpot.hit) game.state.jackpot.pool = game.state.jackpot.seed;
   game.state.wallet.coins += result.totalWin;
   game.freeSpinsLeft += result.freeSpinsAwarded;
+  // 프리스핀 배지는 연출을 기다리지 않고 획득 즉시 보여준다.
+  ui.setFreeSpinBadge(game.freeSpinsLeft);
   recordStats(result);
   recordWinHistory(result);
 
@@ -354,6 +356,8 @@ function wireControls() {
     const opener = event.target.closest('[data-open]');
     if (opener === null) return;
     if (opener.dataset.open === 'paytable') ui.openPaytable(game.mode.key);
+    if (opener.dataset.open === 'history') ui.openHistory(game.state);
+    if (opener.dataset.open === 'stats') ui.openStats(game.state);
     if (opener.dataset.open === 'settings') openSettings();
   });
 }
