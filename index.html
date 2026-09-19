@@ -48,10 +48,10 @@
 
   <section class="lobby__shared">
     <div class="lobby__credit">
-      <span class="meter__label">크레딧 (게임 공용)</span>
+      <span class="meter__label">내 코인 <small>두 게임이 같이 씁니다</small></span>
       <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
     </div>
-    <p class="lobby__jplabel">공유 프로그레시브 잭팟</p>
+    <p class="lobby__jplabel">두 게임이 같이 쌓는 잭팟</p>
     <div class="jackpots" id="lobby-jackpots"></div>
   </section>
 
@@ -73,13 +73,13 @@
     <button class="icon-btn marquee__lobby" type="button" id="to-lobby" aria-label="게임 선택으로 돌아가기">
       <span aria-hidden="true">◀</span>
     </button>
-    <button class="icon-btn marquee__settings" type="button" data-open="settings" aria-label="설정 열기">
-      <span aria-hidden="true">⚙</span>
+    <button class="icon-btn marquee__settings" type="button" data-open="menu" aria-label="메뉴 열기">
+      <span aria-hidden="true">☰</span>
     </button>
   </header>
 
   <section class="jackpot" aria-labelledby="jackpot-label">
-    <p class="jackpot__label" id="jackpot-label">PROGRESSIVE JACKPOT</p>
+    <p class="jackpot__label" id="jackpot-label">계속 쌓이는 잭팟 <small>PROGRESSIVE JACKPOT</small></p>
     <div class="jackpots" id="jackpot-bar"></div>
     <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
@@ -107,26 +107,23 @@
     <div class="dock">
       <div class="dock__left">
         <div class="meter">
-          <span class="meter__label">CREDIT</span>
+          <span class="meter__label">내 코인 <small>CREDIT</small></span>
           <output class="meter__value meter__value--credit" id="credit-meter">0</output>
         </div>
         <div class="dock__bet">
+          <span class="meter__label">한 번에 거는 돈 <small>BET</small></span>
           <div class="controls__bet">
-            <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
-            <span class="controls__betlabel" id="bet-label">0</span>
-            <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
+            <button class="btn btn--round" type="button" id="bet-down" aria-label="거는 돈 낮추기">−</button>
+            <output class="controls__betlabel" id="bet-label">0</output>
+            <button class="btn btn--round" type="button" id="bet-up" aria-label="거는 돈 올리기">＋</button>
             <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
           </div>
-          <p class="dock__betsub">
-            <span class="meter__label">BET</span>
-            <output id="bet-meter">0</output>
-            <span id="bet-sub"></span>
-          </p>
+          <p class="dock__betsub" id="bet-sub"></p>
         </div>
       </div>
 
       <div class="dock__win">
-        <span class="dock__winlabel">TOTAL WIN</span>
+        <span class="dock__winlabel">이번 당첨금 <small>TOTAL WIN</small></span>
         <output class="dock__winvalue" id="win-meter">0</output>
       </div>
 
@@ -141,6 +138,7 @@
   </section>
 
   <footer class="toolbar">
+    <button class="tool" type="button" data-open="howto"><span aria-hidden="true">?</span><span class="tool__label">게임 방법</span></button>
     <button class="tool" type="button" data-open="paytable"><span aria-hidden="true">▤</span><span class="tool__label">배당표</span></button>
     <button class="tool" type="button" data-open="history"><span aria-hidden="true">★</span><span class="tool__label">기록</span></button>
     <button class="tool" type="button" data-open="stats"><span aria-hidden="true">📊</span><span class="tool__label">통계</span></button>

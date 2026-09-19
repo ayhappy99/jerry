@@ -14,6 +14,7 @@ import {
   NICKNAME_RULES,
   PHARAOH,
   REFILL_AMOUNT,
+  SCATTER,
   SYMBOLS,
   TIMING,
   WIN_TIERS,
@@ -37,6 +38,8 @@ const game = {
   lineBet: 0,
   freeSpinsLeft: 0,
   busy: false,
+  // 진행 중인 스핀 루프. 체험형 안내가 스핀 종료를 기다릴 때 쓴다.
+  loopPromise: Promise.resolve(),
   auto: false,
   // 남은 자동 스핀 횟수. null은 무한이다.
   autoLeft: null,
@@ -80,16 +83,17 @@ function currentTotalBet() {
     : totalBetOf(game.mode, game.lineBet);
 }
 
+// 총액이 어떻게 나왔는지 계산식으로 보여준다. "왜 10배가 빠지냐"에 화면이 답해야 한다.
 function betNote(unitBet) {
   return game.kind === 'cascade'
-    ? `베팅 단위 ${ui.formatCoins(unitBet)} × ${PHARAOH.betUnits}`
-    : `라인당 ${ui.formatCoins(unitBet)} × ${game.mode.lines}`;
+    ? `기본 ${ui.formatCoins(unitBet)} × ${PHARAOH.betUnits}`
+    : `한 줄에 ${ui.formatCoins(unitBet)} × ${game.mode.lines}줄`;
 }
 
 function syncMeters() {
   const unitBet = BETS[section().settings.betIdx];
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(unitBet, currentTotalBet(), betNote(unitBet));
+  ui.setBet(currentTotalBet(), betNote(unitBet));
   ui.setJackpot(game.state.jackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
   if (!game.busy) ui.setBetButtons(section().settings.betIdx);
@@ -97,11 +101,11 @@ function syncMeters() {
 
 function jackpotHint() {
   if (game.kind === 'cascade') {
-    return `연쇄 ${PHARAOH.jackpotChain}단 도달 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`;
+    return `연속 당첨 ${PHARAOH.jackpotChain}번이면 잭팟 뽑기 · 돌릴 때마다 거는 돈의 1%가 여기 쌓입니다`;
   }
   return game.mode.jackpot
-    ? `한 라인에 다이아 ${JACKPOT_MATCH}개 이상 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`
-    : '프리스핀·잭팟 모드에서만 적중합니다';
+    ? `한 줄에 다이아 ${JACKPOT_MATCH}개 이상이면 잭팟 뽑기 · 돌릴 때마다 거는 돈의 1%가 여기 쌓입니다`
+    : '이 게임에서는 잭팟이 터지지 않습니다. 공짜 스핀·잭팟 게임에서만 터집니다';
 }
 
 function syncJackpotHint() {
@@ -200,15 +204,15 @@ function readoutText(result, payout) {
   }
   if (result.cascade !== undefined) {
     if (payout.totalWin === 0) return '당첨 없음';
-    const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
-    return `연쇄 ${result.cascade.chain}단. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
+    const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
+    return `연속 당첨 ${result.cascade.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
   }
   const parts = result.lineWins.map(
-    (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 라인 ${win.lineIndex + 1}`,
+    (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 ${win.lineIndex + 1}번 줄`,
   );
-  if (result.scatter !== null) parts.push(`스캐터 ${result.scatter.count}개`);
+  if (result.scatter !== null) parts.push(`${SYMBOLS[SCATTER].label} ${result.scatter.count}개`);
   if (parts.length === 0) return '당첨 없음';
-  const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
+  const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
   return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
 }
 
@@ -219,13 +223,13 @@ function resultMessage(result, payout) {
   }
   if (result.freeSpinsAwarded > 0) {
     const count = result.cascade === undefined ? result.scatter.count : result.cascade.scatters;
-    return `스캐터 ${count}개! 프리스핀 ${result.freeSpinsAwarded}회`;
+    return `흩어진 심볼 ${count}개! 공짜 스핀 ${result.freeSpinsAwarded}번`;
   }
   if (payout.totalWin === 0) return '';
   if (result.cascade !== undefined) {
-    return `연쇄 ${result.cascade.chain}단 · ${ui.formatCoins(payout.totalWin)}`;
+    return `연속 당첨 ${result.cascade.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
   }
-  return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(payout.totalWin)}`;
+  return `${result.lineWins.length}줄 당첨 · ${ui.formatCoins(payout.totalWin)}`;
 }
 
 // 꽝이면 아무 연출도 하지 않는다. 조용히 다음 스핀을 받는다.
@@ -251,7 +255,7 @@ async function presentWin(result, payout, coinsBeforeWin) {
   });
 
   if (result.freeSpinsAwarded > 0) {
-    ui.showBigWin(`프리스핀 ${result.freeSpinsAwarded}회 획득!`, { speed, tier: 'free', effects });
+    ui.showBigWin(`공짜 스핀 ${result.freeSpinsAwarded}번 획득!`, { speed, tier: 'free', effects });
   }
 
   if (payout.jackpot !== null) {
@@ -272,7 +276,7 @@ async function presentWin(result, payout, coinsBeforeWin) {
     });
   } else if (tier === 'mega') {
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
-    audio.playBigWin();
+    audio.playBigWin('mega');
     await ui.showMegaWin(payout.totalWin, { speed, effects });
   } else if (tier === 'big') {
     audio.duckMusic(TIMING.bannerHold / speed / 1000);
@@ -343,7 +347,7 @@ async function playCascadeSteps(result) {
     instant: reducedMotion.matches,
     onStep: (step) => {
       const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
-      ui.setChainBadge(`연쇄 ${step.chain}단 ×${step.chainMultiplier} · ${ways} ways`);
+      ui.setChainBadge(`연속 ${step.chain}번째 · ${step.chainMultiplier}배 · ${ways}경로`);
       audio.playLineTick();
     },
   });
@@ -361,7 +365,7 @@ async function runSpin() {
   clearHighlights(ui.reelsHost());
   ui.clearLines();
   ui.setWin(0);
-  ui.setMessage(isFree ? `프리스핀 ${game.freeSpinsLeft}회 남음 · 당첨금 2배` : '', true);
+  ui.setMessage(isFree ? `공짜 스핀 ${game.freeSpinsLeft}번 남음 · 당첨금 2배` : '', true);
 
   if (isFree) {
     game.freeSpinsLeft -= 1;
@@ -371,7 +375,7 @@ async function runSpin() {
     contributeJackpot(totalBet);
   }
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(BETS[section().settings.betIdx], totalBet, betNote(BETS[section().settings.betIdx]));
+  ui.setBet(totalBet, betNote(BETS[section().settings.betIdx]));
   ui.setFreeSpinBadge(game.freeSpinsLeft);
   ui.setChainBadge(null);
 
@@ -452,7 +456,7 @@ function startAuto(count) {
   game.auto = true;
   game.autoLeft = count;
   ui.setAutoButton(true, count);
-  runSpinLoop();
+  game.loopPromise = runSpinLoop();
 }
 
 function toggleAuto() {
@@ -566,6 +570,113 @@ function wireAudioUnlock() {
   });
 }
 
+// ── 체험형 안내 ───────────────────────────
+
+// 실제 화면 요소를 하나씩 짚는다. SPIN 단계만 직접 누르게 하고 나머지는 읽고 넘긴다.
+function tourSteps() {
+  const cascade = game.kind === 'cascade';
+  const betTarget = section().settings.betIdx === BETS.length - 1 ? '#bet-down' : '#bet-up';
+  return [
+    {
+      target: '#reels-panel',
+      text: '심볼이 돌아가는 이 칸이 <b>릴</b>입니다. 돌린 뒤 여기 멈춘 심볼로 당첨을 따집니다.',
+      button: '다음',
+    },
+    {
+      target: '#credit-meter',
+      text: '<b>내 코인</b>입니다. 이 돈으로 게임합니다. 떨어지면 메뉴에서 충전할 수 있어요.',
+      button: '다음',
+    },
+    {
+      target: '#bet-label',
+      text: cascade
+        ? '한 번 돌릴 때 <b>실제로 빠지는 돈</b>입니다. 이 게임은 기본 금액을 10칸에 한꺼번에 걸기 때문에 ' +
+          '기본 금액의 10배가 빠집니다. 아래 작은 글씨가 그 계산식이에요.'
+        : '한 번 돌릴 때 <b>실제로 빠지는 돈</b>입니다. 한 줄에 거는 돈 × 줄 수라서, ' +
+          '한 줄에 10,000이면 9줄이니까 90,000이 빠집니다. 아래 작은 글씨가 그 계산식이에요.',
+      button: '다음',
+    },
+    {
+      target: betTarget,
+      text: '이 버튼으로 거는 돈을 바꿉니다. 한 번 눌러 보세요. 많이 걸면 당첨금도 같이 커집니다.',
+      action: true,
+    },
+    {
+      target: '#spin',
+      text: '준비됐습니다. <b>SPIN</b>을 눌러 직접 돌려 보세요.',
+      action: true,
+      waitSpin: true,
+    },
+    {
+      target: '#reels-panel',
+      text: cascade
+        ? '맨 왼쪽 칸부터 옆으로 같은 심볼이 <b>3칸 이상</b> 이어지면 당첨입니다. 위아래 위치는 상관없어요. ' +
+          '당첨된 칸은 네모로 표시되고, 그 심볼이 사라지면서 새 심볼이 떨어져 또 당첨될 수 있습니다.'
+        : '맨 왼쪽부터 옆으로 같은 심볼이 <b>3개 이상</b> 이어지면 당첨입니다. ' +
+          '당첨된 칸은 네모로 표시되고 당첨된 줄이 그려집니다.',
+      button: '다음',
+    },
+    {
+      target: '#win-meter',
+      text: '이번에 딴 금액이 여기 뜹니다. 못 땄으면 0이에요. 못 따는 게 더 흔한 게 정상입니다.',
+      button: '다음',
+    },
+    {
+      target: '#jackpot-bar',
+      text: '돌릴 때마다 거는 돈의 <b>1%</b>가 여기 쌓입니다. 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
+        '두 게임이 같은 잭팟을 함께 쌓습니다.',
+      button: '다음',
+    },
+    {
+      target: '#auto',
+      text: '<b>자동</b>을 누르면 횟수를 골라 알아서 돌려줍니다. 도중에 STOP으로 멈출 수 있어요.',
+      button: '다음',
+    },
+    {
+      target: '.marquee__settings',
+      text: '규칙을 다시 보려면 이 버튼 → <b>게임 방법</b>을 누르면 됩니다. 이제 즐기세요.',
+      button: '시작하기',
+    },
+  ];
+}
+
+async function runTour() {
+  if (game.busy) return;
+  stopAuto();
+  const steps = tourSteps();
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
+    const how = await ui.showTourStep({ ...step, step: index + 1, total: steps.length });
+    if (how === 'skip') break;
+    // 직접 돌린 단계는 스핀 연출이 끝날 때까지 기다린다.
+    if (step.waitSpin === true) await game.loopPromise;
+  }
+  ui.closeTour();
+  game.state.player.tourDoneAt = Date.now();
+  storage.save(game.state);
+}
+
+function refill() {
+  game.state.wallet.coins += REFILL_AMOUNT;
+  game.state.wallet.totalRefills += 1;
+  syncMeters();
+  storage.save(game.state);
+  ui.toast(`${ui.formatCoins(REFILL_AMOUNT)} 코인을 충전했습니다.`);
+}
+
+// 모달 라우팅 한 곳. 툴바와 메뉴가 같은 이름을 쓴다.
+function openPanel(name) {
+  if (name === 'menu') ui.openMenu();
+  if (name === 'howto') {
+    ui.closeModal();
+    runTour();
+  }
+  if (name === 'paytable') ui.openPaytable(game.key, game.mode?.key);
+  if (name === 'history') ui.openHistory(section());
+  if (name === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
+  if (name === 'settings') openSettings();
+}
+
 function wireControls() {
   ui.el.modes.addEventListener('click', (event) => {
     const tab = event.target.closest('.mode-tab');
@@ -590,7 +701,8 @@ function wireControls() {
   ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
 
-  ui.el.spin.addEventListener('click', () => { runSpinLoop(); });
+  // loopPromise는 체험형 안내가 "직접 돌려 보세요" 단계를 기다리는 데 쓴다.
+  ui.el.spin.addEventListener('click', () => { game.loopPromise = runSpinLoop(); });
   ui.el.auto.addEventListener('click', toggleAuto);
 
   ui.el.autoPick.addEventListener('keydown', (event) => {
@@ -604,13 +716,7 @@ function wireControls() {
     ui.closeAutoPick();
   });
 
-  ui.el.refill.addEventListener('click', () => {
-    game.state.wallet.coins += REFILL_AMOUNT;
-    game.state.wallet.totalRefills += 1;
-    syncMeters();
-    storage.save(game.state);
-    ui.toast(`${ui.formatCoins(REFILL_AMOUNT)} 코인을 충전했습니다.`);
-  });
+  ui.el.refill.addEventListener('click', refill);
 
   ui.el.soundToggle.addEventListener('click', () => setSound(!game.state.settings.sound));
 
@@ -621,16 +727,19 @@ function wireControls() {
     if (event.target.closest('button, input, textarea, select, [role="dialog"]') !== null) return;
     if (ui.autoPickOpen()) return;
     event.preventDefault();
-    runSpinLoop();
+    game.loopPromise = runSpinLoop();
   });
 
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');
-    if (opener === null) return;
-    if (opener.dataset.open === 'paytable') ui.openPaytable(game.key, game.mode?.key);
-    if (opener.dataset.open === 'history') ui.openHistory(section());
-    if (opener.dataset.open === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
-    if (opener.dataset.open === 'settings') openSettings();
+    if (opener !== null) openPanel(opener.dataset.open);
+
+    // 메뉴 안의 즉시 실행 항목(소리·충전)
+    const actor = event.target.closest('[data-act]');
+    if (actor === null) return;
+    ui.closeModal();
+    if (actor.dataset.act === 'sound') setSound(!game.state.settings.sound);
+    if (actor.dataset.act === 'refill') refill();
   });
 }
 
@@ -690,9 +799,12 @@ function enterGame(gameKey) {
 
   ui.setAutoButton(false);
   ui.setSoundButton(game.state.settings.sound);
-  ui.setMessage('스핀을 눌러 시작하세요.', true);
+  ui.setMessage('SPIN을 눌러 시작하세요.', true);
   ui.setWin(0);
   storage.save(game.state);
+
+  // 처음 앉은 사람에게는 안내를 자동으로 한 번 띄운다.
+  if (game.state.player.tourDoneAt === null) runTour();
 }
 
 function boot() {

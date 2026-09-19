@@ -62,7 +62,6 @@ export const el = {
   chainBadge: document.getElementById('chain-badge'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
-  betMeter: document.getElementById('bet-meter'),
   betSub: document.getElementById('bet-sub'),
   winMeter: document.getElementById('win-meter'),
   message: document.getElementById('message'),
@@ -143,10 +142,10 @@ export function setSeat(nickname, gameLabel = null) {
 
 function gameCardStats(section) {
   const { stats } = section;
-  if (stats.spins === 0) return '아직 플레이 기록이 없습니다';
+  if (stats.spins === 0) return '아직 한 번도 돌리지 않았습니다';
   const rtp =
     stats.totalWagered === 0 ? '-' : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
-  return `스핀 ${formatCoins(stats.spins)}회 · 실측 환수율 ${rtp} · 최고 ${formatCoins(stats.bestWin)}`;
+  return `${formatCoins(stats.spins)}회 돌림 · 돌려받은 비율 ${rtp} · 최고 ${formatCoins(stats.bestWin)}`;
 }
 
 export function renderLobby(state) {
@@ -171,9 +170,10 @@ export function setCredit(value) {
   el.credit.textContent = formatCoins(value);
 }
 
-export function setBet(unitBet, totalBet, note) {
-  el.betLabel.textContent = formatCoins(unitBet);
-  el.betMeter.textContent = formatCoins(totalBet);
+// 큰 숫자는 한 번 돌릴 때 실제로 빠지는 총액이다.
+// 단위 베팅(라인당·기본)은 아래 보조 줄에서 계산식으로 보여준다.
+export function setBet(totalBet, note) {
+  el.betLabel.textContent = formatCoins(totalBet);
   el.betSub.textContent = note;
 }
 
@@ -605,7 +605,7 @@ export async function showMegaWin(amount, { speed = 1, effects = true } = {}) {
 function tileMarkup(tier, index, amount) {
   const label = JACKPOT_TIERS[tier].label;
   return (
-    `<button class="tile jp--${tier}" type="button" data-tier="${tier}" aria-label="타일 ${index + 1} 뒤집기">` +
+    `<button class="tile jp--${tier}" type="button" data-tier="${tier}" aria-label="${index + 1}번 카드 뒤집기">` +
     '<span class="tile__inner">' +
     '<span class="tile__face tile__face--back" aria-hidden="true">?</span>' +
     '<span class="tile__face tile__face--front">' +
@@ -628,10 +628,10 @@ export function openPickBonus({ tiles, pools, speed = 1, effects = true }) {
   overlay.className = 'pick';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-label', '잭팟 픽 보너스');
+  overlay.setAttribute('aria-label', '잭팟 뽑기');
   overlay.innerHTML =
-    '<h2 class="pick__title">잭팟 픽</h2>' +
-    `<p class="pick__desc">타일을 뒤집어 같은 등급 ${PICK_MATCH}개를 모으면 그 잭팟을 받습니다.</p>` +
+    '<h2 class="pick__title">잭팟 뽑기</h2>' +
+    `<p class="pick__desc">카드를 뒤집어 같은 등급 ${PICK_MATCH}장을 모으면 그 잭팟에 쌓인 돈을 전부 받습니다.</p>` +
     `<div class="pick__grid">${tiles.map((tier, i) => tileMarkup(tier, i, pools[tier])).join('')}</div>` +
     '<div class="pick__progress">' +
     JACKPOT_TIER_KEYS.map(
@@ -755,6 +755,125 @@ export function openModal({ title, body, foot = '' }) {
   return wrap;
 }
 
+// ── 체험형 안내 ───────────────────────────
+
+let tourNode = null;
+
+// 대상 요소를 구멍 하나로 남기고 나머지를 덮는다. 구멍은 거대한 box-shadow로 만든다.
+function placeTour(target) {
+  const spot = tourNode.querySelector('.tour__spot');
+  const bubble = tourNode.querySelector('.tour__bubble');
+  const node = target === null ? null : document.querySelector(target);
+
+  if (node === null) {
+    spot.style.cssText = 'left:50%; top:50%; width:0; height:0';
+    bubble.style.cssText = 'left:50%; top:50%; transform:translate(-50%,-50%)';
+    return;
+  }
+
+  const pad = 8;
+  const rect = node.getBoundingClientRect();
+  spot.style.cssText =
+    `left:${rect.left - pad}px; top:${rect.top - pad}px; ` +
+    `width:${rect.width + pad * 2}px; height:${rect.height + pad * 2}px`;
+
+  // 말풍선은 대상 아래에 두고, 아래가 좁으면 위로 올린다.
+  bubble.style.transform = 'none';
+  const below = window.innerHeight - rect.bottom;
+  const top = below > bubble.offsetHeight + 24
+    ? rect.bottom + 16
+    : Math.max(8, rect.top - bubble.offsetHeight - 16);
+  const left = Math.min(
+    Math.max(8, rect.left + rect.width / 2 - bubble.offsetWidth / 2),
+    Math.max(8, window.innerWidth - bubble.offsetWidth - 8),
+  );
+  bubble.style.left = `${left}px`;
+  bubble.style.top = `${top}px`;
+}
+
+/**
+ * 안내 한 단계를 보여준다.
+ * action이 true면 대상을 직접 누를 수 있게 오버레이가 클릭을 통과시킨다.
+ * @returns {Promise<'next'|'action'|'skip'>}
+ */
+export function showTourStep({ target = null, text, button = null, action = false, step, total }) {
+  if (tourNode === null) {
+    tourNode = document.createElement('div');
+    tourNode.className = 'tour';
+    tourNode.setAttribute('role', 'dialog');
+    tourNode.setAttribute('aria-label', '게임 방법 안내');
+    tourNode.innerHTML = '<div class="tour__spot"></div><div class="tour__bubble"></div>';
+    el.overlayRoot.append(tourNode);
+  }
+  tourNode.classList.toggle('tour--pass', action);
+
+  const bubble = tourNode.querySelector('.tour__bubble');
+  bubble.innerHTML =
+    `<p class="tour__count">${step} / ${total}</p>` +
+    `<p class="tour__text">${text}</p>` +
+    (button === null
+      ? '<p class="tour__hint">위에서 반짝이는 버튼을 직접 눌러 보세요</p>'
+      : `<button class="btn btn--primary btn--wide" type="button" data-tour-next>${button}</button>`) +
+    '<button class="tour__skip" type="button" data-tour-skip>안내 그만 보기</button>';
+
+  placeTour(target);
+  const focusTo = bubble.querySelector('[data-tour-next]') ?? bubble.querySelector('[data-tour-skip]');
+  focusTo.focus();
+
+  return new Promise((resolve) => {
+    const targetNode = action && target !== null ? document.querySelector(target) : null;
+    const reposition = () => placeTour(target);
+    const onAction = () => finish('action');
+
+    function finish(how) {
+      window.removeEventListener('resize', reposition);
+      if (targetNode !== null) targetNode.removeEventListener('click', onAction);
+      resolve(how);
+    }
+
+    window.addEventListener('resize', reposition);
+    if (targetNode !== null) targetNode.addEventListener('click', onAction);
+    bubble.querySelector('[data-tour-skip]').addEventListener('click', () => finish('skip'));
+    const next = bubble.querySelector('[data-tour-next]');
+    if (next !== null) next.addEventListener('click', () => finish('next'));
+  });
+}
+
+export function closeTour() {
+  if (tourNode === null) return;
+  tourNode.remove();
+  tourNode = null;
+}
+
+// 가로 화면에서는 하단 툴바를 숨기고 이 메뉴 하나로 모든 항목에 들어간다.
+const MENU_ITEMS = [
+  { open: 'howto', icon: '?', label: '게임 방법', desc: '처음이면 여기부터' },
+  { open: 'paytable', icon: '▤', label: '배당표', desc: '심볼별로 얼마를 받는지' },
+  { open: 'history', icon: '★', label: '기록', desc: '잭팟·크게 딴 기록' },
+  { open: 'stats', icon: '📊', label: '통계', desc: '돌린 횟수와 돌려받은 비율' },
+  { act: 'sound', icon: '♪', label: '소리 켜고 끄기', desc: '효과음과 배경음' },
+  { act: 'refill', icon: '＋', label: '코인 충전', desc: '코인이 떨어졌을 때' },
+  { open: 'settings', icon: '⚙', label: '설정', desc: '닉네임·속도·소리·초기화' },
+];
+
+export function openMenu() {
+  return openModal({
+    title: '메뉴',
+    body:
+      '<div class="menu">' +
+      MENU_ITEMS.map((item) => {
+        const attr = item.open === undefined ? `data-act="${item.act}"` : `data-open="${item.open}"`;
+        return (
+          `<button class="menu__item" type="button" ${attr}>` +
+          `<span class="menu__icon" aria-hidden="true">${item.icon}</span>` +
+          `<span class="menu__text"><span class="menu__label">${item.label}</span>` +
+          `<span class="menu__desc">${item.desc}</span></span></button>`
+        );
+      }).join('') +
+      '</div>',
+  });
+}
+
 export function setFieldError(input, errorEl, message) {
   const hasError = message !== null;
   errorEl.hidden = !hasError;
@@ -778,7 +897,7 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
       '<p class="modal__note">바꿔도 코인·통계·기록은 그대로 유지됩니다. 이미 남은 잭팟 기록에는 당첨 당시 닉네임이 그대로 남습니다.</p>' +
       '<h3 class="modal__section">연출</h3>' +
       `<label class="switch"><input type="checkbox" data-turbo ${turbo ? 'checked' : ''}>` +
-      '<span>터보 모드<span class="switch__desc">전체 애니메이션 시간을 1/3로 줄입니다.</span></span></label>' +
+      '<span>빠르게 돌리기<span class="switch__desc">릴이 도는 시간과 당첨 연출을 1/3로 줄입니다. 결과는 달라지지 않습니다.</span></span></label>' +
       '<h3 class="modal__section">소리</h3>' +
       `<label class="switch"><input type="checkbox" data-sound ${sound ? 'checked' : ''}>` +
       '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
@@ -812,7 +931,7 @@ function recordRow(entry, extra = '') {
   return (
     '<div class="record">' +
     `<div><span class="record__who">${escapeHtml(entry.nickname)}</span>` +
-    `<span class="record__meta">${tier} · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
+    `<span class="record__meta">${tier} · ${mode} · 걸었던 돈 ${formatCoins(entry.bet)}${extra}</span>` +
     `<span class="record__meta" style="display:block">${formatDateTime(entry.at)}</span></div>` +
     `<span class="record__amount">${formatCoins(entry.amount)}</span>` +
     '</div>'
@@ -834,13 +953,13 @@ export function openHistory({ jackpotHistory, bigWins }) {
       historySection(
         `잭팟 (최신 ${HISTORY_LIMITS.jackpotHistory}건)`,
         jackpotHistory,
-        '아직 잭팟이 없습니다. 프리스핀·잭팟 모드에서 다이아 5개를 노려보세요.',
+        '아직 잭팟이 없습니다. 공짜 스핀·잭팟 게임에서 다이아를 노려보세요.',
         () => '',
       ) +
       historySection(
-        `빅윈 (최신 ${HISTORY_LIMITS.bigWins}건)`,
+        `크게 딴 기록 (최신 ${HISTORY_LIMITS.bigWins}건)`,
         bigWins,
-        `아직 빅윈이 없습니다. 총 베팅의 ${WIN_TIERS.big}배 이상 당첨되면 여기에 남습니다.`,
+        `아직 없습니다. 거는 돈의 ${WIN_TIERS.big}배 이상 따면 여기에 남습니다.`,
         (entry) => ` · ${Math.floor(entry.multiple)}배`,
       ),
   });
@@ -859,27 +978,27 @@ export function openStats({ stats, wallet }) {
   // 실측 환수율 = 총 획득 / 총 베팅. 프리스핀 당첨은 베팅 없이 얻으므로 분자에만 들어간다.
   const rtp =
     stats.totalWagered === 0
-      ? '스핀 기록 없음'
+      ? '아직 돌린 적 없음'
       : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
 
   openModal({
     title: '통계',
     body:
       '<div class="stat-grid">' +
-      stat('총 스핀', `${formatCoins(stats.spins)}회`) +
-      stat('실측 환수율', rtp, true) +
-      stat('총 베팅', formatCoins(stats.totalWagered)) +
-      stat('총 획득', formatCoins(stats.totalWon)) +
+      stat('돌린 횟수', `${formatCoins(stats.spins)}회`) +
+      stat('돌려받은 비율', rtp, true) +
+      stat('걸었던 돈 합계', formatCoins(stats.totalWagered)) +
+      stat('받은 돈 합계', formatCoins(stats.totalWon)) +
       stat('최고 당첨', formatCoins(stats.bestWin)) +
-      stat('프리스핀 발동', `${formatCoins(stats.freeSpinsTriggered)}회`) +
-      stat('최장 연속 꽝', `${formatCoins(stats.longestDrySpell)}회`) +
+      stat('공짜 스핀 획득', `${formatCoins(stats.freeSpinsTriggered)}회`) +
+      stat('연속으로 못 딴 횟수', `${formatCoins(stats.longestDrySpell)}회`) +
       stat('충전 횟수', `${formatCoins(wallet.totalRefills)}회`) +
       '</div>' +
       (stats.bestWinAt === null
         ? ''
         : `<p class="modal__note">최고 당첨 시각 ${formatDateTime(stats.bestWinAt)}</p>`) +
-      '<p class="modal__note">실측 환수율은 총 획득 ÷ 총 베팅입니다. 스핀이 쌓일수록 ' +
-      '시뮬레이션 값(클래식 95.02% / 9라인 95.00% / 보너스 94.94%)에 수렴합니다.</p>',
+      '<p class="modal__note">돌려받은 비율 = 받은 돈 합계 ÷ 걸었던 돈 합계. 100%보다 낮은 것이 정상이고, ' +
+      '많이 돌릴수록 설계값(클래식 95.02% / 9줄 95.00% / 보너스 94.94%)에 가까워집니다.</p>',
   });
 }
 
@@ -892,7 +1011,7 @@ function paytableRows(mode) {
       .map(
         (key) =>
           `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>` +
-          `<td>${formatCoins(CLASSIC_PAYS[key])}×</td></tr>`,
+          `<td>${formatCoins(CLASSIC_PAYS[key])}배</td></tr>`,
       )
       .join('');
   }
@@ -900,14 +1019,14 @@ function paytableRows(mode) {
     .map((key) => {
       if (key === SCATTER) {
         const cells = [3, 4, 5]
-          .map((n) => `<td>${SCATTER_PAYS[n]}×<small> 총베팅</small></td>`)
+          .map((n) => `<td>${SCATTER_PAYS[n]}배<small> 거는 돈</small></td>`)
           .join('');
         return (
-          `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}<small> 스캐터</small></span></div></td>${cells}</tr>`
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>${cells}</tr>`
         );
       }
-      const note = key === WILD ? '<small> 와일드</small>' : '';
-      const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}×</td>`).join('');
+      const note = key === WILD ? '<small> 아무 심볼로 변신</small>' : '';
+      const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}배</td>`).join('');
       return `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}${note}</span></div></td>${cells}</tr>`;
     })
     .join('');
@@ -936,7 +1055,7 @@ function paylineGrid(mode) {
   return modePaylines(mode)
     .map(
       (line, index) =>
-        `<div class="mini">${miniLine(line, mode.reels)}<span class="mini__label">라인 ${index + 1}</span></div>`,
+        `<div class="mini">${miniLine(line, mode.reels)}<span class="mini__label">${index + 1}번 줄</span></div>`,
     )
     .join('');
 }
@@ -948,20 +1067,20 @@ function waysPaytableRows() {
       if (key === PHARAOH.wild) {
         return (
           `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
-          `<span>${SYMBOLS[key].label}<small> 와일드</small></span></div></td>` +
-          '<td colspan="4">스캐터를 뺀 모든 심볼을 대체</td></tr>'
+          `<span>${SYMBOLS[key].label}<small> 아무 심볼로 변신</small></span></div></td>` +
+          '<td colspan="4">오벨리스크만 빼고 어떤 심볼로든 변신합니다</td></tr>'
         );
       }
       if (key === PHARAOH.scatter) {
         const shown = [4, 5, 6];
-        const cells = shown.map((n) => `<td>${PHARAOH.scatterPays[n]}×</td>`).join('');
+        const cells = shown.map((n) => `<td>${PHARAOH.scatterPays[n]}배</td>`).join('');
         return (
           `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
-          `<span>${SYMBOLS[key].label}<small> 스캐터</small></span></div></td>` +
+          `<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>` +
           `<td>-</td>${cells}</tr>`
         );
       }
-      const cells = counts.map((n) => `<td>${PHARAOH.pays[key][n]}×</td>`).join('');
+      const cells = counts.map((n) => `<td>${PHARAOH.pays[key][n]}배</td>`).join('');
       return (
         `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>${cells}</tr>`
       );
@@ -971,21 +1090,22 @@ function waysPaytableRows() {
 
 function openWaysPaytable() {
   const rules = [
-    `왼쪽 릴부터 연속된 릴에 같은 심볼이 있으면 행과 무관하게 당첨입니다. ${PHARAOH.minMatch}릴 이상이어야 합니다.`,
-    '배당은 <b>총 베팅 배수 × ways</b>입니다. ways는 각 릴에 나온 개수를 곱한 값이고 ' +
-      `6릴 ${PHARAOH.rows}행이면 최대 ${PHARAOH.rows ** PHARAOH.reels}가지입니다.`,
-    '심볼마다 따로 계산해 동시에 모두 지급합니다.',
-    `당첨 심볼이 사라지고 위에서 새 심볼이 내려와 다시 판정합니다(연쇄). 연쇄 배수는 ` +
-      `${PHARAOH.multipliers.join(' → ')}로 올라갑니다.`,
-    `스캐터 ${PHARAOH.scatterMin}개 이상이면 프리스핀 ${PHARAOH.freeSpins}회를 받고 당첨금이 ` +
-      `${PHARAOH.freeMultiplier}배가 됩니다.`,
-    `연쇄가 ${PHARAOH.jackpotChain}단에 닿으면 잭팟 픽 보너스가 열립니다.`,
+    `<b>줄이 없습니다.</b> 맨 왼쪽 칸부터 옆 칸으로 계속 같은 심볼이 있으면 위아래 어디든 당첨입니다. ` +
+      `${PHARAOH.minMatch}칸 이상 이어져야 합니다.`,
+    '같은 심볼이 여러 개면 <b>경로 수</b>만큼 곱해 받습니다. 예를 들어 첫 칸에 2개, 둘째 칸에 3개, ' +
+      `셋째 칸에 1개면 2 × 3 × 1 = 6배로 받습니다. 최대 ${PHARAOH.rows ** PHARAOH.reels}가지까지 나옵니다.`,
+    '심볼 종류마다 따로 계산해서 한 번에 다 줍니다.',
+    `당첨된 심볼이 <b>사라지고 위에서 새 심볼이 떨어져</b> 다시 따질 수 있습니다(연속 당첨). ` +
+      `연속으로 이어질수록 받는 돈이 ${PHARAOH.multipliers.join('배 → ')}배로 커집니다.`,
+    `오벨리스크가 ${PHARAOH.scatterMin}개 이상 나오면 <b>공짜로 ${PHARAOH.freeSpins}번</b> 더 돌리고, ` +
+      `그동안 당첨금이 ${PHARAOH.freeMultiplier}배가 됩니다.`,
+    `연속 당첨이 <b>${PHARAOH.jackpotChain}번</b>까지 이어지면 잭팟 뽑기 화면이 열립니다.`,
   ];
   openModal({
     title: `배당표 · ${GAMES.pharaoh.label}`,
     body:
-      '<p class="modal__note">ways 하나당 총 베팅 배수입니다.</p>' +
-      '<table class="table"><thead><tr><th>심볼</th><th>3릴</th><th>4릴</th><th>5릴</th><th>6릴</th></tr></thead>' +
+      '<p class="modal__note">경로 1개당 <b>한 번에 거는 돈</b>의 몇 배를 받는지 적은 표입니다.</p>' +
+      '<table class="table"><thead><tr><th>심볼</th><th>3칸</th><th>4칸</th><th>5칸</th><th>6칸</th></tr></thead>' +
       `<tbody>${waysPaytableRows()}</tbody></table>` +
       `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
   });
@@ -1002,25 +1122,28 @@ export function openPaytable(gameKey, modeKey) {
       ? '<tr><th>심볼</th><th>3개</th></tr>'
       : '<tr><th>심볼</th><th>3개</th><th>4개</th><th>5개</th></tr>';
   const rules = [
-    `왼쪽 릴부터 연속으로 같은 심볼이 ${MIN_MATCH}개 이상이면 당첨입니다. 중간에 끊기면 거기서 끝납니다.`,
+    `아래 그림의 <b>당첨 줄</b> 위에서, 맨 왼쪽부터 옆으로 같은 심볼이 ${MIN_MATCH}개 이상 이어지면 당첨입니다. ` +
+      '중간에 다른 심볼이 끼면 거기서 끝납니다.',
     mode.wild
-      ? '크라운(와일드)은 스캐터를 뺀 모든 심볼을 대체합니다. 대체 시 원래 심볼 배당과 크라운 배당 중 큰 쪽을 받습니다.'
-      : '이 모드에는 와일드와 스캐터가 없습니다.',
+      ? '<b>왕관</b>은 아무 심볼로든 변신합니다(별만 빼고). 변신했을 때는 원래 심볼 배당과 왕관 배당 중 ' +
+        '더 많은 쪽을 받습니다.'
+      : '이 게임에는 변신 심볼과 흩어지는 심볼이 없습니다.',
     mode.scatter
-      ? `스타(스캐터)는 위치와 무관하게 개수로만 판정합니다. ${SCATTER_MIN}개 이상이면 프리스핀 10회를 받고, 프리스핀 중 당첨금은 2배입니다.`
+      ? `<b>별</b>은 줄과 상관없이 화면에 ${SCATTER_MIN}개만 있으면 됩니다. 나오면 <b>공짜로 10번</b> 더 돌리고, ` +
+        '그동안 당첨금이 2배가 됩니다.'
       : '',
     mode.jackpot
-      ? `한 라인에 순수 다이아 ${JACKPOT_MATCH}개 이상(와일드 대체 제외)이면 픽 보너스가 열려 ` +
-        `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급의 풀 전액을 받습니다.`
+      ? `한 줄에 <b>다이아가 ${JACKPOT_MATCH}개 이상</b>(왕관이 변신한 것은 빼고) 이어지면 잭팟 뽑기가 열려 ` +
+        `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급에 쌓인 돈을 전부 받습니다.`
       : '',
   ].filter((line) => line !== '');
 
   openModal({
     title: `배당표 · ${mode.label}`,
     body:
-      `<p class="modal__note">라인당 베팅 기준 배수입니다.</p>` +
+      `<p class="modal__note"><b>한 줄에 거는 돈</b>의 몇 배를 받는지 적은 표입니다.</p>` +
       `<table class="table"><thead>${header}</thead><tbody>${paytableRows(mode)}</tbody></table>` +
-      `<h3 class="modal__title" style="margin:var(--sp-5) 0 var(--sp-2)">페이라인 ${mode.lines}개</h3>` +
+      `<h3 class="modal__title" style="margin:var(--sp-5) 0 var(--sp-2)">당첨 줄 ${mode.lines}개</h3>` +
       `<div class="lines-grid">${paylineGrid(mode)}</div>` +
       `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
   });

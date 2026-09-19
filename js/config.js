@@ -7,7 +7,7 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   2: settings.music(배경음) 추가
 //   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
 //   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';

@@ -461,6 +461,7 @@
   .rays,
   .halo { animation: none; }
   .reel--anticipate::after { animation: none; opacity: 0.5; }
+  .tour--pass .tour__spot { animation: none; }
   .line-path { filter: none; }
 }
 
@@ -488,6 +489,102 @@
 }
 
 .btn--danger { border-color: var(--neon); color: #ffd9e2; }
+
+/* ── 메뉴 ───────────────────────────────── */
+.menu { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.menu__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #2b1410 0%, #180a07 100%);
+  color: var(--cream);
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover { border-color: var(--brass); }
+.menu__item:focus-visible { outline: 3px solid var(--credit); outline-offset: 2px; }
+
+.menu__icon {
+  flex: 0 0 34px;
+  font-size: 1.15rem; text-align: center;
+  color: var(--brass);
+}
+
+.menu__text { display: block; min-width: 0; }
+.menu__label { display: block; font-weight: 700; font-size: var(--fs-md); }
+.menu__desc { display: block; font-size: var(--fs-xs); opacity: 0.7; }
+
+/* ── 체험형 안내 ────────────────────────── */
+.tour { position: fixed; inset: 0; z-index: var(--z-modal); }
+
+/* 직접 눌러 보는 단계에서는 실제 버튼까지 클릭이 통과해야 한다 */
+.tour--pass { pointer-events: none; }
+.tour--pass .tour__bubble { pointer-events: auto; }
+
+.tour__spot {
+  position: absolute;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 0 0 9999px rgba(3, 2, 1, 0.8),
+    0 0 0 2px var(--credit),
+    0 0 26px rgba(127, 240, 192, 0.55);
+  pointer-events: none;
+  transition: left 0.22s ease, top 0.22s ease, width 0.22s ease, height 0.22s ease;
+}
+
+.tour--pass .tour__spot { animation: tour-pulse 1s ease-in-out infinite alternate; }
+
+@keyframes tour-pulse {
+  from { box-shadow: 0 0 0 9999px rgba(3, 2, 1, 0.8), 0 0 0 2px var(--credit), 0 0 18px rgba(127, 240, 192, 0.45); }
+  to { box-shadow: 0 0 0 9999px rgba(3, 2, 1, 0.8), 0 0 0 4px #ffffff, 0 0 40px rgba(127, 240, 192, 0.95); }
+}
+
+.tour__bubble {
+  position: absolute;
+  width: min(320px, calc(100vw - 16px));
+  padding: var(--sp-4);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #33170f 0%, #180a07 100%);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+  text-align: center;
+}
+
+.tour__count {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs); letter-spacing: 0.18em;
+  color: var(--brass);
+}
+
+.tour__text {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm); line-height: 1.6;
+  color: var(--cream);
+}
+
+.tour__text b { color: var(--brass-lite); }
+
+.tour__hint {
+  margin: 0;
+  font-size: var(--fs-sm); font-weight: 700;
+  color: var(--credit);
+}
+
+.tour__skip {
+  display: block; width: 100%;
+  margin-top: var(--sp-2); padding: var(--sp-1);
+  border: 0; background: none;
+  color: var(--cream); opacity: 0.6;
+  font-family: var(--font-body); font-size: var(--fs-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tour__skip:focus-visible { outline: 3px solid var(--credit); outline-offset: 2px; }
 
 /* ── 잭팟 픽 보너스 ─────────────────────── */
 .pick {

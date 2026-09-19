@@ -381,6 +381,70 @@ export function stopReelLoop() {
   reelTimer = null;
 }
 
+// 동전 1개 소리. 부분음 비율이 정수배가 아니라서 종·금속처럼 들린다.
+const COIN_PARTIALS = [
+  { ratio: 1, gain: 1, dur: 0.11, type: 'triangle' },
+  { ratio: 2.76, gain: 0.42, dur: 0.07, type: 'sine' },
+];
+
+// 동전마다 이 중에서 음높이를 골라 쓴다. 같은 소리가 반복되면 기계음처럼 들린다.
+const COIN_PITCHES = [1480, 1760, 2100, 2480, 2960];
+
+// 등급별 쏟아짐. dur = 지속 시간(초), rate = 초당 동전 수.
+const COIN_POUR = {
+  win: { dur: 0.45, rate: 24, gain: 0.3 },
+  big: { dur: 1.2, rate: 32, gain: 0.34 },
+  mega: { dur: 2.4, rate: 38, gain: 0.36 },
+  jackpot: { dur: 3.4, rate: 42, gain: 0.38 },
+};
+
+// 앞쪽을 촘촘하게 만드는 지수. 1보다 크면 시작이 몰리고 뒤로 갈수록 뜸해진다.
+const COIN_CROWD = 1.7;
+
+function coinHit(time, gain, pitch) {
+  for (const partial of COIN_PARTIALS) {
+    playVoice({
+      time,
+      freq: pitch * partial.ratio,
+      type: partial.type,
+      dur: partial.dur,
+      attack: 0.001,
+      gain: gain * partial.gain,
+      target: audio.sfx,
+    });
+  }
+  // 동전끼리 스치는 쇳소리
+  playNoise({ time, dur: 0.018, gain: gain * 0.5, freq: 5200, q: 0.8, type: 'highpass', target: audio.sfx });
+}
+
+function coinPour(tier) {
+  const spec = COIN_POUR[tier];
+  const start = audio.ctx.currentTime;
+  const count = Math.round(spec.dur * spec.rate);
+
+  // 동전이 떨어지기 시작하는 순간 트레이가 한 번 울린다.
+  tone({ freq: 98, type: 'sine', dur: 0.22, gain: 0.26 });
+  // 쏟아지는 동안 깔리는 잡음 층. 노드 1개로 전체 구간을 덮는다.
+  playNoise({
+    time: start,
+    dur: spec.dur * 0.9,
+    gain: 0.05,
+    freq: 6000,
+    q: 0.5,
+    type: 'highpass',
+    target: audio.sfx,
+  });
+
+  for (let i = 0; i < count; i += 1) {
+    const progress = i / count;
+    const at = spec.dur * progress ** COIN_CROWD;
+    // 뒤로 갈수록 작아진다. 쏟아짐이 잦아드는 느낌이 여기서 나온다.
+    const gain = spec.gain * (1 - 0.55 * progress);
+    const pitch = COIN_PITCHES[Math.floor(Math.random() * COIN_PITCHES.length)];
+    coinHit(start + at, gain, pitch * (0.94 + Math.random() * 0.12));
+  }
+}
+
 // 릴 정지: 낮은 트라이앵글 짧게
 export function playReelStop() {
   if (!ready()) return;
@@ -394,10 +458,12 @@ export function playAnticipation() {
   tone({ freq: 280, endFreq: 1500, type: 'sawtooth', dur: 0.95, gain: 0.16 });
 }
 
-// 일반 당첨: 3음 아르페지오
+// ── 동전 쏟아지는 소리 ────────────────────
+// 동전 하나를 "금속 부분음 2개 + 스치는 잡음"으로 만들고, 그걸 수십 개 겹쳐 쏟아붓는다.
+// 등급이 올라가면 더 길고 촘촘해진다.
 export function playWin() {
   if (!ready()) return;
-  arpeggio(WIN_NOTES, { step: 0.09, dur: 0.18, gain: 0.4 });
+  coinPour('win');
 }
 
 // 라인 하이라이트가 넘어갈 때 찍는 짧은 액센트
@@ -406,10 +472,11 @@ export function playLineTick() {
   tone({ freq: 880, type: 'triangle', dur: 0.07, gain: 0.26 });
 }
 
-// 빅윈: 5음 상승 + 잔향
-export function playBigWin() {
+// 빅윈·메가윈: 5음 상승 + 잔향 위에 동전 쏟아짐을 겹친다.
+export function playBigWin(tier = 'big') {
   if (!ready()) return;
   arpeggio(BIG_WIN_NOTES, { step: 0.11, dur: 0.24, gain: 0.42, send: createReverb(0.4) });
+  coinPour(tier);
 }
 
 // 잭팟: 긴 팡파르
@@ -422,6 +489,7 @@ export function playJackpot() {
     tone({ freq: freq / 2, type: 'triangle', at: steps[index], dur: 0.34, gain: 0.3, send });
   });
   tone({ freq: 1046.5, type: 'triangle', at: 1.45, dur: 1.1, gain: 0.4, send });
+  coinPour('jackpot');
 }
 
 // 카운트업: 고주파 짧은 틱
