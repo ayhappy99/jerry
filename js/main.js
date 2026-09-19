@@ -38,6 +38,8 @@ const game = {
   freeSpinsLeft: 0,
   busy: false,
   auto: false,
+  // 남은 자동 스핀 횟수. null은 무한이다.
+  autoLeft: null,
   looping: false,
 };
 
@@ -415,7 +417,10 @@ async function runSpinLoop() {
 
   let running = true;
   while (running) {
+    // 프리스핀은 자동 스핀 횟수를 소모하지 않는다.
+    const wasFree = game.freeSpinsLeft > 0;
     running = await runSpin();
+    if (running && !wasFree) consumeAuto();
     if (!running || !hasPendingSpin()) break;
     await delay(TIMING.autoSpinGap / animationSpeed());
   }
@@ -428,7 +433,26 @@ async function runSpinLoop() {
 
 function stopAuto() {
   game.auto = false;
+  game.autoLeft = null;
   ui.setAutoButton(false);
+}
+
+// 유료 스핀 1회를 소모한다. 무한(null)은 줄지 않는다.
+function consumeAuto() {
+  if (!game.auto || game.autoLeft === null) return;
+  game.autoLeft -= 1;
+  if (game.autoLeft <= 0) {
+    stopAuto();
+    return;
+  }
+  ui.setAutoButton(true, game.autoLeft);
+}
+
+function startAuto(count) {
+  game.auto = true;
+  game.autoLeft = count;
+  ui.setAutoButton(true, count);
+  runSpinLoop();
 }
 
 function toggleAuto() {
@@ -436,9 +460,11 @@ function toggleAuto() {
     stopAuto();
     return;
   }
-  game.auto = true;
-  ui.setAutoButton(true);
-  runSpinLoop();
+  if (ui.autoPickOpen()) {
+    ui.closeAutoPick();
+    return;
+  }
+  ui.openAutoPick(startAuto);
 }
 
 // ── 닉네임 ────────────────────────────────
@@ -567,6 +593,17 @@ function wireControls() {
   ui.el.spin.addEventListener('click', () => { runSpinLoop(); });
   ui.el.auto.addEventListener('click', toggleAuto);
 
+  ui.el.autoPick.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    ui.closeAutoPick();
+    ui.el.auto.focus();
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!ui.autoPickOpen() || event.target.closest('.dock__auto') !== null) return;
+    ui.closeAutoPick();
+  });
+
   ui.el.refill.addEventListener('click', () => {
     game.state.wallet.coins += REFILL_AMOUNT;
     game.state.wallet.totalRefills += 1;
@@ -582,6 +619,7 @@ function wireControls() {
     if (event.key !== ' ' && event.code !== 'Space') return;
     if (ui.el.cabinet.hidden) return;
     if (event.target.closest('button, input, textarea, select, [role="dialog"]') !== null) return;
+    if (ui.autoPickOpen()) return;
     event.preventDefault();
     runSpinLoop();
   });
@@ -620,6 +658,7 @@ function wireLobby() {
 
 function enterLobby() {
   stopAuto();
+  ui.closeAutoPick();
   ui.setSeat(game.state.player.nickname);
   ui.renderLobby(game.state);
   ui.setJackpot(game.state.jackpot.pools);

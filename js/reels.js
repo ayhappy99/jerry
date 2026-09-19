@@ -183,9 +183,16 @@ function reelEl(host, reel) {
 }
 
 // 릴별로 사라질 셀 수를 센다. 그만큼 위에서 내려오므로 낙하 거리가 된다.
+// 와일드 셀은 여러 심볼의 당첨에 동시에 들어가므로 cascade.js와 똑같이 중복을 걷어낸다.
 function removedPerReel(mode, cells) {
   const counts = new Array(mode.reels).fill(0);
-  for (const { reel } of cells) counts[reel] += 1;
+  const seen = new Set();
+  for (const { reel, row } of cells) {
+    const key = `${reel}:${row}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    counts[reel] += 1;
+  }
   return counts;
 }
 

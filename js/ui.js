@@ -1,6 +1,7 @@
 // 미터·메시지·모달·토스트 렌더. 게임 판정은 하지 않는다.
 
 import {
+  AUTO_SPINS,
   BETS,
   CLASSIC_PAYS,
   EFFECTS,
@@ -71,6 +72,7 @@ export const el = {
   betLabel: document.getElementById('bet-label'),
   spin: document.getElementById('spin'),
   auto: document.getElementById('auto'),
+  autoPick: document.getElementById('auto-pick'),
   soundToggle: document.getElementById('sound-toggle'),
   refill: document.getElementById('refill'),
   modalRoot: document.getElementById('modal-root'),
@@ -177,6 +179,8 @@ export function setBet(unitBet, totalBet, note) {
 
 export function setWin(value) {
   el.winMeter.textContent = formatCoins(value);
+  // 패배 시에는 강조하지 않는다.
+  el.winMeter.classList.toggle('dock__winvalue--lit', value > 0);
 }
 
 // 4단 잭팟 바를 만든다. 티어 순서는 config의 JACKPOT_TIER_KEYS를 따른다.
@@ -249,9 +253,52 @@ export function setBusy(busy, autoRunning) {
   for (const tab of el.modes.querySelectorAll('.mode-tab')) tab.disabled = busy || autoRunning;
 }
 
-export function setAutoButton(running) {
+// 자동 스핀 중에는 STOP과 남은 횟수를 같은 버튼에 보여준다. null은 무한이다.
+export function setAutoButton(running, remaining = null) {
   el.auto.dataset.running = String(running);
-  el.auto.textContent = running ? '중지' : '자동';
+  if (!running) {
+    el.auto.textContent = '자동';
+    el.auto.setAttribute('aria-label', '자동 스핀 시작');
+    return;
+  }
+  const left = remaining === null ? '∞' : `${remaining}회`;
+  el.auto.innerHTML = `STOP<span class="btn__sub">${left}</span>`;
+  el.auto.setAttribute(
+    'aria-label',
+    remaining === null ? '자동 스핀 중지 (무한)' : `자동 스핀 중지, ${remaining}회 남음`,
+  );
+}
+
+// 자동 스핀 횟수 선택 목록을 연다. 선택 결과는 onPick으로 넘긴다.
+export function openAutoPick(onPick) {
+  el.autoPick.innerHTML = AUTO_SPINS.map((count) => {
+    const label = count === null ? '무한' : `${count}회`;
+    return (
+      `<button class="autopick__item" type="button" role="menuitem" ` +
+      `data-count="${count === null ? 'infinite' : count}">${label}</button>`
+    );
+  }).join('');
+  el.autoPick.hidden = false;
+  el.auto.setAttribute('aria-expanded', 'true');
+
+  for (const item of el.autoPick.querySelectorAll('.autopick__item')) {
+    item.addEventListener('click', () => {
+      const raw = item.dataset.count;
+      closeAutoPick();
+      onPick(raw === 'infinite' ? null : Number(raw));
+    });
+  }
+  el.autoPick.querySelector('.autopick__item').focus();
+}
+
+export function closeAutoPick() {
+  el.autoPick.hidden = true;
+  el.autoPick.innerHTML = '';
+  el.auto.setAttribute('aria-expanded', 'false');
+}
+
+export function autoPickOpen() {
+  return !el.autoPick.hidden;
 }
 
 // 모드가 없는 게임에서는 탭 줄을 숨긴다.

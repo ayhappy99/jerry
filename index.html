@@ -100,34 +100,43 @@
     <p class="sr-only" id="reel-readout" role="status" aria-live="polite"></p>
   </section>
 
+  <!-- 하단 통합 조작바: 크레딧 · 베팅 · TOTAL WIN · 스핀을 한 줄에 모은다 -->
   <section class="panel">
-    <div class="meters">
-      <div class="meter">
-        <span class="meter__label">크레딧</span>
-        <output class="meter__value meter__value--credit" id="credit-meter">0</output>
-      </div>
-      <div class="meter">
-        <span class="meter__label">베팅</span>
-        <output class="meter__value" id="bet-meter">0</output>
-        <span class="meter__sub" id="bet-sub"></span>
-      </div>
-      <div class="meter">
-        <span class="meter__label">당첨</span>
-        <output class="meter__value meter__value--win" id="win-meter">0</output>
-      </div>
-    </div>
-
     <p class="message" id="message"></p>
 
-    <div class="controls">
-      <div class="controls__bet">
-        <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
-        <span class="controls__betlabel" id="bet-label">0</span>
-        <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
-        <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+    <div class="dock">
+      <div class="dock__left">
+        <div class="meter">
+          <span class="meter__label">CREDIT</span>
+          <output class="meter__value meter__value--credit" id="credit-meter">0</output>
+        </div>
+        <div class="dock__bet">
+          <div class="controls__bet">
+            <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
+            <span class="controls__betlabel" id="bet-label">0</span>
+            <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
+            <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+          </div>
+          <p class="dock__betsub">
+            <span class="meter__label">BET</span>
+            <output id="bet-meter">0</output>
+            <span id="bet-sub"></span>
+          </p>
+        </div>
       </div>
-      <button class="btn btn--spin" type="button" id="spin" aria-keyshortcuts="Space">SPIN</button>
-      <button class="btn btn--auto" type="button" id="auto">자동</button>
+
+      <div class="dock__win">
+        <span class="dock__winlabel">TOTAL WIN</span>
+        <output class="dock__winvalue" id="win-meter">0</output>
+      </div>
+
+      <div class="dock__actions">
+        <button class="btn btn--spin" type="button" id="spin" aria-keyshortcuts="Space">SPIN</button>
+        <div class="dock__auto">
+          <button class="btn btn--auto" type="button" id="auto" aria-haspopup="true" aria-expanded="false">자동</button>
+          <div class="autopick" id="auto-pick" role="menu" aria-label="자동 스핀 횟수" hidden></div>
+        </div>
+      </div>
     </div>
   </section>
 

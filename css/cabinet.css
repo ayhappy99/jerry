@@ -279,6 +279,25 @@ body {
 
 .cell svg { width: 78%; height: 78%; display: block; }
 
+/* 릴 세퍼레이터: 릴 사이에 얇은 황동 기둥을 세운다.
+   .reel 이 overflow:hidden 이므로 셀 좌측 여백(--cell-gap / 2) 안에 그린다. */
+.reel + .reel::before {
+  content: '';
+  position: absolute; z-index: 2;
+  top: 0; bottom: 0; left: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(201, 150, 47, 0.5) 10%,
+    rgba(247, 226, 163, 0.8) 50%,
+    rgba(201, 150, 47, 0.5) 90%,
+    transparent 100%
+  );
+  box-shadow: 0 0 6px rgba(201, 150, 47, 0.45);
+  pointer-events: none;
+}
+
 /* 회전 중 세로 모션 블러. 정지 직전 구간에서 .reel--settling 으로 약하게 바꾸고,
    정지하면 클래스가 모두 떨어져 블러가 해제된다. */
 .reel--spinning .cell svg { filter: url(#blur-spin); }
@@ -345,6 +364,43 @@ body {
   to { box-shadow: inset 0 0 0 3px #fff6d8, 0 0 34px rgba(247, 226, 163, 0.95); }
 }
 
+/* 당첨 셀 네온 박스: 네 모서리에 꺾쇠를 그려 어느 셀이 맞았는지 한눈에 보이게 한다.
+   색은 팔레트의 발광색(--credit)을 재사용하고, 스캐터만 별 색으로 바꾼다. */
+.cell--win .cell__face::after,
+.cell--scatter .cell__face::after {
+  content: '';
+  position: absolute; inset: -3px;
+  pointer-events: none;
+  --box: var(--credit);
+  --arm: 34%;
+  --th: 2px;
+  background-image:
+    linear-gradient(var(--box), var(--box)), linear-gradient(var(--box), var(--box)),
+    linear-gradient(var(--box), var(--box)), linear-gradient(var(--box), var(--box)),
+    linear-gradient(var(--box), var(--box)), linear-gradient(var(--box), var(--box)),
+    linear-gradient(var(--box), var(--box)), linear-gradient(var(--box), var(--box));
+  background-size:
+    var(--arm) var(--th), var(--th) var(--arm),
+    var(--arm) var(--th), var(--th) var(--arm),
+    var(--arm) var(--th), var(--th) var(--arm),
+    var(--arm) var(--th), var(--th) var(--arm);
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 5px var(--box));
+  animation: win-box-in 0.3s ease;
+}
+
+.cell--scatter .cell__face::after { --box: var(--sym-star); }
+
+@keyframes win-box-in {
+  from { opacity: 0; transform: scale(1.22); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes sym-tilt {
   from { transform: scale(1) rotate(-2deg); }
   to { transform: scale(1.07) rotate(2deg); }
@@ -402,8 +458,6 @@ body {
   background: var(--wood-face);
 }
 
-.meters { display: flex; gap: var(--sp-2); }
-
 .meter {
   flex: 1 1 0;
   padding: var(--sp-2);
@@ -427,7 +481,6 @@ body {
 
 .meter__value--credit { color: var(--credit); text-shadow: 0 0 12px rgba(127, 240, 192, 0.55); }
 .meter__value--win { color: var(--brass-lite); text-shadow: 0 0 12px rgba(247, 226, 163, 0.5); }
-.meter__sub { display: block; font-size: var(--fs-xs); opacity: 0.7; }
 
 .message {
   min-height: 1.6em;
@@ -439,17 +492,97 @@ body {
 
 .message--muted { color: var(--cream); opacity: 0.75; }
 
-.controls {
+/* 통합 조작바: 좌측 크레딧·베팅 / 중앙 TOTAL WIN / 우측 스핀 */
+.dock {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'win win'
+    'left actions';
   gap: var(--sp-3);
-  align-items: center;
+  align-items: stretch;
 }
 
+.dock__left {
+  grid-area: left;
+  display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0;
+}
+
+.dock__bet {
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #05100c 0%, #020706 100%);
+  box-shadow: var(--shadow-inset);
+}
+
+.dock__betsub {
+  margin: var(--sp-1) 0 0;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--cream); opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.dock__betsub .meter__label { display: inline; margin-right: 4px; }
+.dock__betsub #bet-sub::before { content: ' · '; }
+
+/* 조작바 맨 윗줄을 가로지르는 TOTAL WIN 띠.
+   패배 시에는 숫자만 0으로 두고 아무 연출도 하지 않는다. */
+.dock__win {
+  grid-area: win;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: radial-gradient(ellipse at 50% 120%, rgba(201, 150, 47, 0.18) 0%, #04100c 60%, #020706 100%);
+  box-shadow: var(--shadow-inset);
+  min-width: 0;
+  /* 숫자 크기를 띠 폭에 맞춰 잡는다. 자릿수가 늘어도 잘리지 않는다. */
+  container-type: inline-size;
+}
+
+.dock__winlabel {
+  font-size: var(--fs-xs); letter-spacing: 0.22em;
+  color: var(--brass); opacity: 0.9;
+}
+
+.dock__winvalue {
+  display: block; max-width: 100%;
+  font-family: var(--font-display); font-size: min(var(--fs-2xl), 12cqi); line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.dock__winvalue--lit {
+  color: var(--brass-lite);
+  text-shadow: 0 0 10px rgba(247, 226, 163, 0.75), 0 0 28px rgba(201, 150, 47, 0.55);
+  animation: win-value-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes win-value-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+.dock__actions {
+  grid-area: actions;
+  display: flex; align-items: stretch; justify-content: center;
+  gap: var(--sp-2);
+}
+
+.dock__auto { position: relative; display: flex; min-width: 88px; }
+.dock__auto .btn--auto { width: 100%; height: 100%; }
+
 .controls__bet {
-  display: flex; align-items: center; gap: var(--sp-2);
+  display: flex; align-items: center; gap: var(--sp-1);
   min-width: 0;
 }
+
+/* 좁은 칸에서도 "최대"가 두 줄로 쪼개지지 않게 한다. */
+.controls__bet .btn--ghost { white-space: nowrap; padding: var(--sp-2); }
 
 .controls__betlabel {
   flex: 1 1 auto;
@@ -483,13 +616,15 @@ body {
 .tool span { font-size: 1.05rem; color: var(--brass); }
 .tool[aria-pressed="false"] { opacity: 0.45; }
 
-@media (max-width: 480px) {
-  .controls { grid-template-columns: 1fr 1fr; }
-  .controls__bet { grid-column: 1 / -1; }
-
-  /* 좁은 화면에서 크레딧 자릿수가 잘리지 않도록 한 줄을 통째로 쓴다. */
-  .meters { flex-wrap: wrap; }
-  .meter:first-child { flex-basis: 100%; }
+/* 좁은 화면에서는 크레딧·베팅 / TOTAL WIN / 버튼을 위아래로 쌓는다.
+   크레딧 자릿수가 잘리지 않도록 각 블록이 한 줄을 통째로 쓴다. */
+@media (max-width: 560px) {
+  .dock {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'win' 'left' 'actions';
+  }
+  .dock__actions .btn--spin { flex: 1 1 auto; }
+  .dock__auto { flex: 0 0 auto; }
 }
 
 /* ── 로비 ───────────────────────────────── */
@@ -619,10 +754,15 @@ body {
   position: absolute; top: var(--sp-2); right: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
   border-radius: 999px;
-  background: rgba(46, 196, 182, 0.92);
+  background: rgba(127, 240, 192, 0.92);
   color: #04201d;
   font-size: var(--fs-xs); font-weight: 900; letter-spacing: 0.06em;
-  box-shadow: 0 0 18px rgba(46, 196, 182, 0.7);
+  box-shadow: 0 0 18px rgba(127, 240, 192, 0.65);
+}
+
+/* 좁은 화면에서는 릴을 가리는 면적을 줄인다. */
+@media (max-width: 480px) {
+  .chain-badge { padding: 2px var(--sp-2); font-size: 0.66rem; letter-spacing: 0; }
 }
 
 /* 연쇄로 사라지는 셀 */

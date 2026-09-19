@@ -89,6 +89,9 @@ export const PAYLINES = [
 
 export const BETS = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
 
+// 자동 스핀 횟수 선택지. null은 무한이며, 남은 횟수는 프리스핀으로는 줄지 않는다.
+export const AUTO_SPINS = [10, 25, 50, 100, null];
+
 export const START_COINS = 10000000;
 export const REFILL_AMOUNT = 1000000;
 

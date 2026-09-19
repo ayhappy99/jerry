@@ -50,6 +50,43 @@
   box-shadow: 0 0 20px rgba(201, 150, 47, 0.55);
 }
 
+.btn__sub {
+  display: block;
+  font-family: var(--font-body); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0.04em; opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 자동 스핀 횟수 선택. 자동 버튼 위로 열린다. */
+.autopick {
+  position: absolute; z-index: var(--z-overlay);
+  bottom: 0; right: calc(100% + var(--sp-2));
+  display: flex; flex-direction: column; gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #2b1410 0%, #150a07 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.autopick[hidden] { display: none; }
+
+.autopick__item {
+  min-width: 96px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: #20100b;
+  color: var(--cream);
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.autopick__item:hover { border-color: var(--brass); color: var(--brass-lite); }
+.autopick__item:focus-visible { outline: 3px solid var(--credit); outline-offset: 2px; }
+
 .icon-btn {
   width: 36px; height: 36px;
   border: 1px solid var(--brass-dark);
@@ -412,7 +449,10 @@
   .bulb { animation: none; background: var(--brass); }
   .cell--win .cell__face,
   .cell--scatter .cell__face,
+  .cell--win .cell__face::after,
+  .cell--scatter .cell__face::after,
   .cell--win svg,
+  .dock__winvalue--lit,
   .marquee--celebrate .marquee__title,
   .cabinet__frame--celebrate,
   .overlay__title,
