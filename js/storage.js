@@ -41,7 +41,7 @@ export function defaultState() {
     player: { nickname: null, createdAt: null, tourDoneAt: null },
     wallet: { coins: START_COINS, totalRefills: 0 },
     jackpot: { pools: seedPools() },
-    settings: { game: GAME_KEYS[0], sound: true, music: true, turbo: false },
+    settings: { game: GAME_KEYS[0], sound: true, music: true, ambience: true, turbo: false },
     games: Object.fromEntries(GAME_KEYS.map((key) => [key, defaultGameState()])),
   };
 }
@@ -69,6 +69,7 @@ function mergeGlobalSettings(base, stored) {
     game: GAME_KEYS.includes(stored.game) ? stored.game : base.game,
     sound: stored.sound ?? base.sound,
     music: stored.music ?? base.music,
+    ambience: stored.ambience ?? base.ambience,
     turbo: stored.turbo ?? base.turbo,
   };
 }

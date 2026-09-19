@@ -461,6 +461,7 @@
   .rays,
   .halo { animation: none; }
   .reel--anticipate::after { animation: none; opacity: 0.5; }
+  .attract__line { animation: none; opacity: 1; }
   .tour--pass .tour__spot { animation: none; }
   .line-path { filter: none; }
 }

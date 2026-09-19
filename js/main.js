@@ -2,6 +2,7 @@
 
 import {
   BETS,
+  HALL,
   JACKPOT_CONTRIB_RATE,
   JACKPOT_MATCH,
   JACKPOT_ROLL_MS,
@@ -22,7 +23,7 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
-import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
+import { buildGrid, buildPickTiles, drawJackpotTier, drawStops, randomInt } from './rng.js';
 import { clearHighlights, playCascade, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
@@ -40,6 +41,11 @@ const game = {
   busy: false,
   // 진행 중인 스핀 루프. 체험형 안내가 스핀 종료를 기다릴 때 쓴다.
   loopPromise: Promise.resolve(),
+  // 어트랙트 모드(유휴 시 데모 스핀)
+  attract: false,
+  idleTimer: null,
+  // 가상의 홀 적립 타이머
+  hallTimer: null,
   auto: false,
   // 남은 자동 스핀 횟수. null은 무한이다.
   autoLeft: null,
@@ -146,6 +152,11 @@ function resolveJackpot(result) {
   const amount = game.state.jackpot.pools[tier];
   game.state.jackpot.pools[tier] = JACKPOT_TIERS[tier].seed;
   return { tier, amount, tiles: buildPickTiles(tier) };
+}
+
+// 이 게임/모드에서 잭팟이 터질 수 있는가. 적립 여부를 이 값으로 가른다.
+function canWinJackpot() {
+  return game.kind === 'cascade' || game.mode.jackpot;
 }
 
 function contributeJackpot(totalBet) {
@@ -368,15 +379,15 @@ async function runSpin() {
   ui.setMessage(isFree ? `공짜 스핀 ${game.freeSpinsLeft}번 남음 · 당첨금 2배` : '', true);
 
   if (isFree) {
-    game.freeSpinsLeft -= 1;
+    setFreeSpins(game.freeSpinsLeft - 1);
   } else {
     game.state.wallet.coins -= totalBet;
-    // 잭팟 적립은 프리스핀에서는 하지 않는다.
-    contributeJackpot(totalBet);
+    // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 모드도 적립하지 않는다.
+    // (클래식·9라인에서 적립하면 맞출 수 없는 돈을 내는 셈이 되어 환수율이 1%p 낮아진다)
+    if (canWinJackpot()) contributeJackpot(totalBet);
   }
   ui.setCredit(game.state.wallet.coins);
   ui.setBet(totalBet, betNote(BETS[section().settings.betIdx]));
-  ui.setFreeSpinBadge(game.freeSpinsLeft);
   ui.setChainBadge(null);
 
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
@@ -391,9 +402,8 @@ async function runSpin() {
 
   const coinsBeforeWin = game.state.wallet.coins;
   game.state.wallet.coins += payout.totalWin;
-  game.freeSpinsLeft += result.freeSpinsAwarded;
-  // 프리스핀 배지는 연출을 기다리지 않고 획득 즉시 보여준다.
-  ui.setFreeSpinBadge(game.freeSpinsLeft);
+  // 프리스핀 배지와 전용 화면은 연출을 기다리지 않고 획득 즉시 바뀐다.
+  setFreeSpins(game.freeSpinsLeft + result.freeSpinsAwarded);
   recordStats(result, payout);
   recordWinHistory(result, payout);
 
@@ -504,6 +514,7 @@ function openSettings() {
     turbo: game.state.settings.turbo,
     sound: game.state.settings.sound,
     music: game.state.settings.music,
+    ambience: game.state.settings.ambience,
     onNickname: (raw) => {
       const error = saveNickname(raw);
       if (error === null) ui.toast('닉네임을 변경했습니다. 기존 기록은 그대로 유지됩니다.');
@@ -518,6 +529,9 @@ function openSettings() {
     },
     onMusic: (on) => {
       setMusic(on);
+    },
+    onAmbience: (on) => {
+      setAmbience(on);
     },
     onReset: () => {
       const ok = window.confirm('코인·통계·잭팟 기록·닉네임이 모두 지워집니다. 초기화할까요?');
@@ -544,13 +558,132 @@ function setMusic(on) {
   storage.save(game.state);
 }
 
+// 홀 생활소음. 배경음과 따로 켜고 끈다.
+function setAmbience(on) {
+  game.state.settings.ambience = on;
+  audio.setAmbienceEnabled(on);
+  storage.save(game.state);
+}
+
+// ── 가상의 홀 ─────────────────────────────
+// 옆 기계들이 함께 잭팟을 쌓고 가끔 터뜨린다. 미터가 살아 움직이고 알림이 뜬다.
+// 적립과 적중을 같은 비율로 맞췄으므로 내 환수율은 바뀌지 않는다(근거는 config.HALL 주석).
+
+function hallSpinsPerTick() {
+  return (HALL.machines / HALL.spinSeconds) * (HALL.tickMs / 1000);
+}
+
+function hallJackpot() {
+  const tier = drawJackpotTier();
+  const amount = game.state.jackpot.pools[tier];
+  game.state.jackpot.pools[tier] = JACKPOT_TIERS[tier].seed;
+  const seat = HALL.seats[randomInt(HALL.seats.length)];
+  ui.setJackpot(game.state.jackpot.pools);
+  ui.flashJackpotTier(tier, TIMING.toast);
+  ui.toast(`${seat}번 대 ${JACKPOT_TIERS[tier].label} 당첨 ${ui.formatCoins(amount)}`);
+}
+
+function hallTick() {
+  const spins = hallSpinsPerTick();
+  const totalBet = currentTotalBet();
+  for (const key of JACKPOT_TIER_KEYS) {
+    game.state.jackpot.pools[key] +=
+      spins * totalBet * JACKPOT_CONTRIB_RATE * JACKPOT_TIERS[key].contribShare;
+  }
+  // 스핀 1회당 저장하는 원칙을 지키려고 여기서는 저장하지 않는다.
+  // 다음 스핀의 save()가 함께 기록하고, 그 전에 창을 닫으면 마지막 저장 시점으로 돌아간다.
+  if (!game.busy) ui.setJackpot(game.state.jackpot.pools);
+  if (Math.random() < spins / HALL.jackpotOdds) hallJackpot();
+}
+
+function startHall() {
+  if (game.hallTimer !== null) return;
+  game.hallTimer = setInterval(hallTick, HALL.tickMs);
+}
+
+function stopHall() {
+  if (game.hallTimer === null) return;
+  clearInterval(game.hallTimer);
+  game.hallTimer = null;
+}
+
+// ── 어트랙트 모드 ─────────────────────────
+// 실제 캐비닛은 손을 떼면 혼자 돌며 손님을 부른다.
+// 데모일 뿐이므로 코인을 건드리지 않고 판정도 하지 않는다. 통계와 저장도 없다.
+
+function canAttract() {
+  return (
+    !ui.el.cabinet.hidden &&
+    !game.busy &&
+    !game.auto &&
+    !game.attract &&
+    game.freeSpinsLeft === 0 &&
+    document.querySelector('.modal, .tour, .pick, .overlay') === null
+  );
+}
+
+async function runAttract() {
+  if (!canAttract()) return;
+  game.attract = true;
+  ui.setAttract(true);
+  audio.stopReelLoop();
+
+  while (game.attract) {
+    // 결과 판정 없이 스톱만 뽑아 릴을 돌린다. 소리도 내지 않는다.
+    const stops = drawStops(spec().strips);
+    await spinReels(ui.reelsHost(), spec(), { stops, grid: buildGrid(spec().strips, stops, spec().rows) }, {
+      turbo: true,
+    });
+    if (!game.attract) break;
+    await delay(TIMING.attractGap);
+  }
+}
+
+function stopAttract() {
+  if (!game.attract) return;
+  game.attract = false;
+  ui.setAttract(false);
+  // 데모가 남긴 화면을 실제 상태로 되돌린다.
+  renderReels(ui.reelsHost(), spec(), drawStops(spec().strips));
+  ui.setMessage('SPIN을 눌러 시작하세요.', true);
+}
+
+function resetIdle() {
+  if (game.idleTimer !== null) clearTimeout(game.idleTimer);
+  stopAttract();
+  game.idleTimer = setTimeout(runAttract, TIMING.attractIdle);
+}
+
+// ── 프리스핀 전용 화면 ────────────────────
+// 진입하면 배경과 음악이 함께 바뀐다. 다른 세계에 들어왔다는 신호다.
+
+// 남은 개수 변경은 전부 이 함수를 지난다. 화면 전환을 놓치지 않게 하려는 것이다.
+function setFreeSpins(count) {
+  const wasFree = game.freeSpinsLeft > 0;
+  const isFree = count > 0;
+  game.freeSpinsLeft = count;
+  ui.setFreeSpinBadge(count);
+  if (wasFree === isFree) return;
+  ui.setFreeSpinScreen(isFree);
+  audio.setMusicMode(isFree ? 'free' : 'base');
+}
+
 // ── 이벤트 배선 ───────────────────────────
 
 // 탭을 벗어나면 배경음을 멈춘다. 돌아오면 다시 시작한다.
 function wireVisibility() {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) audio.stopMusic();
-    else audio.startMusic();
+    if (document.hidden) {
+      audio.stopMusic();
+      audio.stopAmbience();
+      stopAttract();
+      stopHall();
+      return;
+    }
+    audio.startMusic();
+    audio.startAmbience();
+    resetIdle();
+    if (!ui.el.cabinet.hidden) startHall();
   });
 }
 
@@ -730,6 +863,11 @@ function wireControls() {
     game.loopPromise = runSpinLoop();
   });
 
+  // 아무 조작이 있으면 어트랙트를 멈추고 유휴 시계를 다시 센다.
+  for (const type of ['pointerdown', 'keydown', 'wheel']) {
+    document.addEventListener(type, resetIdle, { passive: true });
+  }
+
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');
     if (opener !== null) openPanel(opener.dataset.open);
@@ -767,6 +905,9 @@ function wireLobby() {
 
 function enterLobby() {
   stopAuto();
+  stopAttract();
+  stopHall();
+  if (game.idleTimer !== null) clearTimeout(game.idleTimer);
   ui.closeAutoPick();
   ui.setSeat(game.state.player.nickname);
   ui.renderLobby(game.state);
@@ -778,7 +919,8 @@ function enterGame(gameKey) {
   game.key = gameKey;
   game.kind = GAMES[gameKey].kind;
   game.state.settings.game = gameKey;
-  game.freeSpinsLeft = 0;
+  setFreeSpins(0);
+  ui.setFreeSpinScreen(false);
   game.mode = null;
 
   const stored = section().settings;
@@ -803,6 +945,9 @@ function enterGame(gameKey) {
   ui.setWin(0);
   storage.save(game.state);
 
+  resetIdle();
+  startHall();
+
   // 처음 앉은 사람에게는 안내를 자동으로 한 번 띄운다.
   if (game.state.player.tourDoneAt === null) runTour();
 }
@@ -819,6 +964,7 @@ function boot() {
   game.lineBet = BETS[section().settings.betIdx];
   audio.setEnabled(game.state.settings.sound);
   audio.setMusicEnabled(game.state.settings.music);
+  audio.setAmbienceEnabled(game.state.settings.ambience);
   wireAudioUnlock();
   wireVisibility();
   wireOnboarding();

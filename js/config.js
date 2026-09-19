@@ -7,7 +7,7 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   2: settings.music(배경음) 추가
 //   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
 //   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -118,6 +118,23 @@ export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
 // 픽 보너스: 타일 9장(3×3) 중 같은 티어 3개를 모으면 그 티어 당첨.
 // 당첨 티어만 3개를 넣고 나머지 세 티어는 2개씩 넣는다(3 + 2×3 = 9).
 // 그래서 당첨 티어 외에는 3개가 모일 수 없고 결과가 모호해지지 않는다.
+// 옆 기계들이 함께 쌓고 함께 터뜨리는 가상의 홀.
+//
+// 환수율이 바뀌지 않는 이유: 적립 속도와 적중 빈도를 내 기계와 같은 비율로 맞춘다.
+// 홀이 초당 (machines / spinSeconds) 스핀만큼 적립하고, 같은 스핀 수에
+// 1/jackpotOdds 확률로 터뜨린다. 적립이 N배 빨라지는 만큼 리셋도 N배 자주 일어나므로
+// 내가 잭팟을 맞추는 순간의 풀 기대 크기가 혼자 돌릴 때와 같다.
+// 내 적중률과 내 베팅은 그대로이니 내 환수율도 그대로다.
+export const HALL = {
+  machines: 48,
+  spinSeconds: 2,
+  // 스핀당 잭팟 적중 확률의 역수. 프리스핀·잭팟 모드 실측값(1/12,664)을 쓴다.
+  jackpotOdds: 12664,
+  tickMs: 250,
+  // 알림에 쓰는 자리 번호. 실제 사람 이름은 쓰지 않는다.
+  seats: [3, 5, 7, 8, 11, 12, 14, 17, 21, 23, 26, 29, 31, 34],
+};
+
 export const PICK_TILES = 9;
 export const PICK_MATCH = 3;
 
@@ -172,6 +189,10 @@ export const TIMING = {
   countUpTickMs: 55,
   bannerHold: 1800,
   toast: 2600,
+
+  // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
+  attractIdle: 30000,
+  attractGap: 1400,
   turboDivisor: 3,
   // prefers-reduced-motion 에서 당첨 연출을 더 짧게 줄이는 배수
   reducedMotionDivisor: 6,

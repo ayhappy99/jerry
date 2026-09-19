@@ -60,6 +60,7 @@ export const el = {
   lines: document.getElementById('lines'),
   freespinBadge: document.getElementById('freespin-badge'),
   chainBadge: document.getElementById('chain-badge'),
+  attract: document.getElementById('attract'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
   betSub: document.getElementById('bet-sub'),
@@ -313,6 +314,18 @@ export function setGameTheme(gameKey) {
 export function setChainBadge(text) {
   el.chainBadge.hidden = text === null;
   if (text !== null) el.chainBadge.textContent = text;
+}
+
+// 어트랙트 모드 표시. 데모라는 사실을 화면에 남긴다.
+export function setAttract(on) {
+  el.attract.hidden = !on;
+  el.cabinet.dataset.attract = String(on);
+  if (on) el.message.textContent = '';
+}
+
+// 프리스핀 전용 화면. 배경과 릴 프레임 색이 바뀐다.
+export function setFreeSpinScreen(on) {
+  el.cabinet.dataset.free = String(on);
 }
 
 export function setFreeSpinBadge(remaining) {
@@ -883,7 +896,10 @@ export function setFieldError(input, errorEl, message) {
 
 // ── 설정 ──────────────────────────────────
 
-export function openSettings({ nickname, turbo, sound, music, onNickname, onTurbo, onSound, onMusic, onReset }) {
+export function openSettings({
+  nickname, turbo, sound, music, ambience,
+  onNickname, onTurbo, onSound, onMusic, onAmbience, onReset,
+}) {
   const wrap = openModal({
     title: '설정',
     body:
@@ -903,6 +919,8 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
       '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
       `<label class="switch"><input type="checkbox" data-music ${music ? 'checked' : ''}>` +
       '<span>배경음<span class="switch__desc">일렉트로 하우스 128 BPM 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
+      `<label class="switch"><input type="checkbox" data-ambience ${ambience ? 'checked' : ''}>` +
+      '<span>홀 생활소음<span class="switch__desc">옆 기계의 릴 소리와 동전 소리를 아주 낮게 깔아 카지노 홀에 앉은 느낌을 만듭니다.</span></span></label>' +
       '<h3 class="modal__section">초기화</h3>' +
       '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
       '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
@@ -917,6 +935,7 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
     if (message === null) closeModal();
   });
   wrap.querySelector('[data-turbo]').addEventListener('change', (event) => onTurbo(event.target.checked));
+  wrap.querySelector('[data-ambience]').addEventListener('change', (event) => onAmbience(event.target.checked));
   wrap.querySelector('[data-sound]').addEventListener('change', (event) => onSound(event.target.checked));
   wrap.querySelector('[data-music]').addEventListener('change', (event) => onMusic(event.target.checked));
   wrap.querySelector('[data-reset]').addEventListener('click', onReset);

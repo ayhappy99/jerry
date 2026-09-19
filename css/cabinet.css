@@ -449,6 +449,69 @@ body {
   box-shadow: 0 0 18px rgba(255, 47, 98, 0.7);
 }
 
+/* ── 어트랙트 모드 ──────────────────────── */
+.attract {
+  position: absolute; inset: 0;
+  z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  background: linear-gradient(180deg, rgba(3, 2, 1, 0.55) 0%, rgba(3, 2, 1, 0.2) 50%, rgba(3, 2, 1, 0.7) 100%);
+  pointer-events: none;
+  text-align: center;
+}
+
+.attract[hidden] { display: none; }
+
+.attract__line {
+  margin: 0;
+  font-family: var(--font-display); font-size: var(--fs-2xl); letter-spacing: 0.08em;
+  color: var(--brass-lite);
+  text-shadow: 0 2px 0 var(--brass-dark), 0 0 28px rgba(247, 226, 163, 0.75);
+  animation: attract-pulse 1.5s ease-in-out infinite alternate;
+}
+
+.attract__sub {
+  margin: 0;
+  font-size: var(--fs-xs); letter-spacing: 0.1em;
+  color: var(--cream); opacity: 0.75;
+}
+
+@keyframes attract-pulse {
+  from { opacity: 0.55; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.04); }
+}
+
+/* 어트랙트 중에는 조작바를 눌러 둔다. 데모라는 것을 한눈에 알리려는 것이다. */
+.screen--cabinet[data-attract="true"] .panel,
+.screen--cabinet[data-attract="true"] .toolbar {
+  opacity: 0.4;
+  transition: opacity 0.4s ease;
+}
+
+/* ── 프리스핀 전용 화면 ─────────────────── */
+/* 진입하면 목재가 짙어지고 릴 프레임이 붉게 바뀐다. 다른 세계에 들어온 신호다. */
+.screen--cabinet[data-free="true"] {
+  --wood: #2a0f1a;
+  --wood-2: #180810;
+  --brass: #d24a6a;
+  --brass-lite: #ffd0dc;
+  --brass-dark: #6d1228;
+}
+
+.screen--cabinet[data-free="true"] .cabinet__window {
+  background: linear-gradient(180deg, #0a0206 0%, #23060f 50%, #0a0206 100%);
+}
+
+.screen--cabinet[data-free="true"] .marquee {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 47, 98, 0.3), transparent 62%),
+    var(--wood-face);
+}
+
+.screen--cabinet[data-free="true"] .cabinet__frame {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 34px rgba(255, 47, 98, 0.35);
+}
+
 /* ── 조작 패널 ──────────────────────────── */
 .panel {
   margin-top: var(--sp-3);
