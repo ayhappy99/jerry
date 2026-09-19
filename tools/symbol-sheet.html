@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>심볼 점검 (개발용)</title>
+<!-- 개발용. 저장소 루트에서 python3 -m http.server 로 띄운 뒤 /tools/symbol-sheet.html 로 연다.
+     릴 셀과 같은 배경·크기로 심볼을 늘어놓아 확대·실제·최소 크기를 한 번에 본다. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<style>
+  body{margin:0;padding:20px;background:linear-gradient(180deg,#1d100c,#120b08 45%,#0a0605);color:#f2e4c6;font-family:system-ui,sans-serif}
+  h2{font-size:13px;letter-spacing:.14em;color:#c9962f;margin:22px 0 10px;border-top:1px solid #6d4a10;padding-top:10px}
+  .grid{display:flex;flex-wrap:wrap;gap:14px}
+  .col{text-align:center}
+  .box{display:flex;align-items:center;justify-content:center;border-radius:6px;
+       background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.32));
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
+  .box svg{width:78%;height:78%}
+  .big .box{width:160px;height:160px} .mid .box{width:92px;height:92px} .sm .box{width:48px;height:48px}
+  .tag{font-size:11px;opacity:.7;margin-top:4px}
+</style></head><body>
+<div id="sprite" style="position:absolute;width:0;height:0;overflow:hidden"></div>
+<div id="out"></div>
+<script type="module">
+import { mountSymbolSprite, symbolHref } from '../js/symbols.js';
+import { SYMBOLS, SYMBOL_ORDER, PHARAOH } from '../js/config.js';
+mountSymbolSprite(document.getElementById('sprite'));
+const cab = ['cherry','lemon','bell','bar','seven','diamond','crown','star'];
+const pha = PHARAOH.symbolOrder;
+const row = (keys, cls) => `<div class="grid ${cls}">` + keys.map((k) =>
+  `<div class="col"><div class="box"><svg viewBox="0 0 100 100"><use href="${symbolHref(k)}"/></svg></div><div class="tag">${SYMBOLS[k].label}</div></div>`).join('') + '</div>';
+document.getElementById('out').innerHTML =
+  '<h2>럭키 캐비닛 — 확대 160px</h2>' + row(cab, 'big') +
+  '<h2>럭키 캐비닛 — 릴 92px / 최소 48px</h2>' + row(cab, 'mid') + row(cab, 'sm') +
+  '<h2>파라오의 문 — 확대 160px</h2>' + row(pha, 'big') +
+  '<h2>파라오의 문 — 릴 92px / 최소 48px</h2>' + row(pha, 'mid') + row(pha, 'sm');
+</script></body></html>

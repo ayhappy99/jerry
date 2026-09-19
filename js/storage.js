@@ -38,7 +38,7 @@ export function defaultGameState() {
 export function defaultState() {
   return {
     schema: SCHEMA_VERSION,
-    player: { nickname: null, createdAt: null },
+    player: { nickname: null, createdAt: null, tourDoneAt: null },
     wallet: { coins: START_COINS, totalRefills: 0 },
     jackpot: { pools: seedPools() },
     settings: { game: GAME_KEYS[0], sound: true, music: true, turbo: false },

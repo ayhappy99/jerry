@@ -510,6 +510,7 @@ body {
 
 .dock__bet {
   padding: var(--sp-2);
+  text-align: center;
   border-radius: var(--radius-sm);
   background: linear-gradient(180deg, #05100c 0%, #020706 100%);
   box-shadow: var(--shadow-inset);
@@ -524,8 +525,10 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.dock__betsub .meter__label { display: inline; margin-right: 4px; }
-.dock__betsub #bet-sub::before { content: ' · '; }
+/* 라벨의 영문 병기는 작게 눌러 둔다. 한글이 먼저 읽히게 하려는 것이다. */
+.meter__label small, .dock__winlabel small {
+  font-size: 0.82em; letter-spacing: 0.08em; opacity: 0.55;
+}
 
 /* 조작바 맨 윗줄을 가로지르는 TOTAL WIN 띠.
    패배 시에는 숫자만 0으로 두고 아무 연출도 하지 않는다. */
@@ -586,18 +589,20 @@ body {
 
 .controls__betlabel {
   flex: 1 1 auto;
+  min-width: 0;
   text-align: center;
   font-family: var(--font-display);
-  font-size: var(--fs-md);
+  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
   color: var(--brass-lite);
   white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ── 하단 툴바 ──────────────────────────── */
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: var(--sp-1);
   margin-top: var(--sp-3);
 }
@@ -781,4 +786,96 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .cell--pop .cell__face { animation: none; opacity: 0; }
+}
+
+/* ── 가로 화면 (기기를 눕혔을 때) ───────────
+   세로로 길게 늘어난 배치를 좌우로 나눈다. 릴은 왼쪽, 조작은 오른쪽 세로 한 줄.
+   하단 툴바는 숨기고 마퀴의 ☰ 메뉴 하나로 들어간다.
+   데스크톱(높이 620px 초과)은 기존 세로 배치를 그대로 쓴다. */
+@media (orientation: landscape) and (max-height: 620px) {
+  .screen--cabinet {
+    display: grid;
+    max-width: none;
+    padding: var(--sp-2);
+    gap: var(--sp-2);
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+    grid-template-areas:
+      'head head'
+      'jack dock'
+      'mode dock'
+      'reel dock';
+    grid-template-rows: auto auto auto 1fr;
+    align-items: start;
+  }
+
+  .marquee { grid-area: head; padding: var(--sp-2) 48px; }
+  .marquee__bulbs { display: none; }
+  .marquee__inner { display: flex; align-items: baseline; gap: var(--sp-3); }
+  .marquee__title { font-size: var(--fs-md); }
+  .marquee__title span { display: inline; font-size: 0.8em; margin-left: 0.4em; }
+  .marquee__seat { margin: 0; font-size: var(--fs-xs); }
+  .marquee__settings, .marquee__lobby { top: 50%; transform: translateY(-50%); }
+
+  .jackpot { grid-area: jack; margin-top: 0; padding: var(--sp-2); }
+  .jackpot__label { letter-spacing: 0.18em; }
+  .jackpot__label small { display: none; }
+  .jackpots { grid-template-columns: repeat(4, 1fr); margin: var(--sp-1) 0 0; }
+  .jp { padding: 2px var(--sp-1); }
+  .jp__value, .jp--grand .jp__value { font-size: var(--fs-sm); }
+  .jackpot__hint { display: none; }
+
+  .modes { grid-area: mode; margin: 0; }
+  .mode-tab { padding: var(--sp-1) var(--sp-1); font-size: var(--fs-xs); }
+  .mode-tab__sub { display: none; }
+
+  .cabinet { grid-area: reel; }
+  .panel { grid-area: dock; margin-top: 0; padding: var(--sp-2); }
+  .toolbar { display: none; }
+
+  /* 조작바는 세로 한 줄로 쌓는다 */
+  .dock {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'win' 'left' 'actions';
+    gap: var(--sp-2);
+  }
+
+  .message { margin: 0 0 var(--sp-2); font-size: var(--fs-xs); min-height: 1.2em; }
+  .dock__actions .btn--spin { flex: 1 1 auto; min-width: 0; padding: var(--sp-3); }
+  .dock__auto { min-width: 72px; }
+  .meter { padding: var(--sp-1) var(--sp-2); }
+  .meter__value { font-size: var(--fs-md); }
+  .meter__label small, .dock__winlabel small { display: none; }
+  .dock__bet { padding: var(--sp-1) var(--sp-2); }
+  .btn--round { width: 34px; height: 34px; font-size: var(--fs-md); }
+  .controls__betlabel { font-size: var(--fs-md); }
+
+  /* 자동 횟수 목록은 조작바 왼쪽으로 열면 릴을 덮는다. 위로 올린다. */
+  .autopick { bottom: calc(100% + var(--sp-1)); right: 0; }
+}
+
+/* 높이에 맞춰 릴 셀을 줄인다. 가로 화면에서는 폭이 아니라 높이가 병목이다.
+   값은 (마퀴 + 잭팟 + 모드 탭 + 릴 + 여백)이 화면 높이에 들어가도록 실측해서 잡았다. */
+@media (orientation: landscape) and (max-height: 620px) {
+  :root { --cell: 84px; }
+  .screen--cabinet[data-game="pharaoh"] { --cell: 74px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --cell: 68px; }
+  .screen--cabinet[data-game="pharaoh"] { --cell: 56px; }
+}
+
+@media (orientation: landscape) and (max-height: 440px) {
+  :root { --cell: 56px; --cell-gap: 4px; }
+  .screen--cabinet[data-game="pharaoh"] { --cell: 44px; }
+}
+
+@media (orientation: landscape) and (max-height: 400px) {
+  :root { --cell: 50px; --cell-gap: 3px; }
+  .screen--cabinet[data-game="pharaoh"] { --cell: 40px; }
+}
+
+@media (orientation: landscape) and (max-height: 350px) {
+  :root { --cell: 42px; }
+  .screen--cabinet[data-game="pharaoh"] { --cell: 34px; }
 }
