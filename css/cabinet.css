@@ -136,12 +136,55 @@ body {
   color: var(--neon); opacity: 0.9;
 }
 
-.jackpot__meter {
+/* 4단 잭팟 바. 티어 색은 기존 팔레트에서만 가져온다(새 색을 늘리지 않는다). */
+.jackpots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+}
+
+.jp {
+  padding: var(--sp-2) var(--sp-1);
+  border: 1px solid var(--jp-color);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.75) 100%);
+  text-align: center;
+  min-width: 0;
+}
+
+.jp--grand { --jp-color: var(--neon); }
+.jp--major { --jp-color: var(--brass-lite); }
+.jp--minor { --jp-color: var(--credit); }
+.jp--mini { --jp-color: var(--cream); }
+
+.jp__label {
   display: block;
-  font-family: var(--font-display); font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums; letter-spacing: 0.04em;
-  color: #ffd9e2;
-  text-shadow: 0 0 14px rgba(255, 47, 98, 0.9), 0 0 32px rgba(255, 47, 98, 0.45);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.16em;
+  color: var(--jp-color);
+}
+
+.jp__value {
+  display: block;
+  font-family: var(--font-display); font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow: 0 0 10px var(--jp-color);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* GRAND는 가장 크게 보여준다 */
+.jp--grand .jp__value { font-size: var(--fs-lg); }
+
+.jp--hit { animation: jp-hit 0.5s ease-in-out 6 alternate; }
+
+@keyframes jp-hit {
+  from { box-shadow: none; transform: scale(1); }
+  to { box-shadow: 0 0 26px 4px var(--jp-color); transform: scale(1.04); }
+}
+
+@media (max-width: 480px) {
+  .jackpots { grid-template-columns: repeat(2, 1fr); }
 }
 
 .jackpot__hint { margin: 0; font-size: var(--fs-xs); opacity: 0.7; }

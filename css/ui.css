@@ -448,3 +448,106 @@
 }
 
 .btn--danger { border-color: var(--neon); color: #ffd9e2; }
+
+/* ── 잭팟 픽 보너스 ─────────────────────── */
+.pick {
+  position: fixed; inset: 0;
+  z-index: var(--z-modal);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: radial-gradient(circle at 50% 40%, rgba(70, 20, 6, 0.94) 0%, rgba(3, 2, 1, 0.97) 70%);
+  text-align: center;
+}
+
+.pick__title {
+  margin: 0;
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-xl);
+  color: var(--brass-lite);
+  text-shadow: 0 0 22px rgba(247, 226, 163, 0.7);
+}
+
+.pick__desc { margin: 0; font-size: var(--fs-sm); opacity: 0.85; }
+
+.pick__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+
+.tile {
+  position: relative;
+  width: 92px; height: 92px;
+  padding: 0; border: 0; background: none;
+  perspective: 600px;
+  cursor: pointer;
+}
+
+.tile:disabled { cursor: default; }
+
+/* span 기본값(inline)에서는 width/height가 무시되고, 그러면 absolute인 .tile__face의
+   containing block이 .pick(fixed)이 되어 타일 면이 화면 전체를 덮는다. */
+.tile__inner {
+  display: block;
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.tile--flipped .tile__inner { transform: rotateY(180deg); }
+
+.tile__face {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  backface-visibility: hidden;
+}
+
+.tile__face--back {
+  background: var(--brass-frame);
+  border: 2px solid var(--brass-lite);
+  color: #2a1608;
+  font-family: var(--font-display); font-size: 1.8rem;
+}
+
+.tile__face--front {
+  transform: rotateY(180deg);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8));
+  border: 2px solid var(--jp-color);
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--jp-color) 30%, transparent);
+}
+
+.tile__tier {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em;
+  color: var(--jp-color);
+}
+
+.tile__amount {
+  font-family: var(--font-display); font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.pick__progress { display: flex; gap: var(--sp-2); font-size: var(--fs-xs); }
+
+.pick__chip {
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--jp-color);
+  border-radius: 999px;
+  color: var(--jp-color);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .tile { width: 76px; height: 76px; }
+}
+
+@media (max-width: 360px) {
+  .tile { width: 64px; height: 64px; }
+  .pick__grid { gap: var(--sp-2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile__inner { transition-duration: 0.001ms; }
+  .jp--hit { animation: none; box-shadow: 0 0 20px 3px var(--jp-color); }
+}

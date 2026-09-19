@@ -3,19 +3,24 @@
 
 import {
   HISTORY_LIMITS,
-  JACKPOT_SEED,
+  JACKPOT_TIERS,
+  JACKPOT_TIER_KEYS,
   MODE_KEYS,
   SCHEMA_VERSION,
   START_COINS,
   STORAGE_KEY,
 } from './config.js';
 
+export function seedPools() {
+  return Object.fromEntries(JACKPOT_TIER_KEYS.map((key) => [key, JACKPOT_TIERS[key].seed]));
+}
+
 export function defaultState() {
   return {
     schema: SCHEMA_VERSION,
     player: { nickname: null, createdAt: null },
     wallet: { coins: START_COINS, totalRefills: 0 },
-    jackpot: { pool: JACKPOT_SEED, seed: JACKPOT_SEED },
+    jackpot: { pools: seedPools() },
     settings: { mode: MODE_KEYS[1], betIdx: 2, sound: true, music: true, turbo: false },
     stats: {
       spins: 0,
@@ -40,6 +45,14 @@ function mergeList(base, stored) {
   return Array.isArray(stored) ? stored : base;
 }
 
+// v2 이하의 단일 풀(jackpot.pool)은 GRAND 티어로 옮긴다. 쌓아둔 금액을 버리지 않기 위한 것이다.
+function mergeJackpot(base, stored) {
+  if (stored === undefined || stored === null) return base;
+  const pools = { ...base.pools, ...(stored.pools ?? {}) };
+  if (stored.pools === undefined && typeof stored.pool === 'number') pools.grand = stored.pool;
+  return { pools };
+}
+
 // 스키마 버전이 달라도 기존 데이터를 날리지 않는다. 누락된 필드만 기본값으로 채운다.
 function migrate(stored) {
   const base = defaultState();
@@ -47,7 +60,7 @@ function migrate(stored) {
     schema: SCHEMA_VERSION,
     player: mergeSection(base.player, stored.player),
     wallet: mergeSection(base.wallet, stored.wallet),
-    jackpot: mergeSection(base.jackpot, stored.jackpot),
+    jackpot: mergeJackpot(base.jackpot, stored.jackpot),
     settings: mergeSection(base.settings, stored.settings),
     stats: mergeSection(base.stats, stored.stats),
     jackpotHistory: mergeList(base.jackpotHistory, stored.jackpotHistory),

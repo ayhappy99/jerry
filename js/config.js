@@ -5,7 +5,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 // 스키마 이력. 버전이 올라가도 기존 데이터는 지우지 않고 누락 필드만 채운다.
 //   1: 최초
 //   2: settings.music(배경음) 추가
-export const SCHEMA_VERSION = 2;
+//   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
+export const SCHEMA_VERSION = 3;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -70,7 +71,32 @@ export const BETS = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
 export const START_COINS = 10000000;
 export const REFILL_AMOUNT = 1000000;
 
-export const JACKPOT_SEED = 50000000;
+// 4단 프로그레시브 잭팟.
+// contribShare: 적립분 1%를 티어별로 나누는 비율. pickWeight: 픽 보너스에서 티어가 뽑힐 가중치.
+// 적립 비율을 추첨 가중치보다 크게 두면 그 티어의 평균 풀이 커진다.
+// 평균 풀 비율은 (contribShare / pickWeight)에 비례하므로 GRAND가 가장 크게 쌓인다.
+export const JACKPOT_TIERS = {
+  grand: { key: 'grand', label: 'GRAND', seed: 30000000, contribShare: 0.5, pickWeight: 8 },
+  major: { key: 'major', label: 'MAJOR', seed: 8000000, contribShare: 0.25, pickWeight: 16 },
+  minor: { key: 'minor', label: 'MINOR', seed: 3000000, contribShare: 0.15, pickWeight: 30 },
+  mini: { key: 'mini', label: 'MINI', seed: 1000000, contribShare: 0.1, pickWeight: 46 },
+};
+
+// 잭팟 트리거: 한 라인에 순수 다이아가 이 개수 이상(와일드 대체 불인정).
+// 5개에서 4개로 낮춘 이유는 4단으로 쪼개면 티어별 빈도가 4~12배 희박해져
+// 픽 보너스를 사실상 볼 수 없기 때문이다. 릴 스트립과 배당은 건드리지 않으므로
+// 라인 RTP는 그대로다. 대신 적중이 잦아진 만큼 시드를 낮춰 시드 효과를 억제했다.
+export const JACKPOT_SYMBOL = 'diamond';
+export const JACKPOT_MATCH = 4;
+
+export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
+
+// 픽 보너스: 타일 9장(3×3) 중 같은 티어 3개를 모으면 그 티어 당첨.
+// 당첨 티어만 3개를 넣고 나머지 세 티어는 2개씩 넣는다(3 + 2×3 = 9).
+// 그래서 당첨 티어 외에는 3개가 모일 수 없고 결과가 모호해지지 않는다.
+export const PICK_TILES = 9;
+export const PICK_MATCH = 3;
+
 // 매 스핀 총 베팅의 1%를 잭팟 풀에 적립한다. 프리스핀은 적립하지 않는다.
 export const JACKPOT_CONTRIB_RATE = 0.01;
 // 잭팟 미터는 실제 풀 값으로만 굴러간다. 화면에서만 올려 보여주는 가짜 증가는 넣지 않는다.

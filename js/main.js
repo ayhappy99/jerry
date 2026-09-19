@@ -3,9 +3,12 @@
 import {
   BETS,
   JACKPOT_CONTRIB_RATE,
+  JACKPOT_MATCH,
+  JACKPOT_ROLL_MS,
+  JACKPOT_TIERS,
+  JACKPOT_TIER_KEYS,
   MODES,
   MODE_KEYS,
-  JACKPOT_ROLL_MS,
   NICKNAME_RULES,
   REFILL_AMOUNT,
   SYMBOLS,
@@ -13,8 +16,8 @@ import {
   WIN_TIERS,
 } from './config.js';
 import * as audio from './audio.js';
-import { evaluateSpin, totalBetOf } from './engine.js';
-import { buildGrid, drawStops } from './rng.js';
+import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
+import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
 import { clearHighlights, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
@@ -46,9 +49,9 @@ function presentationSpeed() {
 }
 
 // 당첨금이 클수록 카운트업이 길어진다. 상한은 TIMING.countUpMax.
-function countUpDuration(result) {
+function countUpDuration(payout, result) {
   if (reducedMotion.matches) return 0;
-  const ratio = result.totalWin / result.totalBet;
+  const ratio = payout.totalWin / result.totalBet;
   const span = TIMING.countUpMax - TIMING.countUpMin;
   return (TIMING.countUpMin + Math.min(1, ratio / WIN_TIERS.mega) * span) / animationSpeed();
 }
@@ -60,7 +63,7 @@ function currentTotalBet() {
 function syncMeters() {
   ui.setCredit(game.state.wallet.coins);
   ui.setBet(game.lineBet, game.mode);
-  ui.setJackpot(game.state.jackpot.pool);
+  ui.setJackpot(game.state.jackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
   if (!game.busy) ui.setBetButtons(game.state.settings.betIdx);
 }
@@ -68,7 +71,7 @@ function syncMeters() {
 function syncJackpotHint() {
   ui.setJackpotHint(
     game.mode.jackpot
-      ? '한 라인에 다이아 5개 · 매 스핀 총 베팅의 1% 적립'
+      ? `한 라인에 다이아 ${JACKPOT_MATCH}개 이상 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`
       : '프리스핀·잭팟 모드에서만 적중합니다',
   );
 }
@@ -92,17 +95,34 @@ function changeBet(nextIdx) {
 
 // ── 스핀 ──────────────────────────────────
 
-function recordStats(result) {
+// 잭팟 적중이면 티어와 금액을 여기서 확정하고 그 티어 풀을 시드로 리셋한다.
+function resolveJackpot(result) {
+  if (!result.jackpot.hit) return null;
+  const tier = drawJackpotTier();
+  const amount = game.state.jackpot.pools[tier];
+  game.state.jackpot.pools[tier] = JACKPOT_TIERS[tier].seed;
+  return { tier, amount, tiles: buildPickTiles(tier) };
+}
+
+function contributeJackpot(totalBet) {
+  const before = { ...game.state.jackpot.pools };
+  for (const key of JACKPOT_TIER_KEYS) {
+    game.state.jackpot.pools[key] += totalBet * JACKPOT_CONTRIB_RATE * JACKPOT_TIERS[key].contribShare;
+  }
+  ui.rollJackpot(before, game.state.jackpot.pools, JACKPOT_ROLL_MS / animationSpeed());
+}
+
+function recordStats(result, payout) {
   const stats = game.state.stats;
   stats.spins += 1;
   if (!result.freeSpin) stats.totalWagered += result.totalBet;
-  stats.totalWon += result.totalWin;
+  stats.totalWon += payout.totalWin;
   if (result.freeSpinsAwarded > 0 && !result.freeSpin) stats.freeSpinsTriggered += 1;
-  if (result.totalWin > stats.bestWin) {
-    stats.bestWin = result.totalWin;
+  if (payout.totalWin > stats.bestWin) {
+    stats.bestWin = payout.totalWin;
     stats.bestWinAt = Date.now();
   }
-  if (result.totalWin > 0) {
+  if (payout.totalWin > 0) {
     stats.currentDrySpell = 0;
   } else {
     stats.currentDrySpell += 1;
@@ -110,31 +130,33 @@ function recordStats(result) {
   }
 }
 
-function recordWinHistory(result) {
-  if (result.jackpot.hit) {
+function recordWinHistory(result, payout) {
+  if (payout.jackpot !== null) {
     storage.addJackpotRecord(game.state, {
       nickname: game.state.player.nickname,
-      amount: result.jackpot.amount,
+      amount: payout.jackpot.amount,
+      tier: payout.jackpot.tier,
       mode: result.modeKey,
       bet: result.totalBet,
       at: Date.now(),
     });
   }
-  if (result.tier === 'big' || result.tier === 'mega') {
+  if (payout.tier === 'big' || payout.tier === 'mega') {
     storage.addBigWinRecord(game.state, {
       nickname: game.state.player.nickname,
-      amount: result.totalWin,
+      amount: payout.totalWin,
       mode: result.modeKey,
       bet: result.totalBet,
-      multiple: result.totalWin / result.totalBet,
+      multiple: payout.totalWin / result.totalBet,
       at: Date.now(),
     });
   }
 }
 
-function readoutText(result) {
-  if (result.jackpot.hit) {
-    return `잭팟 당첨. ${ui.formatCoins(result.jackpot.amount)} 코인. 총 ${ui.formatCoins(result.totalWin)} 코인 획득.`;
+function readoutText(result, payout) {
+  if (payout.jackpot !== null) {
+    const label = JACKPOT_TIERS[payout.jackpot.tier].label;
+    return `${label} 잭팟 당첨. ${ui.formatCoins(payout.jackpot.amount)} 코인. 총 ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
   }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 라인 ${win.lineIndex + 1}`,
@@ -142,22 +164,25 @@ function readoutText(result) {
   if (result.scatter !== null) parts.push(`스캐터 ${result.scatter.count}개`);
   if (parts.length === 0) return '당첨 없음';
   const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
-  return `${parts.join(', ')}. ${ui.formatCoins(result.totalWin)} 코인 획득.${free}`;
+  return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
 }
 
-function resultMessage(result) {
-  if (result.jackpot.hit) return `잭팟! ${ui.formatCoins(result.jackpot.amount)} 획득`;
+function resultMessage(result, payout) {
+  if (payout.jackpot !== null) {
+    const label = JACKPOT_TIERS[payout.jackpot.tier].label;
+    return `${label} 잭팟! ${ui.formatCoins(payout.jackpot.amount)} 획득`;
+  }
   if (result.freeSpinsAwarded > 0) return `스캐터 ${result.scatter.count}개! 프리스핀 10회`;
-  if (result.totalWin > 0) return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(result.totalWin)}`;
+  if (payout.totalWin > 0) return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(payout.totalWin)}`;
   return '';
 }
 
 // 꽝이면 아무 연출도 하지 않는다. 조용히 다음 스핀을 받는다.
-async function presentWin(result, coinsBeforeWin) {
-  if (result.totalWin === 0) return;
+async function presentWin(result, payout, coinsBeforeWin) {
+  if (payout.totalWin === 0) return;
   const speed = presentationSpeed();
   const effects = !reducedMotion.matches;
-  const tier = result.jackpot.hit ? 'jackpot' : result.tier;
+  const tier = payout.jackpot === null ? payout.tier : 'jackpot';
 
   // 당첨이 확정된 순간: 섬광 → 캐비닛 흔들림 → 마퀴·프레임 고속 점등
   if (effects) {
@@ -167,7 +192,7 @@ async function presentWin(result, coinsBeforeWin) {
   }
 
   // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
-  if (result.tier === 'win') audio.playWin();
+  if (tier === 'win') audio.playWin();
   await ui.playLineWins(result.lineWins, result.scatter, {
     speed,
     instant: reducedMotion.matches,
@@ -178,23 +203,34 @@ async function presentWin(result, coinsBeforeWin) {
     ui.showBigWin(`프리스핀 ${result.freeSpinsAwarded}회 획득!`, { speed, tier: 'free', effects });
   }
 
-  if (result.jackpot.hit) {
-    // 팡파르가 묻히지 않게 배경음만 낮춘다.
+  if (payout.jackpot !== null) {
+    // 티어가 확정된 뒤 픽 화면을 연다. 뒤집는 순서는 결과를 바꾸지 않는다.
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
+    await ui.openPickBonus({
+      tiles: payout.jackpot.tiles,
+      pools: { ...game.state.jackpot.pools, [payout.jackpot.tier]: payout.jackpot.amount },
+      speed,
+      effects,
+    });
     audio.playJackpot();
-    await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, { speed, effects });
-  } else if (result.tier === 'mega') {
+    ui.flashJackpotTier(payout.jackpot.tier, TIMING.countUpMega / speed);
+    await ui.showJackpot(game.state.player.nickname, payout.jackpot.amount, {
+      speed,
+      effects,
+      tierLabel: JACKPOT_TIERS[payout.jackpot.tier].label,
+    });
+  } else if (tier === 'mega') {
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playBigWin();
-    await ui.showMegaWin(result.totalWin, { speed, effects });
-  } else if (result.tier === 'big') {
+    await ui.showMegaWin(payout.totalWin, { speed, effects });
+  } else if (tier === 'big') {
     audio.duckMusic(TIMING.bannerHold / speed / 1000);
     audio.playBigWin();
     // 배너는 카운트업과 나란히 진행된다.
-    ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, { speed, tier: 'big', effects });
+    ui.showBigWin(`빅 윈 ${Math.floor(payout.totalWin / result.totalBet)}배!`, { speed, tier: 'big', effects });
   }
 
-  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result), () =>
+  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(payout, result), () =>
     audio.playCountTick(),
   );
 }
@@ -235,10 +271,8 @@ async function runSpin() {
     game.freeSpinsLeft -= 1;
   } else {
     game.state.wallet.coins -= totalBet;
-    const poolBefore = game.state.jackpot.pool;
     // 잭팟 적립은 프리스핀에서는 하지 않는다.
-    game.state.jackpot.pool += totalBet * JACKPOT_CONTRIB_RATE;
-    ui.rollJackpot(poolBefore, game.state.jackpot.pool, JACKPOT_ROLL_MS / animationSpeed());
+    contributeJackpot(totalBet);
   }
   ui.setCredit(game.state.wallet.coins);
   ui.setBet(game.lineBet, game.mode);
@@ -252,28 +286,30 @@ async function runSpin() {
     grid,
     lineBet: game.lineBet,
     freeSpin: isFree,
-    jackpotPool: game.state.jackpot.pool,
   });
+  // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
+  const jackpot = resolveJackpot(result);
+  const totalWin = result.totalWin + (jackpot === null ? 0 : jackpot.amount);
+  const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
   await revealSpin({ stops, grid });
 
   const coinsBeforeWin = game.state.wallet.coins;
-  if (result.jackpot.hit) game.state.jackpot.pool = game.state.jackpot.seed;
-  game.state.wallet.coins += result.totalWin;
+  game.state.wallet.coins += payout.totalWin;
   game.freeSpinsLeft += result.freeSpinsAwarded;
   // 프리스핀 배지는 연출을 기다리지 않고 획득 즉시 보여준다.
   ui.setFreeSpinBadge(game.freeSpinsLeft);
-  recordStats(result);
-  recordWinHistory(result);
+  recordStats(result, payout);
+  recordWinHistory(result, payout);
 
-  ui.setWin(result.totalWin);
-  ui.setMessage(resultMessage(result));
-  ui.setReadout(readoutText(result));
+  ui.setWin(payout.totalWin);
+  ui.setMessage(resultMessage(result, payout));
+  ui.setReadout(readoutText(result, payout));
 
   // 스핀 1회당 저장은 여기 한 번뿐이다. 자동스핀 중에도 같다.
   storage.save(game.state);
 
-  await presentWin(result, coinsBeforeWin);
+  await presentWin(result, payout, coinsBeforeWin);
   syncMeters();
   return true;
 }
@@ -498,6 +534,7 @@ function enterCabinet() {
 function boot() {
   mountSymbolSprite(ui.el.sprite);
   ui.mountBulbs();
+  ui.renderJackpotBar();
 
   game.state = storage.load();
   game.lineBet = BETS[game.state.settings.betIdx];

@@ -11,6 +11,7 @@
 import {
   CLASSIC_PAYS,
   FREE_SPIN_AWARD,
+  JACKPOT_MATCH,
   FREE_SPIN_MULTIPLIER,
   JACKPOT_CONTRIB_RATE,
   MODES,
@@ -86,13 +87,19 @@ function scatterDist(mode) {
     .reduce((acc, dist) => convolve(acc, dist), [1]);
 }
 
+// 라인 하나에 왼쪽부터 순수 다이아가 JACKPOT_MATCH개 이상일 확률
 function jackpotOdds(mode) {
   if (!mode.jackpot) return null;
   const perReel = mode.strips.map(reelProbs);
-  const perLine = perReel.reduce(
-    (acc, entries) => acc * (entries.find((e) => e.symbol === 'diamond')?.p ?? 0),
-    1,
-  );
+  const pDiamond = perReel.map((entries) => entries.find((e) => e.symbol === 'diamond')?.p ?? 0);
+  let perLine = 0;
+  for (let run = JACKPOT_MATCH; run <= mode.reels; run += 1) {
+    let p = 1;
+    for (let reel = 0; reel < run; reel += 1) p *= pDiamond[reel];
+    // 정확히 run개로 끊기는 경우(마지막 릴까지면 끊김 조건 없음)
+    if (run < mode.reels) p *= 1 - pDiamond[run];
+    perLine += p;
+  }
   const probability = 1 - (1 - perLine) ** mode.lines;
   return { probability, odds: Math.round(1 / probability) };
 }
@@ -145,7 +152,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`  라인      ${pct(r.lineRtp)}`);
     console.log(`  스캐터    ${pct(r.scatterRtp)}`);
     console.log(`  프리스핀  ${pct(r.freeRtp)}  (발동 ${pct(r.triggerRate)} = 1/${r.triggerRate ? Math.round(1 / r.triggerRate) : '-'}, 발동당 ${r.chain.toFixed(1)}회, 스핀당 ${r.freeSpinsPerSpin.toFixed(3)}회)`);
-    console.log(`  잭팟적립  ${pct(r.jackpotRtp)}${r.jackpot ? `  (다이아5 1/${r.jackpot.odds})` : ''}`);
+        console.log(`  잭팟적립  ${pct(r.jackpotRtp)}${r.jackpot ? `  (다이아 ${JACKPOT_MATCH}개 이상 1/${r.jackpot.odds.toLocaleString()})` : ''}`);
     console.log(`  합계      ${pct(r.total)}\n`);
   }
 }

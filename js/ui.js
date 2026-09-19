@@ -5,6 +5,9 @@ import {
   CLASSIC_PAYS,
   EFFECTS,
   HISTORY_LIMITS,
+  JACKPOT_MATCH,
+  JACKPOT_TIERS,
+  JACKPOT_TIER_KEYS,
   LINE_PAYS,
   MIN_MATCH,
   MODES,
@@ -12,6 +15,7 @@ import {
   NICKNAME_RULES,
   SCATTER,
   SCATTER_MIN,
+  PICK_MATCH,
   SCATTER_PAYS,
   SYMBOLS,
   SYMBOL_ORDER,
@@ -35,7 +39,7 @@ export const el = {
   nicknameError: document.getElementById('nickname-error'),
   bulbs: document.querySelector('.marquee__bulbs'),
   seat: document.getElementById('seat-label'),
-  jackpotMeter: document.getElementById('jackpot-meter'),
+  jackpotBar: document.getElementById('jackpot-bar'),
   jackpotHint: document.getElementById('jackpot-hint'),
   modes: document.getElementById('modes'),
   window: document.querySelector('.cabinet__window'),
@@ -134,8 +138,39 @@ export function setWin(value) {
   el.winMeter.textContent = formatCoins(value);
 }
 
-export function setJackpot(value) {
-  el.jackpotMeter.textContent = formatCoins(value);
+// 4단 잭팟 바를 만든다. 티어 순서는 config의 JACKPOT_TIER_KEYS를 따른다.
+export function renderJackpotBar() {
+  el.jackpotBar.innerHTML = JACKPOT_TIER_KEYS.map((key) => {
+    const tier = JACKPOT_TIERS[key];
+    return (
+      `<div class="jp jp--${key}" data-tier="${key}">` +
+      `<span class="jp__label">${tier.label}</span>` +
+      `<output class="jp__value" data-tier-value="${key}" aria-label="${tier.label} 잭팟">0</output>` +
+      '</div>'
+    );
+  }).join('');
+}
+
+function tierValueEl(key) {
+  return el.jackpotBar.querySelector(`[data-tier-value="${key}"]`);
+}
+
+export function setJackpot(pools) {
+  for (const key of JACKPOT_TIER_KEYS) tierValueEl(key).textContent = formatCoins(pools[key]);
+}
+
+// 적립분만큼 티어별로 굴려 올린다.
+export function rollJackpot(from, to, duration) {
+  for (const key of JACKPOT_TIER_KEYS) {
+    countUp(tierValueEl(key), from[key], to[key], duration);
+  }
+}
+
+// 적중한 티어를 잠깐 강조한다.
+export function flashJackpotTier(key, ms) {
+  const box = el.jackpotBar.querySelector(`.jp[data-tier="${key}"]`);
+  box.classList.add('jp--hit');
+  setTimeout(() => box.classList.remove('jp--hit'), ms);
 }
 
 export function setJackpotHint(text) {
@@ -232,10 +267,6 @@ export function countUp(element, from, to, duration, onTick = null) {
 
 export function countUpCredit(from, to, duration, onTick) {
   return countUp(el.credit, from, to, duration, onTick);
-}
-
-export function rollJackpot(from, to, duration) {
-  return countUp(el.jackpotMeter, from, to, duration);
 }
 
 // ── 당첨 라인 하이라이트 ──────────────────
@@ -465,8 +496,72 @@ export async function showMegaWin(amount, { speed = 1, effects = true } = {}) {
   overlay.remove();
 }
 
+// ── 잭팟 픽 보너스 ────────────────────────
+
+function tileMarkup(tier, index, amount) {
+  const label = JACKPOT_TIERS[tier].label;
+  return (
+    `<button class="tile jp--${tier}" type="button" data-tier="${tier}" aria-label="타일 ${index + 1} 뒤집기">` +
+    '<span class="tile__inner">' +
+    '<span class="tile__face tile__face--back" aria-hidden="true">?</span>' +
+    '<span class="tile__face tile__face--front">' +
+    `<span class="tile__tier">${label}</span>` +
+    `<span class="tile__amount">${formatCoins(amount)}</span>` +
+    '</span></span></button>'
+  );
+}
+
+function chipText(tier, count) {
+  return `${JACKPOT_TIERS[tier].label} ${count}/${PICK_MATCH}`;
+}
+
+/**
+ * 타일을 뒤집어 같은 티어 3개를 모으는 화면. 당첨 티어는 이미 확정되어 있고
+ * 타일 구성상 그 티어만 3개가 모일 수 있다. 뒤집는 순서는 결과를 바꾸지 않는다.
+ */
+export function openPickBonus({ tiles, pools, speed = 1, effects = true }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'pick';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', '잭팟 픽 보너스');
+  overlay.innerHTML =
+    '<h2 class="pick__title">잭팟 픽</h2>' +
+    `<p class="pick__desc">타일을 뒤집어 같은 등급 ${PICK_MATCH}개를 모으면 그 잭팟을 받습니다.</p>` +
+    `<div class="pick__grid">${tiles.map((tier, i) => tileMarkup(tier, i, pools[tier])).join('')}</div>` +
+    '<div class="pick__progress">' +
+    JACKPOT_TIER_KEYS.map(
+      (key) => `<span class="pick__chip jp--${key}" data-chip="${key}">${chipText(key, 0)}</span>`,
+    ).join('') +
+    '</div>';
+  el.overlayRoot.append(overlay);
+  if (effects) spawnCoins('big', EFFECTS.coinLifeMs);
+
+  const counts = Object.fromEntries(JACKPOT_TIER_KEYS.map((key) => [key, 0]));
+  const buttons = [...overlay.querySelectorAll('.tile')];
+  buttons[0].focus();
+
+  return new Promise((resolve) => {
+    const onPick = (event) => {
+      const button = event.currentTarget;
+      const tier = button.dataset.tier;
+      button.disabled = true;
+      button.classList.add('tile--flipped');
+      counts[tier] += 1;
+      overlay.querySelector(`[data-chip="${tier}"]`).textContent = chipText(tier, counts[tier]);
+      if (counts[tier] < PICK_MATCH) return;
+      for (const other of buttons) other.disabled = true;
+      setTimeout(() => {
+        overlay.remove();
+        resolve(tier);
+      }, TIMING.bannerHold / speed);
+    };
+    for (const button of buttons) button.addEventListener('click', onPick);
+  });
+}
+
 // 잭팟: 전용 풀스크린. 확인 버튼을 눌러야 닫힌다.
-export function showJackpot(nickname, amount, { speed = 1, effects = true } = {}) {
+export function showJackpot(nickname, amount, { speed = 1, effects = true, tierLabel = '' } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay overlay--jackpot';
   overlay.setAttribute('role', 'alertdialog');
@@ -475,8 +570,8 @@ export function showJackpot(nickname, amount, { speed = 1, effects = true } = {}
   overlay.innerHTML =
     overlayLayers(effects, true) +
     '<div class="overlay__inner">' +
-    '<p class="overlay__kicker">PROGRESSIVE JACKPOT</p>' +
-    '<h2 class="overlay__title">JACKPOT</h2>' +
+    `<p class="overlay__kicker">${tierLabel === '' ? 'PROGRESSIVE' : tierLabel} JACKPOT</p>` +
+    `<h2 class="overlay__title">${tierLabel === '' ? 'JACKPOT' : tierLabel}</h2>` +
     `<p class="overlay__who">${escapeHtml(nickname)}님, 잭팟!</p>` +
     '<p class="overlay__amount overlay__amount--ticking">0</p>' +
     '<button class="btn btn--primary" type="button" data-confirm>확인</button>' +
@@ -609,10 +704,11 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
 
 function recordRow(entry, extra = '') {
   const mode = MODES[entry.mode]?.short ?? entry.mode;
+  const tier = entry.tier === undefined ? '' : ` · ${JACKPOT_TIERS[entry.tier]?.label ?? entry.tier}`;
   return (
     '<div class="record">' +
     `<div><span class="record__who">${escapeHtml(entry.nickname)}</span>` +
-    `<span class="record__meta"> · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
+    `<span class="record__meta">${tier} · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
     `<span class="record__meta" style="display:block">${formatDateTime(entry.at)}</span></div>` +
     `<span class="record__amount">${formatCoins(entry.amount)}</span>` +
     '</div>'
@@ -755,7 +851,10 @@ export function openPaytable(modeKey) {
     mode.scatter
       ? `스타(스캐터)는 위치와 무관하게 개수로만 판정합니다. ${SCATTER_MIN}개 이상이면 프리스핀 10회를 받고, 프리스핀 중 당첨금은 2배입니다.`
       : '',
-    mode.jackpot ? '한 라인에 다이아 5개(와일드 대체 제외)가 뜨면 잭팟 풀 전액을 받습니다.' : '',
+    mode.jackpot
+      ? `한 라인에 순수 다이아 ${JACKPOT_MATCH}개 이상(와일드 대체 제외)이면 픽 보너스가 열려 ` +
+        `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급의 풀 전액을 받습니다.`
+      : '',
   ].filter((line) => line !== '');
 
   openModal({
