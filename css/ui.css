@@ -50,6 +50,43 @@
   box-shadow: 0 0 20px rgba(201, 150, 47, 0.55);
 }
 
+.btn__sub {
+  display: block;
+  font-family: var(--font-body); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0.04em; opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 자동 스핀 횟수 선택. 자동 버튼 위로 열린다. */
+.autopick {
+  position: absolute; z-index: var(--z-overlay);
+  bottom: 0; right: calc(100% + var(--sp-2));
+  display: flex; flex-direction: column; gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #2b1410 0%, #150a07 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.autopick[hidden] { display: none; }
+
+.autopick__item {
+  min-width: 96px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: #20100b;
+  color: var(--cream);
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.autopick__item:hover { border-color: var(--brass); color: var(--brass-lite); }
+.autopick__item:focus-visible { outline: 3px solid var(--credit); outline-offset: 2px; }
+
 .icon-btn {
   width: 36px; height: 36px;
   border: 1px solid var(--brass-dark);
@@ -224,11 +261,22 @@
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* ── 당첨 오버레이 ──────────────────────── */
-.banner {
-  position: fixed; top: 0; left: 50%;
+.banner--free {
+  background: linear-gradient(180deg, rgba(255, 224, 102, 0.97), rgba(224, 125, 10, 0.97));
+  border-color: #fffbe6;
+  box-shadow: 0 0 40px rgba(255, 224, 102, 0.7);
+}
+
+/* 배너가 여러 개 뜰 수 있어 세로로 쌓는다 */
+.banner-stack {
+  position: fixed; top: var(--sp-3); left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-overlay);
-  margin-top: var(--sp-3);
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  pointer-events: none;
+}
+
+.banner {
   padding: var(--sp-3) var(--sp-6);
   border: 2px solid var(--brass-lite);
   border-radius: 999px;
@@ -236,10 +284,15 @@
   color: #2a1608;
   font-family: var(--font-display); font-size: var(--fs-lg); letter-spacing: 0.1em;
   box-shadow: 0 0 40px rgba(247, 226, 163, 0.6);
-  animation: banner-in 0.3s ease;
+  animation: banner-in 0.3s cubic-bezier(0.2, 1.7, 0.4, 1), banner-throb 0.7s ease-in-out 0.3s infinite alternate;
 }
 
-@keyframes banner-in { from { opacity: 0; transform: translate(-50%, -18px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes banner-throb {
+  from { transform: scale(1); }
+  to { transform: scale(1.045); }
+}
+
+@keyframes banner-in { from { opacity: 0; transform: translateY(-18px) scale(0.9); } to { opacity: 1; transform: none; } }
 
 .overlay {
   position: fixed; inset: 0;
@@ -251,6 +304,11 @@
   text-align: center;
 }
 
+.overlay__inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
+}
+
 .overlay__kicker { margin: 0; font-size: var(--fs-sm); letter-spacing: 0.4em; color: var(--brass); }
 
 .overlay__title {
@@ -260,7 +318,20 @@
   line-height: 1;
   color: var(--brass-lite);
   text-shadow: 0 0 30px rgba(247, 226, 163, 0.8), 0 4px 0 var(--brass-dark);
-  animation: overlay-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+  animation: overlay-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1),
+             title-sheen 2.2s ease-in-out 0.5s infinite;
+}
+
+@keyframes title-sheen {
+  0%, 100% { filter: brightness(1); }
+  45% { filter: brightness(1.45) drop-shadow(0 0 22px rgba(255, 251, 232, 0.9)); }
+}
+
+.overlay__amount--ticking { animation: amount-pulse 0.34s ease-in-out infinite alternate; }
+
+@keyframes amount-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.055); }
 }
 
 .overlay__amount {
@@ -278,21 +349,82 @@
 
 .overlay--jackpot { background: radial-gradient(circle at 50% 42%, rgba(120, 12, 40, 0.92) 0%, rgba(3, 2, 1, 0.97) 70%); }
 
-/* 금색 파티클. 개별 span에 인라인 변수(--x, --d)를 준다. */
+/* 금화 파티클. 개별 span에 인라인 변수(--x, --d, --tx, --rise, --size)를 준다. */
 .particles { position: fixed; inset: 0; z-index: var(--z-overlay); pointer-events: none; overflow: hidden; }
 
-.particle {
-  position: absolute; top: -12px; left: var(--x);
-  width: 8px; height: 8px; border-radius: 2px;
-  background: var(--brass-lite);
-  box-shadow: 0 0 10px rgba(247, 226, 163, 0.9);
-  animation: particle-fall 1.6s linear var(--d) forwards;
+.coin {
+  position: absolute;
+  width: var(--size, 14px); height: var(--size, 14px);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, #fffbe8 0%, var(--brass-lite) 34%, var(--brass) 68%, var(--brass-dark) 100%);
+  box-shadow: 0 0 12px rgba(247, 226, 163, 0.85), inset 0 0 0 1.5px rgba(255, 251, 232, 0.8);
 }
 
-@keyframes particle-fall {
-  0% { opacity: 0; transform: translateY(0) rotate(0deg); }
-  10% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(96vh) rotate(540deg); }
+/* 위에서 쏟아지는 금화 */
+.coin--rain {
+  top: -20px; left: var(--x);
+  animation: coin-rain 1.9s cubic-bezier(0.3, 0, 0.7, 1) var(--d) forwards;
+}
+
+@keyframes coin-rain {
+  0% { opacity: 0; transform: translateY(0) rotate3d(1, 1, 0, 0deg); }
+  8% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(102vh) rotate3d(1, 1, 0, 900deg); }
+}
+
+/* 아래에서 솟구쳐 흩어지는 금화 */
+.coin--fountain {
+  bottom: 12vh; left: 50%;
+  animation: coin-fountain 2.1s cubic-bezier(0.25, 0.6, 0.4, 1) var(--d) forwards;
+}
+
+@keyframes coin-fountain {
+  0% { opacity: 0; transform: translate(0, 0) rotate3d(1, 1, 0, 0deg); }
+  8% { opacity: 1; }
+  42% { transform: translate(calc(var(--tx) * 0.55), calc(var(--rise) * -1)) rotate3d(1, 1, 0, 400deg); }
+  100% { opacity: 0; transform: translate(var(--tx), 34vh) rotate3d(1, 1, 0, 1080deg); }
+}
+
+/* 회전하는 광선 */
+.rays {
+  position: absolute;
+  width: 190vmax; height: 190vmax;
+  border-radius: 50%;
+  pointer-events: none;
+  /* 각 스톱 사이를 보간시켜 광선 경계가 톱니처럼 보이지 않게 한다 */
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(247, 226, 163, 0.11) 5deg,
+    transparent 10deg,
+    transparent 18deg
+  );
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.08) 6%, #000 30%, transparent 68%);
+  animation: rays-spin 16s linear infinite;
+}
+
+.rays--fast { animation-duration: 9s; }
+
+@keyframes rays-spin { to { transform: rotate(360deg); } }
+
+/* 타이틀 뒤 후광 */
+.halo {
+  position: absolute;
+  width: 78vmin; height: 78vmin;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(247, 226, 163, 0.32) 0%, transparent 62%);
+  animation: halo-pulse 1.5s ease-in-out infinite alternate;
+}
+
+.overlay--jackpot .halo {
+  background: radial-gradient(circle, rgba(255, 47, 98, 0.45) 0%, transparent 62%);
+}
+
+@keyframes halo-pulse {
+  from { transform: scale(0.86); opacity: 0.55; }
+  to { transform: scale(1.06); opacity: 1; }
 }
 
 /* ── 치명적 오류 ────────────────────────── */
@@ -315,7 +447,19 @@
     transition-duration: 0.001ms !important;
   }
   .bulb { animation: none; background: var(--brass); }
-  .cell--win .cell__face { animation: none; }
+  .cell--win .cell__face,
+  .cell--scatter .cell__face,
+  .cell--win .cell__face::after,
+  .cell--scatter .cell__face::after,
+  .cell--win svg,
+  .dock__winvalue--lit,
+  .marquee--celebrate .marquee__title,
+  .cabinet__frame--celebrate,
+  .overlay__title,
+  .overlay__amount--ticking,
+  .banner,
+  .rays,
+  .halo { animation: none; }
   .reel--anticipate::after { animation: none; opacity: 0.5; }
   .line-path { filter: none; }
 }
@@ -344,3 +488,106 @@
 }
 
 .btn--danger { border-color: var(--neon); color: #ffd9e2; }
+
+/* ── 잭팟 픽 보너스 ─────────────────────── */
+.pick {
+  position: fixed; inset: 0;
+  z-index: var(--z-modal);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: radial-gradient(circle at 50% 40%, rgba(70, 20, 6, 0.94) 0%, rgba(3, 2, 1, 0.97) 70%);
+  text-align: center;
+}
+
+.pick__title {
+  margin: 0;
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-xl);
+  color: var(--brass-lite);
+  text-shadow: 0 0 22px rgba(247, 226, 163, 0.7);
+}
+
+.pick__desc { margin: 0; font-size: var(--fs-sm); opacity: 0.85; }
+
+.pick__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+
+.tile {
+  position: relative;
+  width: 92px; height: 92px;
+  padding: 0; border: 0; background: none;
+  perspective: 600px;
+  cursor: pointer;
+}
+
+.tile:disabled { cursor: default; }
+
+/* span 기본값(inline)에서는 width/height가 무시되고, 그러면 absolute인 .tile__face의
+   containing block이 .pick(fixed)이 되어 타일 면이 화면 전체를 덮는다. */
+.tile__inner {
+  display: block;
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.tile--flipped .tile__inner { transform: rotateY(180deg); }
+
+.tile__face {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  backface-visibility: hidden;
+}
+
+.tile__face--back {
+  background: var(--brass-frame);
+  border: 2px solid var(--brass-lite);
+  color: #2a1608;
+  font-family: var(--font-display); font-size: 1.8rem;
+}
+
+.tile__face--front {
+  transform: rotateY(180deg);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8));
+  border: 2px solid var(--jp-color);
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--jp-color) 30%, transparent);
+}
+
+.tile__tier {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em;
+  color: var(--jp-color);
+}
+
+.tile__amount {
+  font-family: var(--font-display); font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.pick__progress { display: flex; gap: var(--sp-2); font-size: var(--fs-xs); }
+
+.pick__chip {
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--jp-color);
+  border-radius: 999px;
+  color: var(--jp-color);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .tile { width: 76px; height: 76px; }
+}
+
+@media (max-width: 360px) {
+  .tile { width: 64px; height: 64px; }
+  .pick__grid { gap: var(--sp-2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile__inner { transition-duration: 0.001ms; }
+  .jp--hit { animation: none; box-shadow: 0 0 20px 3px var(--jp-color); }
+}

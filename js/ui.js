@@ -1,9 +1,17 @@
 // 미터·메시지·모달·토스트 렌더. 게임 판정은 하지 않는다.
 
 import {
+  AUTO_SPINS,
   BETS,
   CLASSIC_PAYS,
+  EFFECTS,
+  GAMES,
+  GAME_KEYS,
+  PHARAOH,
   HISTORY_LIMITS,
+  JACKPOT_MATCH,
+  JACKPOT_TIERS,
+  JACKPOT_TIER_KEYS,
   LINE_PAYS,
   MIN_MATCH,
   MODES,
@@ -11,6 +19,7 @@ import {
   NICKNAME_RULES,
   SCATTER,
   SCATTER_MIN,
+  PICK_MATCH,
   SCATTER_PAYS,
   SYMBOLS,
   SYMBOL_ORDER,
@@ -28,19 +37,29 @@ export const el = {
   sprite: document.getElementById('sprite'),
   fatal: document.getElementById('fatal'),
   onboarding: document.getElementById('screen-onboarding'),
+  lobby: document.getElementById('screen-lobby'),
   cabinet: document.getElementById('screen-cabinet'),
+  lobbySeat: document.getElementById('lobby-seat'),
+  lobbyCredit: document.getElementById('lobby-credit'),
+  lobbyJackpots: document.getElementById('lobby-jackpots'),
+  lobbyGames: document.getElementById('lobby-games'),
+  toLobby: document.getElementById('to-lobby'),
   nicknameForm: document.getElementById('nickname-form'),
   nicknameInput: document.getElementById('nickname-input'),
   nicknameError: document.getElementById('nickname-error'),
   bulbs: document.querySelector('.marquee__bulbs'),
   seat: document.getElementById('seat-label'),
-  jackpotMeter: document.getElementById('jackpot-meter'),
+  jackpotBar: document.getElementById('jackpot-bar'),
   jackpotHint: document.getElementById('jackpot-hint'),
   modes: document.getElementById('modes'),
   window: document.querySelector('.cabinet__window'),
+  frame: document.querySelector('.cabinet__frame'),
+  marquee: document.querySelector('.marquee'),
+  flash: document.getElementById('flash'),
   reels: document.getElementById('reels'),
   lines: document.getElementById('lines'),
   freespinBadge: document.getElementById('freespin-badge'),
+  chainBadge: document.getElementById('chain-badge'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
   betMeter: document.getElementById('bet-meter'),
@@ -53,6 +72,7 @@ export const el = {
   betLabel: document.getElementById('bet-label'),
   spin: document.getElementById('spin'),
   auto: document.getElementById('auto'),
+  autoPick: document.getElementById('auto-pick'),
   soundToggle: document.getElementById('sound-toggle'),
   refill: document.getElementById('refill'),
   modalRoot: document.getElementById('modal-root'),
@@ -83,6 +103,7 @@ export function formatDateTime(timestamp) {
 
 export function showScreen(name) {
   el.onboarding.hidden = name !== 'onboarding';
+  el.lobby.hidden = name !== 'lobby';
   el.cabinet.hidden = name !== 'cabinet';
 }
 
@@ -112,26 +133,91 @@ export function modeTabs() {
   return [...el.modes.querySelectorAll('.mode-tab')];
 }
 
-export function setSeat(nickname) {
-  el.seat.textContent = `${nickname}님의 자리`;
+export function setSeat(nickname, gameLabel = null) {
+  el.seat.textContent =
+    gameLabel === null ? `${nickname}님의 자리` : `${gameLabel} · ${nickname}님의 자리`;
+  el.lobbySeat.textContent = `${nickname}님, 어느 대에 앉으시겠습니까?`;
+}
+
+// ── 로비 ──────────────────────────────────
+
+function gameCardStats(section) {
+  const { stats } = section;
+  if (stats.spins === 0) return '아직 플레이 기록이 없습니다';
+  const rtp =
+    stats.totalWagered === 0 ? '-' : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
+  return `스핀 ${formatCoins(stats.spins)}회 · 실측 환수율 ${rtp} · 최고 ${formatCoins(stats.bestWin)}`;
+}
+
+export function renderLobby(state) {
+  el.lobbyCredit.textContent = formatCoins(state.wallet.coins);
+  el.lobbyGames.innerHTML = GAME_KEYS.map((key) => {
+    const game = GAMES[key];
+    const art = game.artSymbols.map((symbol) => symbolMarkup(symbol)).join('');
+    return (
+      `<button class="gamecard" type="button" role="listitem" data-game="${key}">` +
+      `<span class="gamecard__art" aria-hidden="true">${art}</span>` +
+      '<span class="gamecard__body">' +
+      `<span class="gamecard__name">${game.label}</span>` +
+      `<span class="gamecard__badge">${game.badge}</span>` +
+      `<span class="gamecard__tagline">${game.tagline}</span>` +
+      `<span class="gamecard__stats">${gameCardStats(state.games[key])}</span>` +
+      '</span></button>'
+    );
+  }).join('');
 }
 
 export function setCredit(value) {
   el.credit.textContent = formatCoins(value);
 }
 
-export function setBet(lineBet, mode) {
-  el.betLabel.textContent = formatCoins(lineBet);
-  el.betMeter.textContent = formatCoins(lineBet * mode.lines);
-  el.betSub.textContent = `라인당 ${formatCoins(lineBet)} × ${mode.lines}`;
+export function setBet(unitBet, totalBet, note) {
+  el.betLabel.textContent = formatCoins(unitBet);
+  el.betMeter.textContent = formatCoins(totalBet);
+  el.betSub.textContent = note;
 }
 
 export function setWin(value) {
   el.winMeter.textContent = formatCoins(value);
+  // 패배 시에는 강조하지 않는다.
+  el.winMeter.classList.toggle('dock__winvalue--lit', value > 0);
 }
 
-export function setJackpot(value) {
-  el.jackpotMeter.textContent = formatCoins(value);
+// 4단 잭팟 바를 만든다. 티어 순서는 config의 JACKPOT_TIER_KEYS를 따른다.
+// 로비와 캐비닛 두 곳에 같은 바를 그리므로 대상 요소를 받는다.
+export function renderJackpotBar(host) {
+  host.innerHTML = JACKPOT_TIER_KEYS.map((key) => {
+    const tier = JACKPOT_TIERS[key];
+    return (
+      `<div class="jp jp--${key}" data-tier="${key}">` +
+      `<span class="jp__label">${tier.label}</span>` +
+      `<output class="jp__value" data-tier-value="${key}" aria-label="${tier.label} 잭팟">0</output>` +
+      '</div>'
+    );
+  }).join('');
+}
+
+// 잭팟 풀은 공유이므로 로비·캐비닛에 그려진 모든 바를 함께 갱신한다.
+export function setJackpot(pools) {
+  for (const key of JACKPOT_TIER_KEYS) {
+    for (const node of document.querySelectorAll(`[data-tier-value="${key}"]`)) {
+      node.textContent = formatCoins(pools[key]);
+    }
+  }
+}
+
+// 적립분만큼 티어별로 굴려 올린다. 화면에 보이는 캐비닛 쪽 바만 움직인다.
+export function rollJackpot(from, to, duration) {
+  for (const key of JACKPOT_TIER_KEYS) {
+    countUp(el.jackpotBar.querySelector(`[data-tier-value="${key}"]`), from[key], to[key], duration);
+  }
+}
+
+// 적중한 티어를 잠깐 강조한다.
+export function flashJackpotTier(key, ms) {
+  const box = el.jackpotBar.querySelector(`.jp[data-tier="${key}"]`);
+  box.classList.add('jp--hit');
+  setTimeout(() => box.classList.remove('jp--hit'), ms);
 }
 
 export function setJackpotHint(text) {
@@ -167,9 +253,66 @@ export function setBusy(busy, autoRunning) {
   for (const tab of el.modes.querySelectorAll('.mode-tab')) tab.disabled = busy || autoRunning;
 }
 
-export function setAutoButton(running) {
+// 자동 스핀 중에는 STOP과 남은 횟수를 같은 버튼에 보여준다. null은 무한이다.
+export function setAutoButton(running, remaining = null) {
   el.auto.dataset.running = String(running);
-  el.auto.textContent = running ? '중지' : '자동';
+  if (!running) {
+    el.auto.textContent = '자동';
+    el.auto.setAttribute('aria-label', '자동 스핀 시작');
+    return;
+  }
+  const left = remaining === null ? '∞' : `${remaining}회`;
+  el.auto.innerHTML = `STOP<span class="btn__sub">${left}</span>`;
+  el.auto.setAttribute(
+    'aria-label',
+    remaining === null ? '자동 스핀 중지 (무한)' : `자동 스핀 중지, ${remaining}회 남음`,
+  );
+}
+
+// 자동 스핀 횟수 선택 목록을 연다. 선택 결과는 onPick으로 넘긴다.
+export function openAutoPick(onPick) {
+  el.autoPick.innerHTML = AUTO_SPINS.map((count) => {
+    const label = count === null ? '무한' : `${count}회`;
+    return (
+      `<button class="autopick__item" type="button" role="menuitem" ` +
+      `data-count="${count === null ? 'infinite' : count}">${label}</button>`
+    );
+  }).join('');
+  el.autoPick.hidden = false;
+  el.auto.setAttribute('aria-expanded', 'true');
+
+  for (const item of el.autoPick.querySelectorAll('.autopick__item')) {
+    item.addEventListener('click', () => {
+      const raw = item.dataset.count;
+      closeAutoPick();
+      onPick(raw === 'infinite' ? null : Number(raw));
+    });
+  }
+  el.autoPick.querySelector('.autopick__item').focus();
+}
+
+export function closeAutoPick() {
+  el.autoPick.hidden = true;
+  el.autoPick.innerHTML = '';
+  el.auto.setAttribute('aria-expanded', 'false');
+}
+
+export function autoPickOpen() {
+  return !el.autoPick.hidden;
+}
+
+// 모드가 없는 게임에서는 탭 줄을 숨긴다.
+export function setModesVisible(visible) {
+  el.modes.hidden = !visible;
+}
+
+export function setGameTheme(gameKey) {
+  el.cabinet.dataset.game = gameKey;
+}
+
+export function setChainBadge(text) {
+  el.chainBadge.hidden = text === null;
+  if (text !== null) el.chainBadge.textContent = text;
 }
 
 export function setFreeSpinBadge(remaining) {
@@ -230,10 +373,6 @@ export function countUpCredit(from, to, duration, onTick) {
   return countUp(el.credit, from, to, duration, onTick);
 }
 
-export function rollJackpot(from, to, duration) {
-  return countUp(el.jackpotMeter, from, to, duration);
-}
-
 // ── 당첨 라인 하이라이트 ──────────────────
 
 function windowRect() {
@@ -260,25 +399,53 @@ export function clearLines() {
   el.lines.innerHTML = '';
 }
 
-function markCells(win, className) {
+// 라인 경로를 왼쪽부터 그려 나간다.
+function drawLine(polyline, duration) {
+  const length = polyline.getTotalLength();
+  polyline.style.strokeDasharray = String(length);
+  polyline.animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], {
+    duration,
+    easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)',
+  });
+}
+
+function markCells(win, className, effects) {
   for (const { reel, row } of win.cells) {
-    cellAt(el.reels, reel, row).classList.add(className);
+    const cell = cellAt(el.reels, reel, row);
+    cell.classList.add(className);
+    if (effects) spawnBurst(cell);
   }
 }
 
-function showAllWins(lineWins, scatter) {
+// 당첨 셀에서 링이 한 번 퍼진다.
+function spawnBurst(cell) {
+  const face = cell.querySelector('.cell__face');
+  const burst = document.createElement('span');
+  burst.className = 'burst';
+  burst.style.setProperty('--burst-dur', `${TIMING.burst}ms`);
+  face.append(burst);
+  setTimeout(() => burst.remove(), TIMING.burst);
+}
+
+function showAllWins(lineWins, scatter, { effects, speed }) {
   clearHighlights(el.reels);
   syncLinesViewBox();
   el.lines.innerHTML = lineWins.map((win) => winPath(win, 'line-path line-path--all')).join('');
-  for (const win of lineWins) markCells(win, 'cell--win');
-  if (scatter !== null) markCells(scatter, 'cell--scatter');
+  if (effects) {
+    for (const polyline of el.lines.querySelectorAll('polyline')) drawLine(polyline, TIMING.lineDraw / speed);
+  }
+  for (const win of lineWins) markCells(win, 'cell--win', false);
+  if (scatter !== null) markCells(scatter, 'cell--scatter', false);
+  el.reels.classList.add('reels--focus');
 }
 
-function showSingleWin(win) {
+function showSingleWin(win, { effects, speed }) {
   clearHighlights(el.reels);
   syncLinesViewBox();
   el.lines.innerHTML = winPath(win, 'line-path');
-  markCells(win, 'cell--win');
+  if (effects) drawLine(el.lines.querySelector('polyline'), TIMING.lineDraw / speed);
+  markCells(win, 'cell--win', effects);
+  el.reels.classList.add('reels--focus');
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -289,87 +456,243 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 export async function playLineWins(lineWins, scatter, { speed = 1, instant = false, onLine = () => {} } = {}) {
   if (lineWins.length === 0 && scatter === null) return;
+  const options = { effects: !instant, speed };
   if (instant) {
-    showAllWins(lineWins, scatter);
+    showAllWins(lineWins, scatter, options);
     return;
   }
   if (lineWins.length > 1) {
     for (const win of lineWins) {
-      showSingleWin(win);
+      showSingleWin(win, options);
       onLine(win);
       await wait(TIMING.lineHighlight / speed);
     }
+  } else if (lineWins.length === 1) {
+    showSingleWin(lineWins[0], options);
+    onLine(lineWins[0]);
   }
-  showAllWins(lineWins, scatter);
+  showAllWins(lineWins, scatter, options);
   if (lineWins.length > 1) await wait(TIMING.lineHighlightAll / speed);
+}
+
+// ── 순간 연출: 섬광 · 흔들림 · 마퀴 ───────
+
+// 당첨이 확정된 순간 릴 유리에 섬광이 터진다. 등급이 높을수록 강하다.
+export function flashWindow(tier, speed = 1) {
+  const peak = EFFECTS.flashPeak[tier] ?? 0;
+  if (peak === 0) return;
+  el.flash.animate([{ opacity: 0 }, { opacity: peak, offset: 0.18 }, { opacity: 0 }], {
+    duration: TIMING.flash / speed,
+    easing: 'ease-out',
+  });
+}
+
+// 캐비닛이 통째로 흔들린다. 등급이 높을수록 크게 흔든다.
+// 이동량을 정수 픽셀로 맞추고 회전을 넣지 않는다. 소수점 변형은 셀 경계에
+// 합성 이음선을 만든다(실측으로 확인).
+export function shakeCabinet(tier, speed = 1) {
+  const amount = EFFECTS.shakePx[tier] ?? 0;
+  if (amount === 0) return;
+  const frames = [0, -1, 0.75, -0.5, 0.25, 0].map((ratio, index) => ({
+    transform: `translate(${Math.round(amount * ratio)}px, ${Math.round(amount * ratio * -0.5)}px)`,
+    offset: index / 5,
+  }));
+  el.frame.animate(frames, { duration: TIMING.shake / speed, easing: 'ease-out' });
+}
+
+// 마퀴 전구와 릴 프레임이 당첨 동안 빠르게 점등한다.
+export function celebrate(ms) {
+  el.marquee.classList.add('marquee--celebrate');
+  el.frame.classList.add('cabinet__frame--celebrate');
+  setTimeout(() => {
+    el.marquee.classList.remove('marquee--celebrate');
+    el.frame.classList.remove('cabinet__frame--celebrate');
+  }, ms);
+}
+
+// ── 금화 파티클 ───────────────────────────
+
+function coinMarkup(kind) {
+  const size = 10 + Math.round(Math.random() * 10);
+  const delay = (Math.random() * 0.8).toFixed(2);
+  if (kind === 'rain') {
+    return `<span class="coin coin--rain" style="--x:${(Math.random() * 100).toFixed(1)}%;--d:${delay}s;--size:${size}px"></span>`;
+  }
+  const tx = (Math.random() * 2 - 1) * 46;
+  const rise = 32 + Math.random() * 34;
+  return (
+    `<span class="coin coin--fountain" style="--tx:${tx.toFixed(1)}vw;--rise:${rise.toFixed(1)}vh;` +
+    `--d:${delay}s;--size:${size}px"></span>`
+  );
+}
+
+// 등급에 맞는 개수의 금화를 한 파동 쏟는다.
+export function spawnCoins(tier, lifetimeMs) {
+  const rain = EFFECTS.coinRain[tier] ?? 0;
+  const fountain = EFFECTS.coinFountain[tier] ?? 0;
+  if (rain === 0 && fountain === 0) return;
+  const layer = document.createElement('div');
+  layer.className = 'particles';
+  layer.setAttribute('aria-hidden', 'true');
+  layer.innerHTML =
+    Array.from({ length: rain }, () => coinMarkup('rain')).join('') +
+    Array.from({ length: fountain }, () => coinMarkup('fountain')).join('');
+  el.overlayRoot.append(layer);
+  setTimeout(() => layer.remove(), lifetimeMs);
+}
+
+// 오버레이가 열려 있는 동안 금화를 반복해서 쏟는다. 멈추는 함수를 돌려준다.
+function coinWaves(tier) {
+  const spawn = () => spawnCoins(tier, EFFECTS.coinLifeMs);
+  spawn();
+  const timer = setInterval(spawn, EFFECTS.coinWaveMs);
+  return () => clearInterval(timer);
 }
 
 // ── 빅윈 / 메가윈 / 잭팟 ──────────────────
 
-const PARTICLE_COUNT = 34;
-
-function spawnParticles(duration) {
-  const layer = document.createElement('div');
-  layer.className = 'particles';
-  layer.setAttribute('aria-hidden', 'true');
-  layer.innerHTML = Array.from(
-    { length: PARTICLE_COUNT },
-    () => `<span class="particle" style="--x:${(Math.random() * 100).toFixed(1)}%;--d:${(Math.random() * 0.7).toFixed(2)}s"></span>`,
-  ).join('');
-  el.overlayRoot.append(layer);
-  setTimeout(() => layer.remove(), duration);
-}
-
-// 빅윈: 상단 배너 + 금색 파티클. 카운트업과 나란히 진행되도록 기다리지 않는다.
-export function showBigWin(text, speed = 1) {
+// 빅윈: 상단 배너 + 금화. 카운트업과 나란히 진행되도록 기다리지 않는다.
+export function showBigWin(text, { speed = 1, tier = 'big', effects = true } = {}) {
   const hold = TIMING.bannerHold / speed;
   const banner = document.createElement('div');
-  banner.className = 'banner';
+  banner.className = tier === 'free' ? 'banner banner--free' : 'banner';
   banner.setAttribute('role', 'status');
   banner.textContent = text;
-  el.overlayRoot.append(banner);
-  spawnParticles(hold + 600);
+  bannerStack().append(banner);
+  if (effects) spawnCoins(tier === 'free' ? 'big' : tier, hold + 2200);
   setTimeout(() => banner.remove(), hold);
 }
 
+// 배너는 한 스핀에 둘 이상 뜰 수 있으므로 스택 컨테이너에 넣는다.
+function bannerStack() {
+  const existing = el.overlayRoot.querySelector('.banner-stack');
+  if (existing !== null) return existing;
+  const stack = document.createElement('div');
+  stack.className = 'banner-stack';
+  el.overlayRoot.append(stack);
+  return stack;
+}
+
+function overlayLayers(effects, fastRays) {
+  if (!effects) return '';
+  return `<div class="rays${fastRays ? ' rays--fast' : ''}" aria-hidden="true"></div><div class="halo" aria-hidden="true"></div>`;
+}
+
 // 메가윈: 전체 화면 오버레이. 금액이 오버레이 안에서 굴러 올라간다.
-export async function showMegaWin(amount, speed = 1) {
+export async function showMegaWin(amount, { speed = 1, effects = true } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.setAttribute('role', 'status');
   overlay.innerHTML =
+    overlayLayers(effects, false) +
+    '<div class="overlay__inner">' +
     '<p class="overlay__kicker">MEGA WIN</p>' +
     '<h2 class="overlay__title">메가 윈</h2>' +
-    '<p class="overlay__amount">0</p>';
+    '<p class="overlay__amount overlay__amount--ticking">0</p>' +
+    '</div>';
   el.overlayRoot.append(overlay);
-  spawnParticles(TIMING.countUpMega / speed + 600);
-  await countUp(overlay.querySelector('.overlay__amount'), 0, amount, TIMING.countUpMega / speed);
+  const duration = TIMING.countUpMega / speed;
+  const stopCoins = effects ? coinWaves('mega') : () => {};
+  await countUp(overlay.querySelector('.overlay__amount'), 0, amount, duration);
+  overlay.querySelector('.overlay__amount').classList.remove('overlay__amount--ticking');
   await wait(TIMING.bannerHold / speed);
+  stopCoins();
   overlay.remove();
 }
 
+// ── 잭팟 픽 보너스 ────────────────────────
+
+function tileMarkup(tier, index, amount) {
+  const label = JACKPOT_TIERS[tier].label;
+  return (
+    `<button class="tile jp--${tier}" type="button" data-tier="${tier}" aria-label="타일 ${index + 1} 뒤집기">` +
+    '<span class="tile__inner">' +
+    '<span class="tile__face tile__face--back" aria-hidden="true">?</span>' +
+    '<span class="tile__face tile__face--front">' +
+    `<span class="tile__tier">${label}</span>` +
+    `<span class="tile__amount">${formatCoins(amount)}</span>` +
+    '</span></span></button>'
+  );
+}
+
+function chipText(tier, count) {
+  return `${JACKPOT_TIERS[tier].label} ${count}/${PICK_MATCH}`;
+}
+
+/**
+ * 타일을 뒤집어 같은 티어 3개를 모으는 화면. 당첨 티어는 이미 확정되어 있고
+ * 타일 구성상 그 티어만 3개가 모일 수 있다. 뒤집는 순서는 결과를 바꾸지 않는다.
+ */
+export function openPickBonus({ tiles, pools, speed = 1, effects = true }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'pick';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', '잭팟 픽 보너스');
+  overlay.innerHTML =
+    '<h2 class="pick__title">잭팟 픽</h2>' +
+    `<p class="pick__desc">타일을 뒤집어 같은 등급 ${PICK_MATCH}개를 모으면 그 잭팟을 받습니다.</p>` +
+    `<div class="pick__grid">${tiles.map((tier, i) => tileMarkup(tier, i, pools[tier])).join('')}</div>` +
+    '<div class="pick__progress">' +
+    JACKPOT_TIER_KEYS.map(
+      (key) => `<span class="pick__chip jp--${key}" data-chip="${key}">${chipText(key, 0)}</span>`,
+    ).join('') +
+    '</div>';
+  el.overlayRoot.append(overlay);
+  if (effects) spawnCoins('big', EFFECTS.coinLifeMs);
+
+  const counts = Object.fromEntries(JACKPOT_TIER_KEYS.map((key) => [key, 0]));
+  const buttons = [...overlay.querySelectorAll('.tile')];
+  buttons[0].focus();
+
+  return new Promise((resolve) => {
+    const onPick = (event) => {
+      const button = event.currentTarget;
+      const tier = button.dataset.tier;
+      button.disabled = true;
+      button.classList.add('tile--flipped');
+      counts[tier] += 1;
+      overlay.querySelector(`[data-chip="${tier}"]`).textContent = chipText(tier, counts[tier]);
+      if (counts[tier] < PICK_MATCH) return;
+      for (const other of buttons) other.disabled = true;
+      setTimeout(() => {
+        overlay.remove();
+        resolve(tier);
+      }, TIMING.bannerHold / speed);
+    };
+    for (const button of buttons) button.addEventListener('click', onPick);
+  });
+}
+
 // 잭팟: 전용 풀스크린. 확인 버튼을 눌러야 닫힌다.
-export function showJackpot(nickname, amount, speed = 1) {
+export function showJackpot(nickname, amount, { speed = 1, effects = true, tierLabel = '' } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay overlay--jackpot';
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', '잭팟 당첨');
   overlay.innerHTML =
-    '<p class="overlay__kicker">PROGRESSIVE JACKPOT</p>' +
-    '<h2 class="overlay__title">JACKPOT</h2>' +
+    overlayLayers(effects, true) +
+    '<div class="overlay__inner">' +
+    `<p class="overlay__kicker">${tierLabel === '' ? 'PROGRESSIVE' : tierLabel} JACKPOT</p>` +
+    `<h2 class="overlay__title">${tierLabel === '' ? 'JACKPOT' : tierLabel}</h2>` +
     `<p class="overlay__who">${escapeHtml(nickname)}님, 잭팟!</p>` +
-    '<p class="overlay__amount">0</p>' +
-    '<button class="btn btn--primary" type="button" data-confirm>확인</button>';
+    '<p class="overlay__amount overlay__amount--ticking">0</p>' +
+    '<button class="btn btn--primary" type="button" data-confirm>확인</button>' +
+    '</div>';
   el.overlayRoot.append(overlay);
-  spawnParticles(TIMING.countUpMega / speed + 1200);
 
+  const duration = TIMING.countUpMega / speed;
+  // 확인을 누를 때까지 열려 있으므로 금화를 계속 쏟는다.
+  const stopCoins = effects ? coinWaves('jackpot') : () => {};
   const confirm = overlay.querySelector('[data-confirm]');
   confirm.focus();
-  countUp(overlay.querySelector('.overlay__amount'), 0, amount, TIMING.countUpMega / speed);
+  const amountEl = overlay.querySelector('.overlay__amount');
+  countUp(amountEl, 0, amount, duration).then(() => amountEl.classList.remove('overlay__amount--ticking'));
 
   return new Promise((resolve) => {
     confirm.addEventListener('click', () => {
+      stopCoins();
       overlay.remove();
       resolve();
     });
@@ -460,7 +783,7 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
       `<label class="switch"><input type="checkbox" data-sound ${sound ? 'checked' : ''}>` +
       '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
       `<label class="switch"><input type="checkbox" data-music ${music ? 'checked' : ''}>` +
-      '<span>배경음<span class="switch__desc">라운지풍 4코드 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
+      '<span>배경음<span class="switch__desc">일렉트로 하우스 128 BPM 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
       '<h3 class="modal__section">초기화</h3>' +
       '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
       '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
@@ -485,10 +808,11 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
 
 function recordRow(entry, extra = '') {
   const mode = MODES[entry.mode]?.short ?? entry.mode;
+  const tier = entry.tier === undefined ? '' : ` · ${JACKPOT_TIERS[entry.tier]?.label ?? entry.tier}`;
   return (
     '<div class="record">' +
     `<div><span class="record__who">${escapeHtml(entry.nickname)}</span>` +
-    `<span class="record__meta"> · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
+    `<span class="record__meta">${tier} · ${mode} · 총베팅 ${formatCoins(entry.bet)}${extra}</span>` +
     `<span class="record__meta" style="display:block">${formatDateTime(entry.at)}</span></div>` +
     `<span class="record__amount">${formatCoins(entry.amount)}</span>` +
     '</div>'
@@ -617,7 +941,61 @@ function paylineGrid(mode) {
     .join('');
 }
 
-export function openPaytable(modeKey) {
+function waysPaytableRows() {
+  const counts = [3, 4, 5, 6];
+  return PHARAOH.symbolOrder
+    .map((key) => {
+      if (key === PHARAOH.wild) {
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 와일드</small></span></div></td>` +
+          '<td colspan="4">스캐터를 뺀 모든 심볼을 대체</td></tr>'
+        );
+      }
+      if (key === PHARAOH.scatter) {
+        const shown = [4, 5, 6];
+        const cells = shown.map((n) => `<td>${PHARAOH.scatterPays[n]}×</td>`).join('');
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 스캐터</small></span></div></td>` +
+          `<td>-</td>${cells}</tr>`
+        );
+      }
+      const cells = counts.map((n) => `<td>${PHARAOH.pays[key][n]}×</td>`).join('');
+      return (
+        `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>${cells}</tr>`
+      );
+    })
+    .join('');
+}
+
+function openWaysPaytable() {
+  const rules = [
+    `왼쪽 릴부터 연속된 릴에 같은 심볼이 있으면 행과 무관하게 당첨입니다. ${PHARAOH.minMatch}릴 이상이어야 합니다.`,
+    '배당은 <b>총 베팅 배수 × ways</b>입니다. ways는 각 릴에 나온 개수를 곱한 값이고 ' +
+      `6릴 ${PHARAOH.rows}행이면 최대 ${PHARAOH.rows ** PHARAOH.reels}가지입니다.`,
+    '심볼마다 따로 계산해 동시에 모두 지급합니다.',
+    `당첨 심볼이 사라지고 위에서 새 심볼이 내려와 다시 판정합니다(연쇄). 연쇄 배수는 ` +
+      `${PHARAOH.multipliers.join(' → ')}로 올라갑니다.`,
+    `스캐터 ${PHARAOH.scatterMin}개 이상이면 프리스핀 ${PHARAOH.freeSpins}회를 받고 당첨금이 ` +
+      `${PHARAOH.freeMultiplier}배가 됩니다.`,
+    `연쇄가 ${PHARAOH.jackpotChain}단에 닿으면 잭팟 픽 보너스가 열립니다.`,
+  ];
+  openModal({
+    title: `배당표 · ${GAMES.pharaoh.label}`,
+    body:
+      '<p class="modal__note">ways 하나당 총 베팅 배수입니다.</p>' +
+      '<table class="table"><thead><tr><th>심볼</th><th>3릴</th><th>4릴</th><th>5릴</th><th>6릴</th></tr></thead>' +
+      `<tbody>${waysPaytableRows()}</tbody></table>` +
+      `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
+  });
+}
+
+export function openPaytable(gameKey, modeKey) {
+  if (GAMES[gameKey].kind === 'cascade') {
+    openWaysPaytable();
+    return;
+  }
   const mode = MODES[modeKey];
   const header =
     mode.payKind === 'classic'
@@ -631,7 +1009,10 @@ export function openPaytable(modeKey) {
     mode.scatter
       ? `스타(스캐터)는 위치와 무관하게 개수로만 판정합니다. ${SCATTER_MIN}개 이상이면 프리스핀 10회를 받고, 프리스핀 중 당첨금은 2배입니다.`
       : '',
-    mode.jackpot ? '한 라인에 다이아 5개(와일드 대체 제외)가 뜨면 잭팟 풀 전액을 받습니다.' : '',
+    mode.jackpot
+      ? `한 라인에 순수 다이아 ${JACKPOT_MATCH}개 이상(와일드 대체 제외)이면 픽 보너스가 열려 ` +
+        `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급의 풀 전액을 받습니다.`
+      : '',
   ].filter((line) => line !== '');
 
   openModal({

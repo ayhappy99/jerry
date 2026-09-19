@@ -4,6 +4,8 @@
 import {
   CLASSIC_PAYS,
   FREE_SPIN_AWARD,
+  JACKPOT_MATCH,
+  JACKPOT_SYMBOL,
   FREE_SPIN_MULTIPLIER,
   LINE_PAYS,
   MIN_MATCH,
@@ -128,13 +130,21 @@ function evaluateScatter(mode, grid, totalBet) {
   };
 }
 
-// 잭팟은 한 라인에 순수 다이아 5개. 와일드 대체는 인정하지 않는다.
+// 잭팟은 한 라인에 왼쪽부터 순수 다이아가 JACKPOT_MATCH개 이상. 와일드 대체는 인정하지 않는다.
+function pureRunLength(symbols, target) {
+  let count = 0;
+  for (const symbol of symbols) {
+    if (symbol !== target) break;
+    count += 1;
+  }
+  return count;
+}
+
 function findJackpotLine(mode, grid) {
   if (!mode.jackpot) return -1;
   const lines = modePaylines(mode);
   for (let i = 0; i < lines.length; i += 1) {
-    const symbols = lineSymbols(grid, lines[i]);
-    if (symbols.length === mode.reels && symbols.every((symbol) => symbol === 'diamond')) return i;
+    if (pureRunLength(lineSymbols(grid, lines[i]), JACKPOT_SYMBOL) >= JACKPOT_MATCH) return i;
   }
   return -1;
 }
@@ -149,9 +159,11 @@ export function winTierOf(totalWin, totalBet) {
 
 /**
  * 스핀 1회를 판정한다.
- * @param {{modeKey: string, grid: string[][], lineBet: number, freeSpin: boolean, jackpotPool: number}} input
+ * 잭팟은 적중 여부만 판정한다. 티어와 금액은 rng.drawJackpotTier()와 현재 풀로 정해지므로
+ * 이 함수의 totalWin에는 포함되지 않는다.
+ * @param {{modeKey: string, grid: string[][], lineBet: number, freeSpin: boolean}} input
  */
-export function evaluateSpin({ modeKey, grid, lineBet, freeSpin = false, jackpotPool = 0 }) {
+export function evaluateSpin({ modeKey, grid, lineBet, freeSpin = false }) {
   const mode = MODES[modeKey];
   const totalBet = totalBetOf(mode, lineBet);
   const multiplier = freeSpin ? FREE_SPIN_MULTIPLIER : 1;
@@ -168,8 +180,6 @@ export function evaluateSpin({ modeKey, grid, lineBet, freeSpin = false, jackpot
   const baseWin = (lineTotal + scatterTotal) * multiplier;
 
   const jackpotLine = findJackpotLine(mode, grid);
-  const jackpotWin = jackpotLine === -1 ? 0 : jackpotPool;
-  const totalWin = baseWin + jackpotWin;
 
   return {
     modeKey,
@@ -180,9 +190,9 @@ export function evaluateSpin({ modeKey, grid, lineBet, freeSpin = false, jackpot
     lineWins,
     scatter,
     freeSpinsAwarded: scatter === null ? 0 : scatter.freeSpins,
-    jackpot: { hit: jackpotLine !== -1, lineIndex: jackpotLine, amount: jackpotWin },
+    jackpot: { hit: jackpotLine !== -1, lineIndex: jackpotLine },
     baseWin,
-    totalWin,
-    tier: winTierOf(totalWin, totalBet),
+    totalWin: baseWin,
+    tier: winTierOf(baseWin, totalBet),
   };
 }

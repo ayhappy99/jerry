@@ -3,19 +3,26 @@
 import {
   BETS,
   JACKPOT_CONTRIB_RATE,
+  JACKPOT_MATCH,
+  JACKPOT_ROLL_MS,
+  JACKPOT_TIERS,
+  JACKPOT_TIER_KEYS,
+  GAMES,
+  GAME_KEYS,
   MODES,
   MODE_KEYS,
-  JACKPOT_ROLL_MS,
   NICKNAME_RULES,
+  PHARAOH,
   REFILL_AMOUNT,
   SYMBOLS,
   TIMING,
   WIN_TIERS,
 } from './config.js';
 import * as audio from './audio.js';
-import { evaluateSpin, totalBetOf } from './engine.js';
-import { buildGrid, drawStops } from './rng.js';
-import { clearHighlights, renderReels, spinReels } from './reels.js';
+import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
+import { spinCascade } from './cascade.js';
+import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
+import { clearHighlights, playCascade, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
@@ -24,13 +31,22 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const game = {
   state: null,
+  key: null,
+  kind: null,
   mode: null,
   lineBet: 0,
   freeSpinsLeft: 0,
   busy: false,
   auto: false,
+  // 남은 자동 스핀 횟수. null은 무한이다.
+  autoLeft: null,
   looping: false,
 };
+
+// 현재 고른 게임이 따로 쌓는 설정·통계·기록. 코인과 잭팟 풀은 game.state에 공유로 둔다.
+function section() {
+  return game.state.games[game.key];
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,36 +62,55 @@ function presentationSpeed() {
 }
 
 // 당첨금이 클수록 카운트업이 길어진다. 상한은 TIMING.countUpMax.
-function countUpDuration(result) {
+function countUpDuration(payout, result) {
   if (reducedMotion.matches) return 0;
-  const ratio = result.totalWin / result.totalBet;
+  const ratio = payout.totalWin / result.totalBet;
   const span = TIMING.countUpMax - TIMING.countUpMin;
   return (TIMING.countUpMin + Math.min(1, ratio / WIN_TIERS.mega) * span) / animationSpeed();
 }
 
+// 현재 게임의 릴 구성. 페이라인 게임은 모드, 캐스케이딩 게임은 PHARAOH가 그 역할을 한다.
+function spec() {
+  return game.kind === 'cascade' ? PHARAOH : game.mode;
+}
+
 function currentTotalBet() {
-  return totalBetOf(game.mode, game.lineBet);
+  return game.kind === 'cascade'
+    ? BETS[section().settings.betIdx] * PHARAOH.betUnits
+    : totalBetOf(game.mode, game.lineBet);
+}
+
+function betNote(unitBet) {
+  return game.kind === 'cascade'
+    ? `베팅 단위 ${ui.formatCoins(unitBet)} × ${PHARAOH.betUnits}`
+    : `라인당 ${ui.formatCoins(unitBet)} × ${game.mode.lines}`;
 }
 
 function syncMeters() {
+  const unitBet = BETS[section().settings.betIdx];
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(game.lineBet, game.mode);
-  ui.setJackpot(game.state.jackpot.pool);
+  ui.setBet(unitBet, currentTotalBet(), betNote(unitBet));
+  ui.setJackpot(game.state.jackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
-  if (!game.busy) ui.setBetButtons(game.state.settings.betIdx);
+  if (!game.busy) ui.setBetButtons(section().settings.betIdx);
+}
+
+function jackpotHint() {
+  if (game.kind === 'cascade') {
+    return `연쇄 ${PHARAOH.jackpotChain}단 도달 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`;
+  }
+  return game.mode.jackpot
+    ? `한 라인에 다이아 ${JACKPOT_MATCH}개 이상 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`
+    : '프리스핀·잭팟 모드에서만 적중합니다';
 }
 
 function syncJackpotHint() {
-  ui.setJackpotHint(
-    game.mode.jackpot
-      ? '한 라인에 다이아 5개 · 매 스핀 총 베팅의 1% 적립'
-      : '프리스핀·잭팟 모드에서만 적중합니다',
-  );
+  ui.setJackpotHint(jackpotHint());
 }
 
 function selectMode(modeKey) {
   game.mode = MODES[modeKey];
-  game.state.settings.mode = modeKey;
+  section().settings.mode = modeKey;
   ui.renderModeTabs(modeKey);
   renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
   syncJackpotHint();
@@ -84,25 +119,50 @@ function selectMode(modeKey) {
 }
 
 function changeBet(nextIdx) {
-  game.state.settings.betIdx = nextIdx;
+  section().settings.betIdx = nextIdx;
   game.lineBet = BETS[nextIdx];
+  syncMeters();
+  storage.save(game.state);
+}
+
+// 캐스케이딩 게임은 모드가 없다. 릴만 그려 두고 탭 줄을 숨긴다.
+function setupCascade() {
+  renderReels(ui.reelsHost(), PHARAOH, drawStops(PHARAOH.strips));
+  syncJackpotHint();
   syncMeters();
   storage.save(game.state);
 }
 
 // ── 스핀 ──────────────────────────────────
 
-function recordStats(result) {
-  const stats = game.state.stats;
+// 잭팟 적중이면 티어와 금액을 여기서 확정하고 그 티어 풀을 시드로 리셋한다.
+function resolveJackpot(result) {
+  if (!result.jackpot.hit) return null;
+  const tier = drawJackpotTier();
+  const amount = game.state.jackpot.pools[tier];
+  game.state.jackpot.pools[tier] = JACKPOT_TIERS[tier].seed;
+  return { tier, amount, tiles: buildPickTiles(tier) };
+}
+
+function contributeJackpot(totalBet) {
+  const before = { ...game.state.jackpot.pools };
+  for (const key of JACKPOT_TIER_KEYS) {
+    game.state.jackpot.pools[key] += totalBet * JACKPOT_CONTRIB_RATE * JACKPOT_TIERS[key].contribShare;
+  }
+  ui.rollJackpot(before, game.state.jackpot.pools, JACKPOT_ROLL_MS / animationSpeed());
+}
+
+function recordStats(result, payout) {
+  const stats = section().stats;
   stats.spins += 1;
   if (!result.freeSpin) stats.totalWagered += result.totalBet;
-  stats.totalWon += result.totalWin;
+  stats.totalWon += payout.totalWin;
   if (result.freeSpinsAwarded > 0 && !result.freeSpin) stats.freeSpinsTriggered += 1;
-  if (result.totalWin > stats.bestWin) {
-    stats.bestWin = result.totalWin;
+  if (payout.totalWin > stats.bestWin) {
+    stats.bestWin = payout.totalWin;
     stats.bestWinAt = Date.now();
   }
-  if (result.totalWin > 0) {
+  if (payout.totalWin > 0) {
     stats.currentDrySpell = 0;
   } else {
     stats.currentDrySpell += 1;
@@ -110,31 +170,38 @@ function recordStats(result) {
   }
 }
 
-function recordWinHistory(result) {
-  if (result.jackpot.hit) {
-    storage.addJackpotRecord(game.state, {
+function recordWinHistory(result, payout) {
+  if (payout.jackpot !== null) {
+    storage.addJackpotRecord(section(), {
       nickname: game.state.player.nickname,
-      amount: result.jackpot.amount,
+      amount: payout.jackpot.amount,
+      tier: payout.jackpot.tier,
       mode: result.modeKey,
       bet: result.totalBet,
       at: Date.now(),
     });
   }
-  if (result.tier === 'big' || result.tier === 'mega') {
-    storage.addBigWinRecord(game.state, {
+  if (payout.tier === 'big' || payout.tier === 'mega') {
+    storage.addBigWinRecord(section(), {
       nickname: game.state.player.nickname,
-      amount: result.totalWin,
+      amount: payout.totalWin,
       mode: result.modeKey,
       bet: result.totalBet,
-      multiple: result.totalWin / result.totalBet,
+      multiple: payout.totalWin / result.totalBet,
       at: Date.now(),
     });
   }
 }
 
-function readoutText(result) {
-  if (result.jackpot.hit) {
-    return `잭팟 당첨. ${ui.formatCoins(result.jackpot.amount)} 코인. 총 ${ui.formatCoins(result.totalWin)} 코인 획득.`;
+function readoutText(result, payout) {
+  if (payout.jackpot !== null) {
+    const label = JACKPOT_TIERS[payout.jackpot.tier].label;
+    return `${label} 잭팟 당첨. ${ui.formatCoins(payout.jackpot.amount)} 코인. 총 ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
+  }
+  if (result.cascade !== undefined) {
+    if (payout.totalWin === 0) return '당첨 없음';
+    const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
+    return `연쇄 ${result.cascade.chain}단. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
   }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 라인 ${win.lineIndex + 1}`,
@@ -142,46 +209,79 @@ function readoutText(result) {
   if (result.scatter !== null) parts.push(`스캐터 ${result.scatter.count}개`);
   if (parts.length === 0) return '당첨 없음';
   const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
-  return `${parts.join(', ')}. ${ui.formatCoins(result.totalWin)} 코인 획득.${free}`;
+  return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
 }
 
-function resultMessage(result) {
-  if (result.jackpot.hit) return `잭팟! ${ui.formatCoins(result.jackpot.amount)} 획득`;
-  if (result.freeSpinsAwarded > 0) return `스캐터 ${result.scatter.count}개! 프리스핀 10회`;
-  if (result.totalWin > 0) return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(result.totalWin)}`;
-  return '';
+function resultMessage(result, payout) {
+  if (payout.jackpot !== null) {
+    const label = JACKPOT_TIERS[payout.jackpot.tier].label;
+    return `${label} 잭팟! ${ui.formatCoins(payout.jackpot.amount)} 획득`;
+  }
+  if (result.freeSpinsAwarded > 0) {
+    const count = result.cascade === undefined ? result.scatter.count : result.cascade.scatters;
+    return `스캐터 ${count}개! 프리스핀 ${result.freeSpinsAwarded}회`;
+  }
+  if (payout.totalWin === 0) return '';
+  if (result.cascade !== undefined) {
+    return `연쇄 ${result.cascade.chain}단 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(payout.totalWin)}`;
 }
 
 // 꽝이면 아무 연출도 하지 않는다. 조용히 다음 스핀을 받는다.
-async function presentWin(result, coinsBeforeWin) {
-  if (result.totalWin === 0) return;
+async function presentWin(result, payout, coinsBeforeWin) {
+  if (payout.totalWin === 0) return;
   const speed = presentationSpeed();
+  const effects = !reducedMotion.matches;
+  const tier = payout.jackpot === null ? payout.tier : 'jackpot';
+
+  // 당첨이 확정된 순간: 섬광 → 캐비닛 흔들림 → 마퀴·프레임 고속 점등
+  if (effects) {
+    ui.flashWindow(tier, speed);
+    ui.shakeCabinet(tier, speed);
+    ui.celebrate(TIMING.celebrateHold / speed);
+  }
 
   // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
-  if (result.tier === 'win') audio.playWin();
+  if (tier === 'win') audio.playWin();
   await ui.playLineWins(result.lineWins, result.scatter, {
     speed,
     instant: reducedMotion.matches,
     onLine: () => audio.playLineTick(),
   });
 
-  if (result.jackpot.hit) {
-    // 팡파르가 묻히지 않게 배경음만 낮춘다.
+  if (result.freeSpinsAwarded > 0) {
+    ui.showBigWin(`프리스핀 ${result.freeSpinsAwarded}회 획득!`, { speed, tier: 'free', effects });
+  }
+
+  if (payout.jackpot !== null) {
+    // 티어가 확정된 뒤 픽 화면을 연다. 뒤집는 순서는 결과를 바꾸지 않는다.
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
+    await ui.openPickBonus({
+      tiles: payout.jackpot.tiles,
+      pools: { ...game.state.jackpot.pools, [payout.jackpot.tier]: payout.jackpot.amount },
+      speed,
+      effects,
+    });
     audio.playJackpot();
-    await ui.showJackpot(game.state.player.nickname, result.jackpot.amount, speed);
-  } else if (result.tier === 'mega') {
+    ui.flashJackpotTier(payout.jackpot.tier, TIMING.countUpMega / speed);
+    await ui.showJackpot(game.state.player.nickname, payout.jackpot.amount, {
+      speed,
+      effects,
+      tierLabel: JACKPOT_TIERS[payout.jackpot.tier].label,
+    });
+  } else if (tier === 'mega') {
     audio.duckMusic(TIMING.countUpMega / speed / 1000);
     audio.playBigWin();
-    await ui.showMegaWin(result.totalWin, speed);
-  } else if (result.tier === 'big') {
+    await ui.showMegaWin(payout.totalWin, { speed, effects });
+  } else if (tier === 'big') {
     audio.duckMusic(TIMING.bannerHold / speed / 1000);
     audio.playBigWin();
     // 배너는 카운트업과 나란히 진행된다.
-    ui.showBigWin(`빅 윈 ${Math.floor(result.totalWin / result.totalBet)}배!`, speed);
+    ui.showBigWin(`빅 윈 ${Math.floor(payout.totalWin / result.totalBet)}배!`, { speed, tier: 'big', effects });
   }
 
-  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(result), () =>
+  await ui.countUpCredit(coinsBeforeWin, game.state.wallet.coins, countUpDuration(payout, result), () =>
     audio.playCountTick(),
   );
 }
@@ -189,17 +289,62 @@ async function presentWin(result, coinsBeforeWin) {
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
 async function revealSpin(spin) {
   if (reducedMotion.matches) {
-    renderReels(ui.reelsHost(), game.mode, spin.stops);
+    renderReels(ui.reelsHost(), spec(), spin.stops);
     return;
   }
-  const lastReel = game.mode.reels - 1;
+  const lastReel = spec().reels - 1;
   audio.startReelLoop();
-  await spinReels(ui.reelsHost(), game.mode, spin, {
+  await spinReels(ui.reelsHost(), spec(), spin, {
     turbo: game.state.settings.turbo,
     onAnticipate: () => audio.playAnticipation(),
     onReelStop: (reel) => {
       if (reel === lastReel) audio.stopReelLoop();
       audio.playReelStop();
+    },
+  });
+}
+
+// 페이라인 게임 한 스핀
+function drawLines(isFree) {
+  const stops = drawStops(game.mode.strips);
+  const grid = buildGrid(game.mode.strips, stops, game.mode.rows);
+  const result = evaluateSpin({
+    modeKey: game.mode.key,
+    grid,
+    lineBet: game.lineBet,
+    freeSpin: isFree,
+  });
+  return { ...result, spin: { stops, grid } };
+}
+
+// 캐스케이딩 게임 한 스핀. 연쇄 전체가 여기서 확정된다.
+function drawCascade(isFree, totalBet) {
+  const stops = drawStops(PHARAOH.strips);
+  const result = spinCascade({ stops, totalBet, freeSpin: isFree });
+  return {
+    modeKey: PHARAOH.key,
+    totalBet,
+    freeSpin: isFree,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: result.freeSpinsAwarded,
+    totalWin: result.totalWin,
+    jackpot: result.jackpot,
+    cascade: result,
+    spin: { stops, grid: result.initialGrid },
+  };
+}
+
+// 연쇄를 단계별로 재생한다. 각 단계의 ways와 배수를 배지에 띄운다.
+async function playCascadeSteps(result) {
+  const speed = presentationSpeed();
+  await playCascade(ui.reelsHost(), PHARAOH, result.cascade.steps, {
+    speed,
+    instant: reducedMotion.matches,
+    onStep: (step) => {
+      const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
+      ui.setChainBadge(`연쇄 ${step.chain}단 ×${step.chainMultiplier} · ${ways} ways`);
+      audio.playLineTick();
     },
   });
 }
@@ -222,45 +367,40 @@ async function runSpin() {
     game.freeSpinsLeft -= 1;
   } else {
     game.state.wallet.coins -= totalBet;
-    const poolBefore = game.state.jackpot.pool;
     // 잭팟 적립은 프리스핀에서는 하지 않는다.
-    game.state.jackpot.pool += totalBet * JACKPOT_CONTRIB_RATE;
-    ui.rollJackpot(poolBefore, game.state.jackpot.pool, JACKPOT_ROLL_MS / animationSpeed());
+    contributeJackpot(totalBet);
   }
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(game.lineBet, game.mode);
+  ui.setBet(BETS[section().settings.betIdx], totalBet, betNote(BETS[section().settings.betIdx]));
   ui.setFreeSpinBadge(game.freeSpinsLeft);
+  ui.setChainBadge(null);
 
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
-  const stops = drawStops(game.mode.strips);
-  const grid = buildGrid(game.mode.strips, stops, game.mode.rows);
-  const result = evaluateSpin({
-    modeKey: game.mode.key,
-    grid,
-    lineBet: game.lineBet,
-    freeSpin: isFree,
-    jackpotPool: game.state.jackpot.pool,
-  });
+  const result = game.kind === 'cascade' ? drawCascade(isFree, totalBet) : drawLines(isFree);
+  // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
+  const jackpot = resolveJackpot(result);
+  const totalWin = result.totalWin + (jackpot === null ? 0 : jackpot.amount);
+  const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
-  await revealSpin({ stops, grid });
+  await revealSpin(result.spin);
+  if (result.cascade !== undefined) await playCascadeSteps(result);
 
   const coinsBeforeWin = game.state.wallet.coins;
-  if (result.jackpot.hit) game.state.jackpot.pool = game.state.jackpot.seed;
-  game.state.wallet.coins += result.totalWin;
+  game.state.wallet.coins += payout.totalWin;
   game.freeSpinsLeft += result.freeSpinsAwarded;
   // 프리스핀 배지는 연출을 기다리지 않고 획득 즉시 보여준다.
   ui.setFreeSpinBadge(game.freeSpinsLeft);
-  recordStats(result);
-  recordWinHistory(result);
+  recordStats(result, payout);
+  recordWinHistory(result, payout);
 
-  ui.setWin(result.totalWin);
-  ui.setMessage(resultMessage(result));
-  ui.setReadout(readoutText(result));
+  ui.setWin(payout.totalWin);
+  ui.setMessage(resultMessage(result, payout));
+  ui.setReadout(readoutText(result, payout));
 
   // 스핀 1회당 저장은 여기 한 번뿐이다. 자동스핀 중에도 같다.
   storage.save(game.state);
 
-  await presentWin(result, coinsBeforeWin);
+  await presentWin(result, payout, coinsBeforeWin);
   syncMeters();
   return true;
 }
@@ -277,7 +417,10 @@ async function runSpinLoop() {
 
   let running = true;
   while (running) {
+    // 프리스핀은 자동 스핀 횟수를 소모하지 않는다.
+    const wasFree = game.freeSpinsLeft > 0;
     running = await runSpin();
+    if (running && !wasFree) consumeAuto();
     if (!running || !hasPendingSpin()) break;
     await delay(TIMING.autoSpinGap / animationSpeed());
   }
@@ -290,7 +433,26 @@ async function runSpinLoop() {
 
 function stopAuto() {
   game.auto = false;
+  game.autoLeft = null;
   ui.setAutoButton(false);
+}
+
+// 유료 스핀 1회를 소모한다. 무한(null)은 줄지 않는다.
+function consumeAuto() {
+  if (!game.auto || game.autoLeft === null) return;
+  game.autoLeft -= 1;
+  if (game.autoLeft <= 0) {
+    stopAuto();
+    return;
+  }
+  ui.setAutoButton(true, game.autoLeft);
+}
+
+function startAuto(count) {
+  game.auto = true;
+  game.autoLeft = count;
+  ui.setAutoButton(true, count);
+  runSpinLoop();
 }
 
 function toggleAuto() {
@@ -298,9 +460,11 @@ function toggleAuto() {
     stopAuto();
     return;
   }
-  game.auto = true;
-  ui.setAutoButton(true);
-  runSpinLoop();
+  if (ui.autoPickOpen()) {
+    ui.closeAutoPick();
+    return;
+  }
+  ui.openAutoPick(startAuto);
 }
 
 // ── 닉네임 ────────────────────────────────
@@ -412,7 +576,7 @@ function wireControls() {
   // 탭 위젯 표준 키보드 조작: 좌우 화살표로 모드를 옮긴다.
   ui.el.modes.addEventListener('keydown', (event) => {
     const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
-    if (step === undefined) return;
+    if (step === undefined || game.kind === 'cascade') return;
     const tabs = ui.modeTabs();
     if (tabs.some((tab) => tab.disabled)) return;
     event.preventDefault();
@@ -422,12 +586,23 @@ function wireControls() {
     ui.modeTabs()[next].focus();
   });
 
-  ui.el.betDown.addEventListener('click', () => changeBet(game.state.settings.betIdx - 1));
-  ui.el.betUp.addEventListener('click', () => changeBet(game.state.settings.betIdx + 1));
+  ui.el.betDown.addEventListener('click', () => changeBet(section().settings.betIdx - 1));
+  ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
 
   ui.el.spin.addEventListener('click', () => { runSpinLoop(); });
   ui.el.auto.addEventListener('click', toggleAuto);
+
+  ui.el.autoPick.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    ui.closeAutoPick();
+    ui.el.auto.focus();
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!ui.autoPickOpen() || event.target.closest('.dock__auto') !== null) return;
+    ui.closeAutoPick();
+  });
 
   ui.el.refill.addEventListener('click', () => {
     game.state.wallet.coins += REFILL_AMOUNT;
@@ -444,6 +619,7 @@ function wireControls() {
     if (event.key !== ' ' && event.code !== 'Space') return;
     if (ui.el.cabinet.hidden) return;
     if (event.target.closest('button, input, textarea, select, [role="dialog"]') !== null) return;
+    if (ui.autoPickOpen()) return;
     event.preventDefault();
     runSpinLoop();
   });
@@ -451,9 +627,9 @@ function wireControls() {
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');
     if (opener === null) return;
-    if (opener.dataset.open === 'paytable') ui.openPaytable(game.mode.key);
-    if (opener.dataset.open === 'history') ui.openHistory(game.state);
-    if (opener.dataset.open === 'stats') ui.openStats(game.state);
+    if (opener.dataset.open === 'paytable') ui.openPaytable(game.key, game.mode?.key);
+    if (opener.dataset.open === 'history') ui.openHistory(section());
+    if (opener.dataset.open === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
     if (opener.dataset.open === 'settings') openSettings();
   });
 }
@@ -467,36 +643,78 @@ function wireOnboarding() {
     game.state.player.nickname = value;
     game.state.player.createdAt = Date.now();
     storage.save(game.state);
-    enterCabinet();
+    enterLobby();
   });
 }
 
-function enterCabinet() {
-  const modeKey = MODE_KEYS.includes(game.state.settings.mode) ? game.state.settings.mode : MODE_KEYS[1];
+function wireLobby() {
+  ui.el.lobbyGames.addEventListener('click', (event) => {
+    const card = event.target.closest('.gamecard');
+    if (card === null) return;
+    enterGame(card.dataset.game);
+  });
+  ui.el.toLobby.addEventListener('click', enterLobby);
+}
+
+function enterLobby() {
+  stopAuto();
+  ui.closeAutoPick();
   ui.setSeat(game.state.player.nickname);
+  ui.renderLobby(game.state);
+  ui.setJackpot(game.state.jackpot.pools);
+  ui.showScreen('lobby');
+}
+
+function enterGame(gameKey) {
+  game.key = gameKey;
+  game.kind = GAMES[gameKey].kind;
+  game.state.settings.game = gameKey;
+  game.freeSpinsLeft = 0;
+  game.mode = null;
+
+  const stored = section().settings;
+  game.lineBet = BETS[stored.betIdx];
+
+  ui.setSeat(game.state.player.nickname, GAMES[gameKey].label);
+  ui.setGameTheme(gameKey);
+  ui.setModesVisible(game.kind !== 'cascade');
   ui.showScreen('cabinet');
-  selectMode(modeKey);
+  ui.setChainBadge(null);
+
+  if (game.kind === 'cascade') {
+    setupCascade();
+  } else {
+    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
+    selectMode(modeKey);
+  }
+
   ui.setAutoButton(false);
   ui.setSoundButton(game.state.settings.sound);
   ui.setMessage('스핀을 눌러 시작하세요.', true);
   ui.setWin(0);
+  storage.save(game.state);
 }
 
 function boot() {
   mountSymbolSprite(ui.el.sprite);
   ui.mountBulbs();
+  ui.renderJackpotBar(ui.el.jackpotBar);
+  ui.renderJackpotBar(ui.el.lobbyJackpots);
 
   game.state = storage.load();
-  game.lineBet = BETS[game.state.settings.betIdx];
+  game.key = GAME_KEYS.includes(game.state.settings.game) ? game.state.settings.game : GAME_KEYS[0];
+  game.kind = GAMES[game.key].kind;
+  game.lineBet = BETS[section().settings.betIdx];
   audio.setEnabled(game.state.settings.sound);
   audio.setMusicEnabled(game.state.settings.music);
   wireAudioUnlock();
   wireVisibility();
   wireOnboarding();
+  wireLobby();
   wireControls();
 
   if (storage.hasPlayer(game.state)) {
-    enterCabinet();
+    enterLobby();
     return;
   }
   ui.showScreen('onboarding');

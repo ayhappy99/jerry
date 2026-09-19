@@ -13,38 +13,57 @@ const BIG_WIN_NOTES = [523.25, 659.25, 783.99, 1046.5, 1318.5];
 const JACKPOT_NOTES = [523.25, 523.25, 659.25, 783.99, 1046.5, 1046.5, 1318.5, 1567.98];
 
 // ── 배경음 ────────────────────────────────
-// 라운지풍 4코드 루프(Am7 - Dm7 - G7 - Cmaj7). 8분음표 한 칸을 step으로 센다.
+// 일렉트로 하우스 128 BPM. 16분음표 한 칸을 step으로 센다.
+// 4코드 × 1마디(16step) = 4마디 루프, 7.5초.
 const MUSIC = {
-  bpm: 84,
-  stepsPerChord: 8,
+  bpm: 128,
+  stepsPerBar: 16,
   lookahead: 0.3,
-  pumpMs: 50,
+  pumpMs: 40,
   busGain: 0.62,
   duckGain: 0.1,
   fadeIn: 0.8,
   fadeOut: 0.35,
-  bassGain: 0.26,
-  padGain: 0.05,
-  arpGain: 0.12,
-  bassFilter: 420,
-  padFilter: 1600,
 };
 
+// 각 악기의 게인. 합쳐도 효과음 피크(0.55)를 넘지 않게 낮게 잡는다.
+const VOICE = {
+  kick: 0.38,
+  kickClick: 0.12,
+  bass: 0.22,
+  hatOpen: 0.09,
+  hatClosed: 0.045,
+  clap: 0.14,
+  stab: 0.075,
+  arp: 0.07,
+};
+
+// vi - IV - I - V. 밝고 전진하는 하우스 진행이다.
 const PROGRESSION = [
-  { bass: 110.0, pad: [220.0, 261.63, 329.63, 392.0] },   // Am7
-  { bass: 146.83, pad: [220.0, 261.63, 293.66, 349.23] }, // Dm7
-  { bass: 98.0, pad: [196.0, 246.94, 293.66, 349.23] },   // G7
-  { bass: 130.81, pad: [196.0, 246.94, 261.63, 329.63] }, // Cmaj7
+  { bass: 110.0, chord: [220.0, 261.63, 329.63] },  // Am
+  { bass: 87.31, chord: [174.61, 220.0, 261.63] },  // F
+  { bass: 130.81, chord: [196.0, 261.63, 329.63] }, // C
+  { bass: 98.0, chord: [196.0, 246.94, 293.66] },   // G
 ];
 
-// 아르페지오를 넣는 8분음표 자리. 루프마다 번갈아 쓴다.
+// 16분음표 자리(0~15) 기준 리듬 패턴
+const PATTERN = {
+  kick: [0, 4, 8, 12],
+  clap: [4, 12],
+  hatOpen: [2, 6, 10, 14],
+  hatClosed: [1, 3, 5, 7, 9, 11, 13, 15],
+  bass: [0, 3, 6, 10, 14],
+  stab: [6, 14],
+};
+
+// 아르페지오 자리는 마디마다 번갈아 쓴다.
 const ARP_PATTERNS = [
-  [3, 6],
-  [2, 5, 7],
+  [2, 5, 8, 11],
+  [1, 4, 7, 10, 13],
 ];
 
-const STEP_SECONDS = 60 / MUSIC.bpm / 2;
-const LOOP_STEPS = PROGRESSION.length * MUSIC.stepsPerChord;
+const STEP_SECONDS = 60 / MUSIC.bpm / 4;
+const LOOP_STEPS = PROGRESSION.length * MUSIC.stepsPerBar;
 
 let audio = null;
 let enabled = false;
@@ -175,22 +194,27 @@ function tone({ freq, endFreq = null, type = 'sine', at = 0, dur = 0.2, gain = 0
   });
 }
 
-function noiseBurst({ at = 0, dur = 0.03, gain = 0.4, freq = 2000, q = 1 }) {
-  const { ctx, sfx } = audio;
-  const start = ctx.currentTime + at;
+// 노이즈 한 발. time은 AudioContext 절대 시각이다.
+function playNoise({ time, dur = 0.03, gain = 0.4, freq = 2000, q = 1, type = 'bandpass', target }) {
+  const { ctx } = audio;
   const source = noiseSource();
   const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
+  filter.type = type;
   filter.frequency.value = freq;
   filter.Q.value = q;
   const env = ctx.createGain();
-  env.gain.setValueAtTime(gain, start);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  env.gain.setValueAtTime(gain, time);
+  env.gain.exponentialRampToValueAtTime(0.0001, time + dur);
   source.connect(filter);
   filter.connect(env);
-  env.connect(sfx);
-  source.start(start);
-  source.stop(start + dur + 0.01);
+  env.connect(target);
+  source.start(time);
+  source.stop(time + dur + 0.01);
+}
+
+// 효과음용 래퍼. at은 현재 시각으로부터의 오프셋이다.
+function noiseBurst({ at = 0, dur = 0.03, gain = 0.4, freq = 2000, q = 1 }) {
+  playNoise({ time: audio.ctx.currentTime + at, dur, gain, freq, q, target: audio.sfx });
 }
 
 function arpeggio(notes, { step = 0.09, dur = 0.16, gain = 0.4, type = 'triangle', send = null }) {
@@ -200,32 +224,65 @@ function arpeggio(notes, { step = 0.09, dur = 0.16, gain = 0.4, type = 'triangle
 }
 
 // ── 배경음 스케줄러 ───────────────────────
+// 악기마다 함수를 하나씩 둔다. time은 AudioContext 절대 시각이다.
 
-// 8분음표 한 칸을 예약한다. 베이스·패드·아르페지오를 각각 한 가지 일만 하게 나눠 둔다.
-function scheduleBass(chord, time) {
+function scheduleKick(time) {
   playVoice({
     time,
-    freq: chord.bass,
-    type: 'triangle',
-    dur: 1.05,
-    attack: 0.03,
-    gain: MUSIC.bassGain,
-    filterFreq: MUSIC.bassFilter,
+    freq: 110,
+    endFreq: 42,
+    type: 'sine',
+    dur: 0.17,
+    attack: 0.004,
+    gain: VOICE.kick,
+    target: audio.musicBus,
+  });
+  playNoise({ time, dur: 0.012, gain: VOICE.kickClick, freq: 1800, q: 0.9, target: audio.musicBus });
+}
+
+function scheduleClap(time) {
+  // 짧은 두 발로 손뼉의 플램을 만든다.
+  playNoise({ time, dur: 0.02, gain: VOICE.clap * 0.6, freq: 1500, q: 0.8, target: audio.musicBus });
+  playNoise({ time: time + 0.012, dur: 0.085, gain: VOICE.clap, freq: 1700, q: 0.7, target: audio.musicBus });
+}
+
+function scheduleHat(time, open) {
+  playNoise({
+    time,
+    dur: open ? 0.075 : 0.022,
+    gain: open ? VOICE.hatOpen : VOICE.hatClosed,
+    freq: 9000,
+    q: 0.7,
+    type: 'highpass',
     target: audio.musicBus,
   });
 }
 
-function schedulePad(chord, time) {
-  const dur = STEP_SECONDS * MUSIC.stepsPerChord;
-  for (const freq of chord.pad) {
+// 오프비트 스타카토 베이스. 하우스의 추진력을 만드는 자리다.
+function scheduleBass(chord, time) {
+  playVoice({
+    time,
+    freq: chord.bass,
+    type: 'sawtooth',
+    dur: 0.13,
+    attack: 0.006,
+    gain: VOICE.bass,
+    filterFreq: 320,
+    target: audio.musicBus,
+  });
+}
+
+// 코드 스탭. 세 음을 짧게 함께 찍는다.
+function scheduleStab(chord, time) {
+  for (const freq of chord.chord) {
     playVoice({
       time,
       freq,
-      type: 'sine',
-      dur,
-      attack: 0.45,
-      gain: MUSIC.padGain,
-      filterFreq: MUSIC.padFilter,
+      type: 'sawtooth',
+      dur: 0.11,
+      attack: 0.005,
+      gain: VOICE.stab,
+      filterFreq: 2600,
       target: audio.musicBus,
     });
   }
@@ -234,28 +291,29 @@ function schedulePad(chord, time) {
 function scheduleArp(chord, time, index) {
   playVoice({
     time,
-    freq: chord.pad[index % chord.pad.length] * 2,
+    freq: chord.chord[index % chord.chord.length] * 2,
     type: 'triangle',
-    dur: 0.55,
-    attack: 0.006,
-    gain: MUSIC.arpGain,
+    dur: 0.16,
+    attack: 0.004,
+    gain: VOICE.arp,
+    filterFreq: 5200,
     target: audio.musicBus,
   });
 }
 
 function scheduleStep(step, time) {
-  const chordIndex = Math.floor(step / MUSIC.stepsPerChord) % PROGRESSION.length;
-  const chord = PROGRESSION[chordIndex];
-  const local = step % MUSIC.stepsPerChord;
-  const loop = Math.floor(step / LOOP_STEPS);
-  const pattern = ARP_PATTERNS[loop % ARP_PATTERNS.length];
+  const bar = Math.floor(step / MUSIC.stepsPerBar);
+  const chord = PROGRESSION[bar % PROGRESSION.length];
+  const local = step % MUSIC.stepsPerBar;
+  const arp = ARP_PATTERNS[bar % ARP_PATTERNS.length];
 
-  if (local === 0) {
-    schedulePad(chord, time);
-    scheduleBass(chord, time);
-  }
-  if (local === 4) scheduleBass(chord, time);
-  if (pattern.includes(local)) scheduleArp(chord, time, step);
+  if (PATTERN.kick.includes(local)) scheduleKick(time);
+  if (PATTERN.clap.includes(local)) scheduleClap(time);
+  if (PATTERN.hatOpen.includes(local)) scheduleHat(time, true);
+  else if (PATTERN.hatClosed.includes(local)) scheduleHat(time, false);
+  if (PATTERN.bass.includes(local)) scheduleBass(chord, time);
+  if (PATTERN.stab.includes(local)) scheduleStab(chord, time);
+  if (arp.includes(local)) scheduleArp(chord, time, step);
 }
 
 function pumpMusic() {

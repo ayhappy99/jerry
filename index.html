@@ -38,14 +38,41 @@
   </section>
 </main>
 
+<!-- 로비: 닉네임 입력 후 게임을 고른다 -->
+<main id="screen-lobby" class="screen screen--lobby" hidden>
+  <header class="lobby__head">
+    <p class="lobby__kicker">LUCKY CABINET</p>
+    <h1 class="lobby__title">게임 선택</h1>
+    <p class="lobby__seat" id="lobby-seat"></p>
+  </header>
+
+  <section class="lobby__shared">
+    <div class="lobby__credit">
+      <span class="meter__label">크레딧 (게임 공용)</span>
+      <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
+    </div>
+    <p class="lobby__jplabel">공유 프로그레시브 잭팟</p>
+    <div class="jackpots" id="lobby-jackpots"></div>
+  </section>
+
+  <div class="lobby__games" id="lobby-games" role="list"></div>
+
+  <footer class="lobby__foot">
+    <button class="btn btn--ghost" type="button" data-open="settings">설정</button>
+  </footer>
+</main>
+
 <!-- 캐비닛 -->
-<main id="screen-cabinet" class="screen screen--cabinet" hidden>
+<main id="screen-cabinet" class="screen screen--cabinet" data-game="cabinet" hidden>
   <header class="marquee">
     <div class="marquee__bulbs" aria-hidden="true"></div>
     <div class="marquee__inner">
       <h1 class="marquee__title">LUCKY<span>CABINET</span></h1>
       <p class="marquee__seat" id="seat-label"></p>
     </div>
+    <button class="icon-btn marquee__lobby" type="button" id="to-lobby" aria-label="게임 선택으로 돌아가기">
+      <span aria-hidden="true">◀</span>
+    </button>
     <button class="icon-btn marquee__settings" type="button" data-open="settings" aria-label="설정 열기">
       <span aria-hidden="true">⚙</span>
     </button>
@@ -53,7 +80,7 @@
 
   <section class="jackpot" aria-labelledby="jackpot-label">
     <p class="jackpot__label" id="jackpot-label">PROGRESSIVE JACKPOT</p>
-    <output class="jackpot__meter" id="jackpot-meter" aria-live="off">0</output>
+    <div class="jackpots" id="jackpot-bar"></div>
     <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
 
@@ -65,40 +92,51 @@
         <div class="reels" id="reels"></div>
         <svg class="lines" id="lines" aria-hidden="true" preserveAspectRatio="none"></svg>
         <div class="glass" aria-hidden="true"></div>
+        <div class="flash" id="flash" aria-hidden="true"></div>
         <div class="freespin-badge" id="freespin-badge" hidden></div>
+        <div class="chain-badge" id="chain-badge" hidden></div>
       </div>
     </div>
     <p class="sr-only" id="reel-readout" role="status" aria-live="polite"></p>
   </section>
 
+  <!-- 하단 통합 조작바: 크레딧 · 베팅 · TOTAL WIN · 스핀을 한 줄에 모은다 -->
   <section class="panel">
-    <div class="meters">
-      <div class="meter">
-        <span class="meter__label">크레딧</span>
-        <output class="meter__value meter__value--credit" id="credit-meter">0</output>
-      </div>
-      <div class="meter">
-        <span class="meter__label">베팅</span>
-        <output class="meter__value" id="bet-meter">0</output>
-        <span class="meter__sub" id="bet-sub"></span>
-      </div>
-      <div class="meter">
-        <span class="meter__label">당첨</span>
-        <output class="meter__value meter__value--win" id="win-meter">0</output>
-      </div>
-    </div>
-
     <p class="message" id="message"></p>
 
-    <div class="controls">
-      <div class="controls__bet">
-        <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
-        <span class="controls__betlabel" id="bet-label">0</span>
-        <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
-        <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+    <div class="dock">
+      <div class="dock__left">
+        <div class="meter">
+          <span class="meter__label">CREDIT</span>
+          <output class="meter__value meter__value--credit" id="credit-meter">0</output>
+        </div>
+        <div class="dock__bet">
+          <div class="controls__bet">
+            <button class="btn btn--round" type="button" id="bet-down" aria-label="베팅 낮추기">−</button>
+            <span class="controls__betlabel" id="bet-label">0</span>
+            <button class="btn btn--round" type="button" id="bet-up" aria-label="베팅 올리기">＋</button>
+            <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+          </div>
+          <p class="dock__betsub">
+            <span class="meter__label">BET</span>
+            <output id="bet-meter">0</output>
+            <span id="bet-sub"></span>
+          </p>
+        </div>
       </div>
-      <button class="btn btn--spin" type="button" id="spin" aria-keyshortcuts="Space">SPIN</button>
-      <button class="btn btn--auto" type="button" id="auto">자동</button>
+
+      <div class="dock__win">
+        <span class="dock__winlabel">TOTAL WIN</span>
+        <output class="dock__winvalue" id="win-meter">0</output>
+      </div>
+
+      <div class="dock__actions">
+        <button class="btn btn--spin" type="button" id="spin" aria-keyshortcuts="Space">SPIN</button>
+        <div class="dock__auto">
+          <button class="btn btn--auto" type="button" id="auto" aria-haspopup="true" aria-expanded="false">자동</button>
+          <div class="autopick" id="auto-pick" role="menu" aria-label="자동 스핀 횟수" hidden></div>
+        </div>
+      </div>
     </div>
   </section>
 

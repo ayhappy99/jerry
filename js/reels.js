@@ -57,6 +57,14 @@ export function renderReels(host, mode, stops) {
     .join('');
 }
 
+// 그리드를 그대로 그린다. 캐스케이딩은 스톱이 아니라 단계별 그리드를 받는다.
+export function renderGrid(host, mode, grid) {
+  host.style.setProperty('--rows', String(mode.rows));
+  host.innerHTML = mode.strips
+    .map((strip, reel) => reelMarkup(reel, [strip[0], ...grid[reel]]))
+    .join('');
+}
+
 export function cellAt(host, reel, row) {
   return stripOf(host, reel).children[BUFFER_CELLS + row];
 }
@@ -65,6 +73,8 @@ export function clearHighlights(host) {
   for (const cell of host.querySelectorAll('.cell--win, .cell--scatter')) {
     cell.classList.remove('cell--win', 'cell--scatter');
   }
+  for (const burst of host.querySelectorAll('.burst')) burst.remove();
+  host.classList.remove('reels--focus');
 }
 
 // 현재 화면에 보이는 심볼. 회전 시작 프레임을 이 심볼로 채워 튀는 느낌을 없앤다.
@@ -162,4 +172,85 @@ export async function spinReels(host, mode, spin, { turbo = false, onReelStop = 
       return animateReel(reelEl, pitch, travelCells, duration, anticipate).then(() => onReelStop(reel));
     }),
   );
+}
+
+// ── 캐스케이딩 연출 ───────────────────────
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function reelEl(host, reel) {
+  return host.querySelector(`.reel[data-reel="${reel}"]`);
+}
+
+// 릴별로 사라질 셀 수를 센다. 그만큼 위에서 내려오므로 낙하 거리가 된다.
+// 와일드 셀은 여러 심볼의 당첨에 동시에 들어가므로 cascade.js와 똑같이 중복을 걷어낸다.
+function removedPerReel(mode, cells) {
+  const counts = new Array(mode.reels).fill(0);
+  const seen = new Set();
+  for (const { reel, row } of cells) {
+    const key = `${reel}:${row}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    counts[reel] += 1;
+  }
+  return counts;
+}
+
+function markCascadeWins(host, wins) {
+  for (const win of wins) {
+    for (const { reel, row } of win.cells) cellAt(host, reel, row).classList.add('cell--win');
+  }
+}
+
+function popCascadeWins(host, wins, duration) {
+  for (const win of wins) {
+    for (const { reel, row } of win.cells) {
+      const cell = cellAt(host, reel, row);
+      cell.style.setProperty('--pop-dur', `${duration}ms`);
+      cell.classList.add('cell--pop');
+    }
+  }
+}
+
+// 새 심볼이 위에서 떨어져 내려오는 느낌을 준다. 릴별 낙하 거리는 사라진 셀 수다.
+function dropIn(host, mode, drops, duration) {
+  const pitch = host.querySelector('.cell').offsetHeight;
+  mode.strips.forEach((_, reel) => {
+    if (drops[reel] === 0) return;
+    const strip = reelEl(host, reel).querySelector('.reel__strip');
+    strip.animate(
+      [
+        { transform: `translateY(${-(BUFFER_CELLS + drops[reel]) * pitch}px)` },
+        { transform: `translateY(${-BUFFER_CELLS * pitch}px)` },
+      ],
+      { duration, easing: 'cubic-bezier(0.3, 0.05, 0.4, 1)' },
+    );
+  });
+}
+
+/**
+ * 연쇄 단계를 순서대로 보여준다. 결과는 이미 확정되어 있고 steps를 재생할 뿐이다.
+ * instant=true면 마지막 그리드만 즉시 표시한다.
+ */
+export async function playCascade(host, mode, steps, { speed = 1, instant = false, onStep = () => {} } = {}) {
+  if (steps.length === 0) return;
+  if (instant) {
+    const last = steps[steps.length - 1];
+    markCascadeWins(host, last.wins);
+    onStep(last);
+    return;
+  }
+  for (const step of steps) {
+    markCascadeWins(host, step.wins);
+    onStep(step);
+    await wait(TIMING.cascadeHold / speed);
+
+    const popDuration = TIMING.cascadePop / speed;
+    popCascadeWins(host, step.wins, popDuration);
+    await wait(popDuration);
+
+    renderGrid(host, mode, step.nextGrid);
+    dropIn(host, mode, removedPerReel(mode, step.wins.flatMap((win) => win.cells)), TIMING.cascadeDrop / speed);
+    await wait(TIMING.cascadeDrop / speed);
+  }
 }

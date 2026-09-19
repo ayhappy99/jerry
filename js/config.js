@@ -5,7 +5,9 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 // 스키마 이력. 버전이 올라가도 기존 데이터는 지우지 않고 누락 필드만 채운다.
 //   1: 최초
 //   2: settings.music(배경음) 추가
-export const SCHEMA_VERSION = 2;
+//   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
+//   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
+export const SCHEMA_VERSION = 4;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -22,10 +24,30 @@ export const SYMBOLS = {
   diamond: { key: 'diamond', label: '다이아', kind: 'normal' },
   crown: { key: 'crown', label: '크라운', kind: 'wild' },
   star: { key: 'star', label: '스타', kind: 'scatter' },
+  // 파라오의 문
+  ankh: { key: 'ankh', label: '앙크', kind: 'normal' },
+  lotus: { key: 'lotus', label: '연꽃', kind: 'normal' },
+  papyrus: { key: 'papyrus', label: '파피루스', kind: 'normal' },
+  cobra: { key: 'cobra', label: '코브라', kind: 'normal' },
+  falcon: { key: 'falcon', label: '매', kind: 'normal' },
+  scarab: { key: 'scarab', label: '스카라베', kind: 'normal' },
+  mask: { key: 'mask', label: '황금 가면', kind: 'normal' },
+  eye: { key: 'eye', label: '호루스의 눈', kind: 'wild' },
+  obelisk: { key: 'obelisk', label: '오벨리스크', kind: 'scatter' },
+  rank10: { key: 'rank10', label: '10', kind: 'normal' },
+  rankj: { key: 'rankj', label: 'J', kind: 'normal' },
+  rankq: { key: 'rankq', label: 'Q', kind: 'normal' },
+  rankk: { key: 'rankk', label: 'K', kind: 'normal' },
+  ranka: { key: 'ranka', label: 'A', kind: 'normal' },
 };
 
 // 심볼 순서. 릴 스트립을 만들 때의 배치 순서이자 배당표 표시 순서다.
-export const SYMBOL_ORDER = ['cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star'];
+// 게임별 스트립은 자기 weights에 있는 키만 쓰므로 두 게임의 심볼을 한 배열에 둬도 섞이지 않는다.
+export const SYMBOL_ORDER = [
+  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star',
+  'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+  'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
+];
 
 // 5릴 라인 배당 (라인 베팅 배수)
 export const LINE_PAYS = {
@@ -67,10 +89,38 @@ export const PAYLINES = [
 
 export const BETS = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
 
+// 자동 스핀 횟수 선택지. null은 무한이며, 남은 횟수는 프리스핀으로는 줄지 않는다.
+export const AUTO_SPINS = [10, 25, 50, 100, null];
+
 export const START_COINS = 10000000;
 export const REFILL_AMOUNT = 1000000;
 
-export const JACKPOT_SEED = 50000000;
+// 4단 프로그레시브 잭팟.
+// contribShare: 적립분 1%를 티어별로 나누는 비율. pickWeight: 픽 보너스에서 티어가 뽑힐 가중치.
+// 적립 비율을 추첨 가중치보다 크게 두면 그 티어의 평균 풀이 커진다.
+// 평균 풀 비율은 (contribShare / pickWeight)에 비례하므로 GRAND가 가장 크게 쌓인다.
+export const JACKPOT_TIERS = {
+  grand: { key: 'grand', label: 'GRAND', seed: 30000000, contribShare: 0.5, pickWeight: 8 },
+  major: { key: 'major', label: 'MAJOR', seed: 8000000, contribShare: 0.25, pickWeight: 16 },
+  minor: { key: 'minor', label: 'MINOR', seed: 3000000, contribShare: 0.15, pickWeight: 30 },
+  mini: { key: 'mini', label: 'MINI', seed: 1000000, contribShare: 0.1, pickWeight: 46 },
+};
+
+// 잭팟 트리거: 한 라인에 순수 다이아가 이 개수 이상(와일드 대체 불인정).
+// 5개에서 4개로 낮춘 이유는 4단으로 쪼개면 티어별 빈도가 4~12배 희박해져
+// 픽 보너스를 사실상 볼 수 없기 때문이다. 릴 스트립과 배당은 건드리지 않으므로
+// 라인 RTP는 그대로다. 대신 적중이 잦아진 만큼 시드를 낮춰 시드 효과를 억제했다.
+export const JACKPOT_SYMBOL = 'diamond';
+export const JACKPOT_MATCH = 4;
+
+export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
+
+// 픽 보너스: 타일 9장(3×3) 중 같은 티어 3개를 모으면 그 티어 당첨.
+// 당첨 티어만 3개를 넣고 나머지 세 티어는 2개씩 넣는다(3 + 2×3 = 9).
+// 그래서 당첨 티어 외에는 3개가 모일 수 없고 결과가 모호해지지 않는다.
+export const PICK_TILES = 9;
+export const PICK_MATCH = 3;
+
 // 매 스핀 총 베팅의 1%를 잭팟 풀에 적립한다. 프리스핀은 적립하지 않는다.
 export const JACKPOT_CONTRIB_RATE = 0.01;
 // 잭팟 미터는 실제 풀 값으로만 굴러간다. 화면에서만 올려 보여주는 가짜 증가는 넣지 않는다.
@@ -83,18 +133,39 @@ export const SCATTER_MIN = 3;
 // 총 베팅 배수 기준 당첨 등급
 export const WIN_TIERS = { big: 20, mega: 100 };
 
+// 당첨 등급별 연출 세기. 코인 파티클 개수와 흔들림 강도(px).
+export const EFFECTS = {
+  coinRain: { win: 0, big: 24, mega: 34, jackpot: 40 },
+  coinFountain: { win: 0, big: 16, mega: 26, jackpot: 32 },
+  shakePx: { win: 3, big: 7, mega: 12, jackpot: 14 },
+  // 섬광 세기. 일반 당첨은 자주 나오므로 약하게 터뜨린다.
+  flashPeak: { win: 0.4, big: 0.72, mega: 0.95, jackpot: 1 },
+  // 오버레이가 오래 열려 있는 동안 금화를 다시 쏟는 주기. 한 파동의 수명보다 길게 잡아
+  // 파동이 겹쳐 노드가 쌓이지 않게 한다.
+  coinWaveMs: 2200,
+  coinLifeMs: 2400,
+};
+
 export const HISTORY_LIMITS = { jackpotHistory: 20, bigWins: 10 };
 
 export const NICKNAME_RULES = { min: 2, max: 12 };
 
 export const TIMING = {
+  cascadeHold: 620,       // 연쇄 당첨을 보여주는 시간
+  cascadePop: 260,        // 당첨 심볼이 터지는 시간
+  cascadeDrop: 300,       // 새 심볼이 내려오는 시간
   reelSpinBase: 620,      // 1번 릴이 도는 최소 시간
   reelStagger: 200,       // 릴 간 정지 간격
   reelStopBounce: 220,    // 정지 후 오버슈트 복귀
   blurClearBefore: 200,   // 정지 직전 블러를 해제하는 구간
   anticipationExtra: 900, // 앤티시페이션 시 남은 릴이 더 도는 시간
   lineHighlight: 420,     // 라인 하나당 하이라이트 유지 시간
-  lineHighlightAll: 900,  // 마지막에 전체 라인을 함께 보여주는 시간
+  lineHighlightAll: 1100, // 마지막에 전체 라인을 함께 보여주는 시간
+  lineDraw: 300,          // 라인 경로를 그려 나가는 시간
+  flash: 280,             // 당첨 확정 순간의 섬광
+  shake: 460,             // 캐비닛 흔들림
+  burst: 640,             // 당첨 셀에서 퍼지는 링
+  celebrateHold: 1600,    // 마퀴 전구 고속 점등 유지 시간
   countUpMin: 420,
   countUpMax: 2500,
   countUpMega: 5000,
@@ -223,3 +294,95 @@ export const MODES = {
 export function modePaylines(mode) {
   return PAYLINES.slice(0, mode.lines);
 }
+
+// ── 파라오의 문 (6릴 올웨이즈 캐스케이딩) ──
+// 라인이 없으므로 배당은 "총 베팅 배수 × ways"다. ways는 왼쪽부터 연속된 릴에서
+// 해당 심볼이 나온 개수의 곱이다(6릴 4행이면 최대 4^6 = 4096 ways).
+// 연쇄가 이어질 때마다 배수가 올라가고, JACKPOT_CHAIN단에 닿으면 픽 보너스가 열린다.
+export const PHARAOH = {
+  key: 'pharaoh',
+  reels: 6,
+  rows: 4,
+  wild: 'eye',
+  scatter: 'obelisk',
+  minMatch: 3,
+  // 총 베팅 = BETS[betIdx] × betUnits
+  betUnits: 10,
+  symbolOrder: [
+    'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+    'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
+  ],
+  // ways당 총 베팅 배수. 실측 계수로 맞춘 확정값은 README의 밸런스 항목 참고.
+  pays: {
+    rank10: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
+    rankj: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
+    rankq: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
+    rankk: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
+    ranka: { 3: 0.045, 4: 0.12, 5: 0.4, 6: 1.5 },
+    ankh: { 3: 0.05, 4: 0.15, 5: 0.6, 6: 2.5 },
+    lotus: { 3: 0.06, 4: 0.2, 5: 0.6, 6: 3 },
+    papyrus: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
+    cobra: { 3: 0.1, 4: 0.3, 5: 1.5, 6: 6 },
+    falcon: { 3: 0.15, 4: 0.5, 5: 2, 6: 10 },
+    scarab: { 3: 0.25, 4: 0.8, 5: 3, 6: 15 },
+    mask: { 3: 0.5, 4: 2, 5: 6, 6: 40 },
+  },
+  // 스캐터는 위치 무관, 개수로만 판정 (총 베팅 배수).
+  // 가중치가 2라 한 릴에 2개까지 보일 수 있어 최대 12개다. 그 이상 키는 없다.
+  scatterMin: 4,
+  scatterPays: { 4: 2, 5: 5, 6: 15, 7: 40, 8: 100, 9: 200, 10: 400, 11: 800, 12: 2000 },
+  freeSpins: 10,
+  freeMultiplier: 2,
+  // 연쇄 단계별 배수. 마지막 값 이후로는 그 값을 유지한다.
+  multipliers: [1, 2, 3, 5, 8, 12],
+  // 이 단계에 닿으면 잭팟 픽 보너스가 열린다.
+  // 5단은 1/488로 너무 잦아 공유 시드 효과가 +10%p까지 치솟았다. 7단은 1/13,748로
+  // 캐비닛의 잭팟 빈도(1/12,664)와 비슷해 시드 효과가 +0.37%p에 머문다.
+  jackpotChain: 7,
+  // 연쇄 상한. 게임 규칙이며 여기서 연쇄를 멈춘다. 실측에서 이 값에 닿는 경우는 없었다.
+  maxChain: 30,
+  weights: {
+    rank10: 7, rankj: 7, rankq: 6, rankk: 6, ranka: 6,
+    ankh: 5, lotus: 5, papyrus: 4, cobra: 4, falcon: 3, scarab: 3, mask: 2,
+    eye: 3, obelisk: 2,
+  },
+  // 1번 릴에는 와일드를 넣지 않는다.
+  reelWeights: [{ eye: 0 }],
+  seedOffset: 303,
+};
+
+PHARAOH.strips = buildStrips(
+  PHARAOH.reels,
+  PHARAOH.weights,
+  PHARAOH.reelWeights,
+  STRIP_SEED + PHARAOH.seedOffset,
+);
+
+// ── 게임 레지스트리 ───────────────────────
+// 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.
+export const GAMES = {
+  cabinet: {
+    key: 'cabinet',
+    label: '럭키 캐비닛',
+    tagline: '어두운 옻칠 목재와 황동 프레임. 클래식 3릴부터 프리스핀·잭팟까지 모드 3종.',
+    // 페이라인 판정 엔진을 쓴다.
+    kind: 'lines',
+    modeKeys: MODE_KEYS,
+    badge: '3~5릴 · 모드 3종',
+    // 로비 카드에 띄울 대표 심볼
+    artSymbols: ['seven', 'diamond', 'crown'],
+  },
+
+  pharaoh: {
+    key: 'pharaoh',
+    label: '파라오의 문',
+    tagline: '6릴 올웨이즈. 당첨 심볼이 무너지고 새 심볼이 내려와 연쇄가 이어진다.',
+    // 올웨이즈 캐스케이딩 엔진을 쓴다.
+    kind: 'cascade',
+    modeKeys: [],
+    badge: '6릴 4행 · 최대 4096 ways',
+    artSymbols: ['mask', 'scarab', 'eye'],
+  },
+};
+
+export const GAME_KEYS = ['cabinet', 'pharaoh'];
