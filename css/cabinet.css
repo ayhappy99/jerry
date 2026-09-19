@@ -816,11 +816,12 @@ body {
   .marquee__seat { margin: 0; font-size: var(--fs-xs); }
   .marquee__settings, .marquee__lobby { top: 50%; transform: translateY(-50%); }
 
-  .jackpot { grid-area: jack; margin-top: 0; padding: var(--sp-2); }
-  .jackpot__label { letter-spacing: 0.18em; }
-  .jackpot__label small { display: none; }
-  .jackpots { grid-template-columns: repeat(4, 1fr); margin: var(--sp-1) 0 0; }
-  .jp { padding: 2px var(--sp-1); }
+  /* 잭팟 바는 등급 이름만 남겨 납작하게 만든다. 여기서 아낀 높이가 릴로 간다. */
+  .jackpot { grid-area: jack; margin-top: 0; padding: var(--sp-1) var(--sp-2); }
+  .jackpot__label { display: none; }
+  .jackpots { grid-template-columns: repeat(4, 1fr); margin: 0; }
+  .jp { padding: 1px var(--sp-1); }
+  .jp__label { font-size: 0.62rem; letter-spacing: 0.1em; }
   .jp__value, .jp--grand .jp__value { font-size: var(--fs-sm); }
   .jackpot__hint { display: none; }
 
@@ -829,6 +830,9 @@ body {
   .mode-tab__sub { display: none; }
 
   .cabinet { grid-area: reel; }
+  /* 황동 테두리를 얇게 줄여 릴에 16px을 더 준다 */
+  .cabinet__frame { padding: var(--sp-2); }
+  .cabinet__window { padding: var(--sp-1); }
   .panel { grid-area: dock; margin-top: 0; padding: var(--sp-2); }
   .toolbar { display: none; }
 
@@ -853,29 +857,45 @@ body {
   .autopick { bottom: calc(100% + var(--sp-1)); right: 0; }
 }
 
-/* 높이에 맞춰 릴 셀을 줄인다. 가로 화면에서는 폭이 아니라 높이가 병목이다.
-   값은 (마퀴 + 잭팟 + 모드 탭 + 릴 + 여백)이 화면 높이에 들어가도록 실측해서 잡았다. */
+/* 가로 화면의 릴 셀 크기.
+   고정 구간으로 잡으면 남는 높이를 못 쓴다. 남은 높이를 행 수로 나눠 계산한다.
+   빼는 값은 실측한 화면 요소 높이의 합이다(900 x 415 기준).
+     공통  화면 패딩 8 + 8, 마퀴 37, 그리드 간격 8 x 3, 릴 프레임 테두리 28, 여유 4
+     캐비닛 잭팟 바 40 + 모드 탭 25            → 합계 174, 3행
+     파라오 잭팟 바 40 (모드 탭 없음)          → 합계 149, 4행
+   폭도 함께 제한한다. 오른쪽 조작 칸 250 + 간격/패딩 24 + 프레임 테두리 28 = 302.
+   세로 화면의 최대값(108 / 88)을 넘지 않게 상한을 둔다. */
 @media (orientation: landscape) and (max-height: 620px) {
-  :root { --cell: 84px; }
-  .screen--cabinet[data-game="pharaoh"] { --cell: 74px; }
+  :root {
+    --cell: min(108px, (100dvh - 174px) / 3, (100vw - 302px) / 5);
+    --cell-gap: 5px;
+  }
+
+  .screen--cabinet[data-game="pharaoh"] {
+    --cell: min(88px, (100dvh - 149px) / 4, (100vw - 302px) / 6);
+  }
 }
 
-@media (orientation: landscape) and (max-height: 520px) {
-  :root { --cell: 68px; }
-  .screen--cabinet[data-game="pharaoh"] { --cell: 56px; }
+@media (orientation: landscape) and (max-height: 420px) {
+  :root { --cell-gap: 4px; }
 }
 
-@media (orientation: landscape) and (max-height: 440px) {
-  :root { --cell: 56px; --cell-gap: 4px; }
-  .screen--cabinet[data-game="pharaoh"] { --cell: 44px; }
-}
-
+/* 아주 낮은 가로 화면에서는 조작바 자체가 병목이 된다(고유 높이 310px).
+   릴이 아니라 조작바 때문에 화면이 넘치므로 여기서 줄인다. */
 @media (orientation: landscape) and (max-height: 400px) {
-  :root { --cell: 50px; --cell-gap: 3px; }
-  .screen--cabinet[data-game="pharaoh"] { --cell: 40px; }
-}
+  :root { --cell-gap: 3px; }
 
-@media (orientation: landscape) and (max-height: 350px) {
-  :root { --cell: 42px; }
-  .screen--cabinet[data-game="pharaoh"] { --cell: 34px; }
+  .panel { padding: var(--sp-1) var(--sp-2); }
+  .message { margin: 0 0 var(--sp-1); min-height: 1em; }
+  .dock, .dock__left { gap: var(--sp-1); }
+  .dock__win { padding: 1px var(--sp-2); }
+  .dock__winlabel { font-size: 0.62rem; letter-spacing: 0.14em; }
+  .dock__winvalue { font-size: min(var(--fs-xl), 13cqi); }
+  .meter, .dock__bet { padding: 1px var(--sp-2); }
+  .meter__label { font-size: 0.62rem; }
+  .btn--round { width: 30px; height: 30px; font-size: var(--fs-md); }
+  .controls__bet .btn--ghost { padding: 2px var(--sp-2); font-size: var(--fs-xs); }
+  .dock__actions .btn--spin { padding: var(--sp-2); font-size: var(--fs-md); }
+  .dock__auto { min-width: 62px; }
+  .btn--auto { padding: var(--sp-2); font-size: var(--fs-sm); }
 }
