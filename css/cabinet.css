@@ -2,10 +2,16 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body { margin: 0; padding: 0; }
+html, body {
+  margin: 0; padding: 0;
+  /* 당겨서 새로고침과 고무줄 스크롤을 막는다. 스핀 중 화면이 밀리면 조작을 방해한다. */
+  overscroll-behavior: none;
+}
 
 body {
   min-height: 100vh;
+  /* 더블탭 확대를 막는다. 탭 반응은 그대로 남는다. */
+  touch-action: manipulation;
   background:
     radial-gradient(circle at 50% -10%, rgba(201, 150, 47, 0.22), transparent 55%),
     repeating-linear-gradient(97deg, rgba(255, 255, 255, 0.022) 0 2px, transparent 2px 7px),
@@ -925,8 +931,13 @@ body {
    하단 툴바는 숨기고 마퀴의 ☰ 메뉴 하나로 들어간다.
    데스크톱(높이 620px 초과)은 기존 세로 배치를 그대로 쓴다. */
 @media (orientation: landscape) and (max-height: 620px) {
+  /* 화면 높이에 딱 맞춰 고정한다. 스크롤이 생기면 URL 바가 숨었다 나타나며
+     dvh가 흔들리고, 그때마다 릴 크기가 다시 계산돼 크기가 튄다. */
+  html, body { height: 100%; overflow: hidden; }
+
   .screen--cabinet {
     display: grid;
+    height: 100dvh;
     max-width: none;
     padding: var(--sp-2);
     gap: var(--sp-2);

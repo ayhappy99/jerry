@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 확대/축소를 막는다. 게임 중 핀치 줌이 들어가면 릴 크기 계산(100dvh)이 흔들리고
+     화면이 밀려 조작을 방해한다. viewport-fit=cover로 노치 영역까지 쓴다. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Lucky Cabinet</title>
 <meta name="description" content="가상 코인으로 돌리는 개인용 슬롯머신. 실제 금전 요소는 없습니다.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
