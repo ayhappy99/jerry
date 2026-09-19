@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>심볼 확인 (개발용)</title>
+<!-- 개발용 확인 페이지. 저장소 루트에서 python3 -m http.server 로 띄운 뒤 /tools/symbols.html 로 연다. -->
+<style>
+  body { background: #120b08; margin: 0; padding: 24px; font-family: sans-serif; color: #f2e4c6; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .cell { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.32)); border-radius: 8px; padding: 10px; text-align: center; }
+  svg.s { width: 100%; height: 120px; }
+  small { opacity: .7; font-size: 12px; }
+</style></head><body>
+<div class="grid" id="g"></div>
+<script type="module">
+  import { mountSymbolSprite, symbolHref } from '../js/symbols.js';
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+  mountSymbolSprite(host);
+  document.body.append(host);
+  const keys = [...host.innerHTML.matchAll(/id="sym-([a-z]+)"/g)].map((m) => m[1]);
+  document.getElementById('g').innerHTML = keys
+    .map((k) => `<div class="cell"><svg class="s" viewBox="0 0 100 100"><use href="${symbolHref(k)}"/></svg><small>${k}</small></div>`)
+    .join('');
+</script></body></html>
