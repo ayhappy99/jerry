@@ -220,6 +220,15 @@ const SPRITE = `
     <path id="p-crown" d="M11 78 17 27l19 19L50 19l14 27 19-19 6 51z"/>
     <path id="p-star" d="M50 8 60.6 37.4 91.9 38.4 67.1 57.6 75.9 87.6 50 70 24.1 87.6 32.9 57.6 8.1 38.4 39.4 37.4z"/>
     <path id="p-bell" d="M50 23c-16 0-25 11-25 29 0 18-5 24-11 31h72c-6-7-11-13-11-31 0-18-9-29-25-29z"/>
+    <!-- 석판 타일 5종이 같은 판을 쓴다 -->
+    <rect id="p-tile" x="13" y="9" width="74" height="82" rx="10"/>
+    <!-- 코브라 후드: 아래가 평평한 넓은 방패(83 × 54).
+         아래에 좁은 몸통을 붙이면 버섯 기둥처럼 읽히므로 몸통을 두지 않는다. -->
+    <path id="p-hood" d="M50 24C30 24 12 37 9 56c-2 14 5 24 17 24h48c12 0 19-10 17-24C88 37 70 24 50 24z"/>
+    <!-- 연꽃 꽃잎 하나. 끝이 뾰족하고 아래가 평평하다. 회전시켜 다섯 장을 만든다 -->
+    <path id="p-petal" d="M0-30C13-12 15 4 9 18H-9C-15 4-13-12 0-30z"/>
+    <!-- 가면의 네메스 머리쓰개 -->
+    <path id="p-nemes" d="M50 5C30 5 18 17 16 35l-4 31 17 6 3 15h36l3-15 17-6-4-31C82 17 70 5 50 5z"/>
   </defs>
 
   <symbol id="sym-cherry" viewBox="0 0 100 100">
@@ -393,146 +402,296 @@ const SPRITE = `
     <circle cx="47" cy="45" r="5" fill="url(#m-sheen)"/>
   </symbol>
 
-  <!-- ── 파라오의 문 심볼 (창작) ── -->
+  <!-- ── 파라오의 문 심볼 (창작) ──
+       캐비닛 심볼과 같은 광원·같은 조명 레이어를 쓴다. 릴에 섞여도 빛 방향이 어긋나지 않는다. -->
 
   <symbol id="sym-ankh" viewBox="0 0 100 100">
-    <ellipse cx="50" cy="28" rx="17" ry="20" fill="none" stroke="url(#g-eg-gold)" stroke-width="10"/>
+    <ellipse cx="50" cy="95" rx="20" ry="4" fill="url(#m-shadow)"/>
+    <ellipse cx="50" cy="28" rx="17" ry="20" fill="none" stroke="url(#g-eg-gold)" stroke-width="11"/>
     <rect x="43" y="46" width="14" height="46" rx="4" fill="url(#g-eg-gold)"/>
     <rect x="21" y="52" width="58" height="13" rx="5" fill="url(#g-eg-gold)"/>
-    <ellipse cx="50" cy="28" rx="17" ry="20" fill="none" stroke="#fff4c9" stroke-width="2.5" opacity="0.55"/>
-    <rect x="45" y="48" width="4" height="40" rx="2" fill="#fff4c9" opacity="0.45"/>
+    <!-- 둥근 금속의 위쪽 반사와 아래쪽 어두움 -->
+    <ellipse cx="50" cy="28" rx="17" ry="20" fill="none" stroke="url(#m-key)" stroke-width="3.4"/>
+    <ellipse cx="50" cy="28" rx="17" ry="20" fill="none" stroke="url(#m-rim)" stroke-width="2.4"/>
+    <rect x="43" y="46" width="14" height="46" rx="4" fill="url(#m-occl)"/>
+    <rect x="21" y="52" width="58" height="13" rx="5" fill="url(#m-occl)"/>
+    <!-- 좁은 스페큘러 -->
+    <rect x="45" y="48" width="3.6" height="40" rx="1.8" fill="#fff8dc" opacity="0.62"/>
+    <rect x="24" y="54" width="50" height="3.4" rx="1.7" fill="#fff8dc" opacity="0.55"/>
+    <path d="M38 14c6-4 14-4 20 0" fill="none" stroke="#fff8dc" stroke-width="2.6" opacity="0.7" stroke-linecap="round"/>
   </symbol>
 
   <symbol id="sym-lotus" viewBox="0 0 100 100">
-    <g fill="url(#g-eg-teal)">
-      <ellipse cx="29" cy="58" rx="11" ry="25" transform="rotate(-30 29 58)"/>
-      <ellipse cx="71" cy="58" rx="11" ry="25" transform="rotate(30 71 58)"/>
-      <ellipse cx="50" cy="50" rx="14" ry="31"/>
-    </g>
-    <ellipse cx="50" cy="48" rx="7" ry="23" fill="url(#g-eg-ivory)"/>
-    <ellipse cx="46" cy="40" rx="3" ry="10" fill="#fdf6e3" opacity="0.7"/>
-    <rect x="23" y="82" width="54" height="10" rx="5" fill="url(#g-eg-gold)"/>
-    <rect x="23" y="82" width="54" height="3.5" rx="1.75" fill="#fff4c9" opacity="0.6"/>
+    <ellipse cx="50" cy="90" rx="28" ry="4.4" fill="url(#m-shadow)"/>
+    <!-- 같은 꽃잎을 회전시켜 다섯 장을 만든다. 끝이 뾰족해야 잎이 아니라 꽃잎으로 읽힌다 -->
+    <use href="#p-petal" fill="url(#g-eg-teal)" transform="translate(50 54) rotate(-60) scale(0.9)"/>
+    <use href="#p-petal" fill="url(#g-eg-teal)" transform="translate(50 54) rotate(60) scale(0.9)"/>
+    <use href="#p-petal" fill="url(#m-occl)" opacity="0.45" transform="translate(50 54) rotate(-60) scale(0.9)"/>
+    <use href="#p-petal" fill="url(#m-occl)" transform="translate(50 54) rotate(60) scale(0.9)"/>
+    <use href="#p-petal" fill="url(#g-eg-teal)" transform="translate(50 50) rotate(-30)"/>
+    <use href="#p-petal" fill="url(#g-eg-teal)" transform="translate(50 50) rotate(30)"/>
+    <use href="#p-petal" fill="url(#m-occl)" opacity="0.4" transform="translate(50 50) rotate(-30)"/>
+    <use href="#p-petal" fill="url(#m-occl)" opacity="0.85" transform="translate(50 50) rotate(30)"/>
+    <use href="#p-petal" fill="none" stroke="#07443f" stroke-width="1.6" opacity="0.4" transform="translate(50 50) rotate(-30)"/>
+    <use href="#p-petal" fill="none" stroke="#07443f" stroke-width="1.6" opacity="0.4" transform="translate(50 50) rotate(30)"/>
+    <!-- 가운데 꽃잎: 상아색으로 초점을 만든다. 너무 크면 꽃이 아니라 깃털로 읽힌다 -->
+    <use href="#p-petal" fill="url(#g-eg-ivory)" transform="translate(50 48) scale(0.82)"/>
+    <use href="#p-petal" fill="url(#m-occl)" opacity="0.5" transform="translate(50 48) scale(0.82)"/>
+    <use href="#p-petal" fill="none" stroke="#6b5c3c" stroke-width="1.5" opacity="0.45" transform="translate(50 48) scale(0.82)"/>
+    <!-- 오목한 느낌을 주는 안쪽 밝은 띠 -->
+    <path d="M48 30c-2 8-3 17-2 25h3c-1-8 0-17 2-25z" fill="#fffdf2" opacity="0.6"/>
+    <!-- 꽃받침과 받침대 -->
+    <path d="M36 64c5 5 23 5 28 0-3 8-25 8-28 0z" fill="url(#g-eg-teal)"/>
+    <rect x="23" y="70" width="54" height="11" rx="5.5" fill="url(#g-eg-gold)"/>
+    <rect x="23" y="70" width="54" height="11" rx="5.5" fill="url(#m-occl)" opacity="0.6"/>
+    <rect x="26" y="72" width="48" height="3.4" rx="1.7" fill="#fff8dc" opacity="0.6"/>
   </symbol>
 
   <symbol id="sym-papyrus" viewBox="0 0 100 100">
-    <rect x="22" y="22" width="56" height="56" rx="4" fill="url(#g-eg-ivory)"/>
-    <rect x="12" y="16" width="14" height="68" rx="7" fill="url(#g-eg-gold)"/>
-    <rect x="74" y="16" width="14" height="68" rx="7" fill="url(#g-eg-gold)"/>
-    <g stroke="#7a6134" stroke-width="3.5" stroke-linecap="round" opacity="0.8">
-      <path d="M32 36h36"/>
-      <path d="M32 48h26"/>
-      <path d="M32 60h36"/>
-      <path d="M32 70h20"/>
+    <ellipse cx="50" cy="90" rx="34" ry="4.6" fill="url(#m-shadow)"/>
+    <!-- 종이 -->
+    <rect x="22" y="22" width="56" height="58" rx="3" fill="url(#g-eg-ivory)"/>
+    <rect x="22" y="22" width="56" height="58" rx="3" fill="url(#m-occl)" opacity="0.7"/>
+    <!-- 말린 자리는 그림자가 진다 -->
+    <path d="M26 22h5v58h-5z" fill="#6b5c3c" opacity="0.28"/>
+    <path d="M69 22h5v58h-5z" fill="#6b5c3c" opacity="0.28"/>
+    <!-- 글줄 -->
+    <g stroke="#6b5734" stroke-width="3.4" stroke-linecap="round" opacity="0.8">
+      <path d="M34 36h32"/>
+      <path d="M34 48h23"/>
+      <path d="M34 59h32"/>
+      <path d="M34 70h18"/>
     </g>
-    <rect x="22" y="22" width="56" height="10" fill="#fdf6e3" opacity="0.5"/>
+    <!-- 양쪽 두루마리 축: 원통이라 가운데가 밝고 위아래가 어둡다 -->
+    <rect x="12" y="16" width="15" height="70" rx="7.5" fill="url(#g-eg-gold)"/>
+    <rect x="73" y="16" width="15" height="70" rx="7.5" fill="url(#g-eg-gold)"/>
+    <rect x="12" y="16" width="15" height="70" rx="7.5" fill="url(#m-occl)" opacity="0.55"/>
+    <rect x="73" y="16" width="15" height="70" rx="7.5" fill="url(#m-occl)" opacity="0.55"/>
+    <rect x="16" y="20" width="3.6" height="62" rx="1.8" fill="#fff8dc" opacity="0.62"/>
+    <rect x="77" y="20" width="3.6" height="62" rx="1.8" fill="#fff8dc" opacity="0.5"/>
+    <rect x="22" y="22" width="56" height="8" fill="#fffdf2" opacity="0.4"/>
   </symbol>
 
   <symbol id="sym-cobra" viewBox="0 0 100 100">
-    <path d="M50 20C26 20 8 37 8 56c0 9 6 14 13 15h58c7-1 13-6 13-15 0-19-18-36-42-36z" fill="url(#g-eg-teal)"/>
-    <path d="M50 30C32 30 19 42 19 56c0 6 4 10 9 11h44c5-1 9-5 9-11 0-14-13-26-31-26z" fill="url(#g-eg-gold)" opacity="0.5"/>
-    <ellipse cx="50" cy="48" rx="13" ry="15" fill="url(#g-eg-gold)"/>
-    <circle cx="45" cy="45" r="3.6" fill="#1a1208"/>
-    <circle cx="55" cy="45" r="3.6" fill="#1a1208"/>
-    <circle cx="43.8" cy="43.6" r="1.2" fill="#fdf6e3"/>
-    <circle cx="53.8" cy="43.6" r="1.2" fill="#fdf6e3"/>
-    <path d="M47 57h6l-3 8z" fill="url(#g-eg-red)"/>
-    <path d="M42 71c1 9-2 13-9 16h34c-7-3-10-7-9-16z" fill="url(#g-eg-teal)"/>
-    <rect x="25" y="86" width="50" height="10" rx="5" fill="url(#g-eg-gold)"/>
-    <path d="M20 40c6-8 15-13 25-14v6c-8 1-15 5-20 12z" fill="#9df0e6" opacity="0.55"/>
+    <!-- 정면 후드는 어떻게 그려도 버섯으로 읽힌다(폭·비율을 세 번 바꿔 확인했다).
+         옆모습이면 몸통과 후드가 갈려 뱀으로 읽힌다. -->
+    <ellipse cx="34" cy="95" rx="26" ry="4" fill="url(#m-shadow)"/>
+    <!-- 뒤로 펴진 후드 -->
+    <path d="M58 16C43 13 30 21 26 34c4 13 18 19 32 15 7-5 7-28 0-33z" fill="url(#g-eg-teal)"/>
+    <path d="M58 16C43 13 30 21 26 34c4 13 18 19 32 15 7-5 7-28 0-33z" fill="url(#m-occl)" opacity="0.7"/>
+    <g fill="none" stroke="#07443f" stroke-width="1.6" opacity="0.45">
+      <path d="M34 22c8-4 16-5 22-3"/>
+      <path d="M30 32c9-4 18-5 26-3"/>
+      <path d="M33 42c8-3 16-4 23-2"/>
+    </g>
+    <path d="M58 16C43 13 30 21 26 34c4 13 18 19 32 15 7-5 7-28 0-33z" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <!-- 몸통: 아래로 흐르는 S자 -->
+    <path d="M52 48C50 63 40 73 28 79c-7 4-11 9-9 15" fill="none" stroke="url(#g-eg-teal)" stroke-width="17" stroke-linecap="round"/>
+    <path d="M52 48C50 63 40 73 28 79c-7 4-11 9-9 15" fill="none" stroke="#07443f" stroke-width="17" stroke-linecap="round" opacity="0.22"/>
+    <path d="M48 50C46 62 38 70 27 76" fill="none" stroke="#c8faf3" stroke-width="3.4" opacity="0.45" stroke-linecap="round"/>
+    <!-- 머리: 오른쪽을 본다 -->
+    <path d="M54 21c10-4 22 0 28 9-6 9-18 12-28 8-5-4-5-13 0-17z" fill="url(#g-eg-gold)"/>
+    <path d="M54 21c10-4 22 0 28 9-6 9-18 12-28 8-5-4-5-13 0-17z" fill="url(#m-occl)" opacity="0.45"/>
+    <path d="M58 23c8-2 16 1 21 6" fill="none" stroke="#fff8dc" stroke-width="2.4" opacity="0.62" stroke-linecap="round"/>
+    <!-- 눈 -->
+    <circle cx="67" cy="28" r="3.8" fill="#1a1208"/>
+    <circle cx="65.7" cy="26.7" r="1.4" fill="#fffdf2"/>
+    <!-- 입선과 갈라진 혀 -->
+    <path d="M62 36c7 1 14-1 19-5" fill="none" stroke="#8a5c07" stroke-width="1.8" opacity="0.7"/>
+    <path d="M82 31h8m0 0-5-3m5 3-5 4" fill="none" stroke="#c8432f" stroke-width="2.2" stroke-linecap="round"/>
   </symbol>
 
   <symbol id="sym-falcon" viewBox="0 0 100 100">
-    <path d="M30 88c-6-14-8-28-4-42 4-15 16-26 32-26 8 0 14 3 18 7l-10 9c3 3 5 7 5 12 0 8-5 14-12 17 2 8 2 16 0 23z" fill="url(#g-eg-lapis)"/>
-    <path d="M76 27c6 1 12 4 16 9-6 2-12 3-18 2z" fill="url(#g-eg-gold)"/>
-    <circle cx="56" cy="36" r="6" fill="url(#g-eg-gold)"/>
-    <circle cx="56" cy="36" r="2.6" fill="#1a1208"/>
-    <path d="M36 52c8 4 18 5 26 2-4 8-14 12-26 10z" fill="url(#g-eg-gold)" opacity="0.85"/>
-    <path d="M26 88h40l-6 8H32z" fill="url(#g-eg-gold)"/>
+    <ellipse cx="50" cy="96" rx="26" ry="4" fill="url(#m-shadow)"/>
+    <!-- 오른쪽을 보는 옆모습. 두개골에서 목까지 한 덩어리로 잇는다 -->
+    <path d="M38 88C29 70 30 47 42 35 51 26 66 23 76 30c4 3 5 7 3 11 4 2 7 6 6 10-2 6-10 9-18 7-3 10-5 20-6 30z" fill="url(#g-eg-lapis)"/>
+    <path d="M38 88C29 70 30 47 42 35 51 26 66 23 76 30c4 3 5 7 3 11 4 2 7 6 6 10-2 6-10 9-18 7-3 10-5 20-6 30z" fill="url(#m-occl)" opacity="0.78"/>
+    <!-- 정수리 깃 -->
+    <path d="M45 33c5-6 13-9 22-8" fill="none" stroke="#9fc4f5" stroke-width="3.4" opacity="0.6" stroke-linecap="round"/>
+    <!-- 갈고리 부리: 머리 안에서 시작해 끝이 아래로 휜다 -->
+    <path d="M74 29c9 1 18 6 23 12-7 4-16 4-24 0z" fill="url(#g-eg-gold)"/>
+    <path d="M97 41c-1 6-6 10-12 9l-2-7z" fill="url(#g-eg-gold)"/>
+    <path d="M74 29c9 1 18 6 23 12-7 4-16 4-24 0z" fill="url(#m-occl)" opacity="0.35"/>
+    <path d="M77 32c7 1 13 4 17 8" fill="none" stroke="#fff8dc" stroke-width="1.8" opacity="0.6"/>
+    <!-- 눈과 호루스 눈매 -->
+    <circle cx="61" cy="38" r="7.6" fill="url(#g-eg-gold)"/>
+    <circle cx="61" cy="38" r="3.4" fill="#1a1208"/>
+    <circle cx="59.4" cy="36.4" r="1.3" fill="#fffdf2"/>
+    <path d="M50 31c4-4 12-5 18-2" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M54 47c5 2 10 1 14-2" fill="none" stroke="url(#g-eg-gold)" stroke-width="2.6" stroke-linecap="round"/>
+    <!-- 목 깃 선 -->
+    <path d="M44 62c7 3 14 3 20 0" fill="none" stroke="url(#g-eg-gold)" stroke-width="2.6" stroke-linecap="round" opacity="0.8"/>
+    <path d="M43 70c7 3 15 3 21 0" fill="none" stroke="url(#g-eg-gold)" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>
+    <!-- 목걸이 받침 -->
+    <path d="M32 86h38l-5 12H37z" fill="url(#g-eg-gold)"/>
+    <path d="M34 88h34l-1 3H35z" fill="#fff8dc" opacity="0.5"/>
   </symbol>
 
   <symbol id="sym-scarab" viewBox="0 0 100 100">
-    <ellipse cx="50" cy="56" rx="30" ry="32" fill="url(#g-eg-teal)"/>
-    <path d="M50 24c-9 0-16 6-16 13 0 5 3 9 8 11h16c5-2 8-6 8-11 0-7-7-13-16-13z" fill="url(#g-eg-gold)"/>
-    <path d="M47 40h6v48h-6z" fill="url(#g-eg-gold)"/>
-    <path d="M22 44c-7 2-12 8-14 15 6 2 12 1 17-2z" fill="url(#g-eg-gold)"/>
-    <path d="M78 44c7 2 12 8 14 15-6 2-12 1-17-2z" fill="url(#g-eg-gold)"/>
-    <path d="M24 70c-6 3-10 9-11 16 6 1 12-1 16-5z" fill="url(#g-eg-gold)"/>
-    <path d="M76 70c6 3 10 9 11 16-6 1-12-1-16-5z" fill="url(#g-eg-gold)"/>
-    <ellipse cx="38" cy="46" rx="7" ry="11" fill="#9df0e6" opacity="0.45"/>
+    <ellipse cx="50" cy="95" rx="30" ry="4.4" fill="url(#m-shadow)"/>
+    <!-- 다리 6개: 끝으로 갈수록 얇아진다 -->
+    <g stroke="url(#g-eg-gold)" fill="none" stroke-linecap="round">
+      <path d="M30 40C22 36 14 34 7 36" stroke-width="5"/>
+      <path d="M70 40C78 36 86 34 93 36" stroke-width="5"/>
+      <path d="M26 58C17 58 10 61 5 66" stroke-width="5"/>
+      <path d="M74 58C83 58 90 61 95 66" stroke-width="5"/>
+      <path d="M30 76C23 79 17 84 14 91" stroke-width="4.4"/>
+      <path d="M70 76C77 79 83 84 86 91" stroke-width="4.4"/>
+    </g>
+    <!-- 앞가슴 방패 -->
+    <path d="M50 20c-9 0-17 3-23 9l-3 13h52l-3-13c-6-6-14-9-23-9z" fill="url(#g-eg-gold)"/>
+    <path d="M50 20c-9 0-17 3-23 9l-3 13h52l-3-13c-6-6-14-9-23-9z" fill="url(#m-occl)" opacity="0.5"/>
+    <path d="M32 27c10-5 26-5 36 0" fill="none" stroke="#fff8dc" stroke-width="2.4" opacity="0.6"/>
+    <!-- 등판(겉날개) 좌우: 밝고 어두움이 갈린다 -->
+    <path d="M50 42H24c-4 14-2 30 6 42 5 6 13 10 20 10z" fill="url(#g-eg-teal)"/>
+    <path d="M50 42h26c4 14 2 30-6 42-5 6-13 10-20 10z" fill="url(#g-eg-teal)"/>
+    <path d="M50 42h26c4 14 2 30-6 42-5 6-13 10-20 10z" fill="url(#m-occl)"/>
+    <path d="M50 42H24c-4 14-2 30 6 42 5 6 13 10 20 10z" fill="url(#m-occl)" opacity="0.35"/>
+    <!-- 가운데 이음선 -->
+    <rect x="47.6" y="42" width="4.8" height="52" rx="2.4" fill="url(#g-eg-gold)"/>
+    <rect x="48.4" y="44" width="1.8" height="46" rx="0.9" fill="#fff8dc" opacity="0.55"/>
+    <!-- 등판 광택 -->
+    <ellipse cx="36" cy="56" rx="8" ry="11" fill="#c8faf3" opacity="0.4" transform="rotate(-16 36 56)"/>
+    <!-- 겉날개 결 -->
+    <path d="M32 52c-2 12-1 24 4 32M68 52c2 12 1 24-4 32" fill="none" stroke="#07443f" stroke-width="1.4" opacity="0.4"/>
   </symbol>
 
   <symbol id="sym-mask" viewBox="0 0 100 100">
-    <path d="M50 8c-17 0-28 9-30 24l-6 36 15 5 3 15h36l3-15 15-5-6-36C78 17 67 8 50 8z" fill="url(#g-eg-lapis)"/>
+    <ellipse cx="50" cy="96" rx="26" ry="4" fill="url(#m-shadow)"/>
+    <!-- 네메스 머리쓰개 -->
+    <use href="#p-nemes" fill="url(#g-eg-lapis)"/>
+    <use href="#p-nemes" fill="url(#m-occl)" opacity="0.7"/>
+    <!-- 좌우로 늘어뜨린 천의 금띠. 머리쓰개 안쪽에만 들어간다 -->
     <g fill="url(#g-eg-gold)">
-      <rect x="16" y="38" width="9" height="28" rx="4"/>
-      <rect x="28" y="30" width="9" height="14" rx="4"/>
-      <rect x="63" y="30" width="9" height="14" rx="4"/>
-      <rect x="75" y="38" width="9" height="28" rx="4"/>
+      <rect x="18" y="39" width="10" height="5" rx="2.5"/>
+      <rect x="17" y="49" width="11" height="5" rx="2.5"/>
+      <rect x="16" y="59" width="12" height="5" rx="2.5"/>
+      <rect x="72" y="39" width="10" height="5" rx="2.5"/>
+      <rect x="72" y="49" width="11" height="5" rx="2.5"/>
+      <rect x="72" y="59" width="12" height="5" rx="2.5"/>
     </g>
-    <path d="M31 24h38l4 11H27z" fill="url(#g-eg-red)"/>
-    <path d="M33 33h34v29c0 10-8 16-17 16s-17-6-17-16z" fill="url(#g-eg-gold)"/>
-    <circle cx="42" cy="48" r="4" fill="#1a1208"/>
-    <circle cx="58" cy="48" r="4" fill="#1a1208"/>
-    <path d="M47 52h6v9h-6z" fill="#8a5c07" opacity="0.35"/>
-    <path d="M43 66h14" stroke="#8a5c07" stroke-width="3.4" stroke-linecap="round"/>
-    <rect x="45" y="76" width="10" height="17" rx="5" fill="url(#g-eg-lapis)"/>
-    <path d="M33 33h6v27h-6z" fill="#fff4c9" opacity="0.3"/>
+    <!-- 이마 띠 -->
+    <path d="M30 20h40l3 10H27z" fill="url(#g-eg-red)"/>
+    <path d="M30 20h40l1.4 4H28.6z" fill="#ffc2ad" opacity="0.6"/>
+    <!-- 얼굴: 폭이 넓고 턱으로 갈수록 좁아진다 -->
+    <path d="M50 28c12 0 20 6 20 16 0 8-1 16-4 22-3 7-9 11-16 11s-13-4-16-11c-3-6-4-14-4-22 0-10 8-16 20-16z" fill="url(#g-eg-gold)"/>
+    <path d="M50 28c12 0 20 6 20 16 0 8-1 16-4 22-3 7-9 11-16 11s-13-4-16-11c-3-6-4-14-4-22 0-10 8-16 20-16z" fill="url(#m-occl)" opacity="0.5"/>
+    <path d="M36 34c-3 4-4 7-4 11 0 9 1 17 4 23 2 5 5 8 9 10-7-1-12-5-15-11-3-6-4-14-4-22 0-5 3-9 10-11z" fill="#fff8dc" opacity="0.45"/>
+    <!-- 눈썹 -->
+    <path d="M36 44c3-3 9-3 12 0M52 44c3-3 9-3 12 0" fill="none" stroke="#1a2a4a" stroke-width="3" stroke-linecap="round"/>
+    <!-- 눈: 아몬드 + 눈꼬리 선 -->
+    <path d="M36 51c3-4 10-4 13 0-3 4-10 4-13 0z" fill="#fffdf2"/>
+    <path d="M51 51c3-4 10-4 13 0-3 4-10 4-13 0z" fill="#fffdf2"/>
+    <circle cx="42.5" cy="51" r="2.8" fill="#1a1208"/>
+    <circle cx="57.5" cy="51" r="2.8" fill="#1a1208"/>
+    <path d="M49 50h5M46 50h-5" fill="none" stroke="#1a2a4a" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- 코와 입 -->
+    <path d="M48 56h4l2 8h-8z" fill="#8a5c07" opacity="0.38"/>
+    <path d="M44 68c4 2 8 2 12 0" fill="none" stroke="#8a5c07" stroke-width="2.8" stroke-linecap="round"/>
+    <!-- 가짜 수염: 아래로 갈수록 살짝 넓어진다 -->
+    <path d="M44 78h12l-1 8-2 10h-6l-2-10z" fill="url(#g-eg-lapis)"/>
+    <path d="M44 78h12l-0.4 4H44.4z" fill="url(#g-eg-gold)" opacity="0.85"/>
+    <path d="M46.6 84h6.8l-1.4 12h-4z" fill="#0c1e3f" opacity="0.32"/>
   </symbol>
 
   <symbol id="sym-eye" viewBox="0 0 100 100">
+    <ellipse cx="46" cy="94" rx="26" ry="4" fill="url(#m-shadow)"/>
+    <!-- 흰자 -->
     <path d="M12 40c14-14 30-20 46-20 12 0 22 4 30 11-10 12-26 21-44 21-12 0-23-4-32-12z" fill="url(#g-eg-ivory)"/>
-    <ellipse cx="46" cy="40" rx="11" ry="11" fill="#1a1208"/>
-    <ellipse cx="42" cy="36" rx="3.4" ry="3.4" fill="#fdf6e3" opacity="0.8"/>
-    <path d="M10 30c16-16 36-22 56-20 10 1 18 4 24 9" fill="none" stroke="url(#g-eg-gold)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M12 40c14-14 30-20 46-20 12 0 22 4 30 11-10 12-26 21-44 21-12 0-23-4-32-12z" fill="url(#m-occl)" opacity="0.6"/>
+    <!-- 눈동자 -->
+    <circle cx="46" cy="40" r="11" fill="#1a1208"/>
+    <circle cx="42.4" cy="36.4" r="3.4" fill="#fffdf2" opacity="0.85"/>
+    <!-- 위쪽 눈매: 굵은 금선 -->
+    <path d="M10 30c16-16 36-22 56-20 10 1 18 4 24 9" fill="none" stroke="url(#g-eg-gold)" stroke-width="9" stroke-linecap="round"/>
+    <path d="M14 29c14-13 32-18 50-16" fill="none" stroke="#fff8dc" stroke-width="2.6" opacity="0.6" stroke-linecap="round"/>
+    <!-- 아래 장식 두 갈래 -->
     <path d="M40 54l-6 30h12l4-28z" fill="url(#g-eg-gold)"/>
-    <path d="M60 54c10 2 18 10 18 22 0 6-4 10-10 10s-11-5-11-11c0-5 3-8 7-9" fill="none" stroke="url(#g-eg-gold)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M40 54l-6 30h12l4-28z" fill="url(#m-occl)" opacity="0.5"/>
+    <path d="M41 56l-4 26h3l3-25z" fill="#fff8dc" opacity="0.45"/>
+    <path d="M60 54c10 2 18 10 18 22 0 6-4 10-10 10s-11-5-11-11c0-5 3-8 7-9" fill="none" stroke="url(#g-eg-gold)" stroke-width="9" stroke-linecap="round"/>
+    <path d="M62 57c7 3 13 9 13 19" fill="none" stroke="#fff8dc" stroke-width="2.2" opacity="0.5" stroke-linecap="round"/>
   </symbol>
 
   <symbol id="sym-obelisk" viewBox="0 0 100 100">
-    <path d="M50 6 62 26H38z" fill="url(#g-eg-gold)"/>
-    <path d="M38 26h24l6 62H32z" fill="url(#g-eg-stone)"/>
-    <rect x="26" y="88" width="48" height="10" rx="3" fill="url(#g-eg-gold)"/>
-    <g stroke="#5d4c2b" stroke-width="3" stroke-linecap="round" opacity="0.75">
+    <ellipse cx="50" cy="96" rx="28" ry="4" fill="url(#m-shadow)"/>
+    <!-- 피라미디온(금박 꼭대기) -->
+    <path d="M50 6 63 27H37z" fill="url(#g-eg-gold)"/>
+    <path d="M50 6 56 27h-6z" fill="#3a2404" opacity="0.32"/>
+    <path d="M50 6 44 27h6z" fill="#fff8dc" opacity="0.5"/>
+    <!-- 기둥: 네 면 중 두 면이 보이므로 밝은 면과 어두운 면이 갈린다 -->
+    <path d="M37 27h26l5 61H32z" fill="url(#g-eg-stone)"/>
+    <path d="M50 27h13l5 61H50z" fill="#3f331b" opacity="0.3"/>
+    <path d="M37 27h6l-4 61h-7z" fill="#fffdf2" opacity="0.3"/>
+    <!-- 새긴 글자 -->
+    <g stroke="#3f331b" stroke-width="3" stroke-linecap="round" opacity="0.7">
       <path d="M44 38h12"/>
       <path d="M44 50h12"/>
       <path d="M44 62h12"/>
       <path d="M44 74h12"/>
     </g>
-    <path d="M38 26h6l4 62h-6z" fill="#fdf6e3" opacity="0.28"/>
-    <path d="M50 6 56 26h-6z" fill="#fff4c9" opacity="0.5"/>
+    <g stroke="#fffdf2" stroke-width="1.2" stroke-linecap="round" opacity="0.35">
+      <path d="M44 36.4h12"/>
+      <path d="M44 48.4h12"/>
+      <path d="M44 60.4h12"/>
+      <path d="M44 72.4h12"/>
+    </g>
+    <!-- 받침 -->
+    <rect x="26" y="88" width="48" height="10" rx="3" fill="url(#g-eg-gold)"/>
+    <rect x="26" y="88" width="48" height="10" rx="3" fill="url(#m-occl)" opacity="0.5"/>
+    <rect x="29" y="89.6" width="42" height="3" rx="1.5" fill="#fff8dc" opacity="0.6"/>
   </symbol>
 
-  <!-- 저배당 석판 타일 -->
+  <!-- 저배당 석판 타일. 같은 판에 색과 글자만 바꾼다 -->
   <symbol id="sym-rank10" viewBox="0 0 100 100">
-    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-lapis)"/>
-    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <ellipse cx="50" cy="94" rx="30" ry="4" fill="url(#m-shadow)"/>
+    <use href="#p-tile" fill="url(#g-eg-lapis)"/>
+    <use href="#p-tile" fill="url(#m-occl)" opacity="0.7"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
     <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
-    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="34" font-weight="900" fill="url(#g-eg-gold)">10</text>
+    <text x="50" y="65.4" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="34" font-weight="900" fill="#0c1e3f" opacity="0.5">10</text>
+    <text x="50" y="64" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="34" font-weight="900" fill="url(#g-eg-gold)">10</text>
   </symbol>
   <symbol id="sym-rankj" viewBox="0 0 100 100">
-    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-teal)"/>
-    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <ellipse cx="50" cy="94" rx="30" ry="4" fill="url(#m-shadow)"/>
+    <use href="#p-tile" fill="url(#g-eg-teal)"/>
+    <use href="#p-tile" fill="url(#m-occl)" opacity="0.7"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
     <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
-    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">J</text>
+    <text x="50" y="65.4" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#07443f" opacity="0.5">J</text>
+    <text x="50" y="64" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">J</text>
   </symbol>
   <symbol id="sym-rankq" viewBox="0 0 100 100">
-    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-red)"/>
-    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <ellipse cx="50" cy="94" rx="30" ry="4" fill="url(#m-shadow)"/>
+    <use href="#p-tile" fill="url(#g-eg-red)"/>
+    <use href="#p-tile" fill="url(#m-occl)" opacity="0.7"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
     <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
-    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="42" font-weight="900" fill="url(#g-eg-gold)">Q</text>
+    <text x="50" y="65.4" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="42" font-weight="900" fill="#4a100a" opacity="0.5">Q</text>
+    <text x="50" y="64" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="42" font-weight="900" fill="url(#g-eg-gold)">Q</text>
   </symbol>
   <symbol id="sym-rankk" viewBox="0 0 100 100">
-    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-stone)"/>
-    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <ellipse cx="50" cy="94" rx="30" ry="4" fill="url(#m-shadow)"/>
+    <use href="#p-tile" fill="url(#g-eg-stone)"/>
+    <use href="#p-tile" fill="url(#m-occl)" opacity="0.7"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
     <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
-    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">K</text>
+    <text x="50" y="65.4" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#3f331b" opacity="0.5">K</text>
+    <text x="50" y="64" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">K</text>
   </symbol>
   <symbol id="sym-ranka" viewBox="0 0 100 100">
-    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-gold)"/>
-    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
-    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
-    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#2a1c08">A</text>
+    <ellipse cx="50" cy="94" rx="30" ry="4" fill="url(#m-shadow)"/>
+    <use href="#p-tile" fill="url(#g-eg-gold)"/>
+    <use href="#p-tile" fill="url(#m-occl)" opacity="0.6"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <use href="#p-tile" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="#513305" stroke-width="3.5" opacity="0.6"/>
+    <text x="50" y="65.4" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#fff8dc" opacity="0.45">A</text>
+    <text x="50" y="64" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#2a1c08">A</text>
   </symbol>
 </svg>
 `;
