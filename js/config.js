@@ -24,10 +24,30 @@ export const SYMBOLS = {
   diamond: { key: 'diamond', label: '다이아', kind: 'normal' },
   crown: { key: 'crown', label: '크라운', kind: 'wild' },
   star: { key: 'star', label: '스타', kind: 'scatter' },
+  // 파라오의 문
+  ankh: { key: 'ankh', label: '앙크', kind: 'normal' },
+  lotus: { key: 'lotus', label: '연꽃', kind: 'normal' },
+  papyrus: { key: 'papyrus', label: '파피루스', kind: 'normal' },
+  cobra: { key: 'cobra', label: '코브라', kind: 'normal' },
+  falcon: { key: 'falcon', label: '매', kind: 'normal' },
+  scarab: { key: 'scarab', label: '스카라베', kind: 'normal' },
+  mask: { key: 'mask', label: '황금 가면', kind: 'normal' },
+  eye: { key: 'eye', label: '호루스의 눈', kind: 'wild' },
+  obelisk: { key: 'obelisk', label: '오벨리스크', kind: 'scatter' },
+  rank10: { key: 'rank10', label: '10', kind: 'normal' },
+  rankj: { key: 'rankj', label: 'J', kind: 'normal' },
+  rankq: { key: 'rankq', label: 'Q', kind: 'normal' },
+  rankk: { key: 'rankk', label: 'K', kind: 'normal' },
+  ranka: { key: 'ranka', label: 'A', kind: 'normal' },
 };
 
 // 심볼 순서. 릴 스트립을 만들 때의 배치 순서이자 배당표 표시 순서다.
-export const SYMBOL_ORDER = ['cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star'];
+// 게임별 스트립은 자기 weights에 있는 키만 쓰므로 두 게임의 심볼을 한 배열에 둬도 섞이지 않는다.
+export const SYMBOL_ORDER = [
+  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star',
+  'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+  'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
+];
 
 // 5릴 라인 배당 (라인 베팅 배수)
 export const LINE_PAYS = {
@@ -268,6 +288,69 @@ export const MODES = {
 export function modePaylines(mode) {
   return PAYLINES.slice(0, mode.lines);
 }
+
+// ── 파라오의 문 (6릴 올웨이즈 캐스케이딩) ──
+// 라인이 없으므로 배당은 "총 베팅 배수 × ways"다. ways는 왼쪽부터 연속된 릴에서
+// 해당 심볼이 나온 개수의 곱이다(6릴 4행이면 최대 4^6 = 4096 ways).
+// 연쇄가 이어질 때마다 배수가 올라가고, JACKPOT_CHAIN단에 닿으면 픽 보너스가 열린다.
+export const PHARAOH = {
+  key: 'pharaoh',
+  reels: 6,
+  rows: 4,
+  wild: 'eye',
+  scatter: 'obelisk',
+  minMatch: 3,
+  // 총 베팅 = BETS[betIdx] × betUnits
+  betUnits: 10,
+  symbolOrder: [
+    'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+    'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
+  ],
+  // ways당 총 베팅 배수. 실측 계수로 맞춘 확정값은 README의 밸런스 항목 참고.
+  pays: {
+    rank10: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
+    rankj: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
+    rankq: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
+    rankk: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
+    ranka: { 3: 0.045, 4: 0.12, 5: 0.4, 6: 1.5 },
+    ankh: { 3: 0.05, 4: 0.15, 5: 0.6, 6: 2.5 },
+    lotus: { 3: 0.06, 4: 0.2, 5: 0.6, 6: 3 },
+    papyrus: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
+    cobra: { 3: 0.1, 4: 0.3, 5: 1.5, 6: 6 },
+    falcon: { 3: 0.15, 4: 0.5, 5: 2, 6: 10 },
+    scarab: { 3: 0.25, 4: 0.8, 5: 3, 6: 15 },
+    mask: { 3: 0.5, 4: 2, 5: 6, 6: 40 },
+  },
+  // 스캐터는 위치 무관, 개수로만 판정 (총 베팅 배수).
+  // 가중치가 2라 한 릴에 2개까지 보일 수 있어 최대 12개다. 그 이상 키는 없다.
+  scatterMin: 4,
+  scatterPays: { 4: 2, 5: 5, 6: 15, 7: 40, 8: 100, 9: 200, 10: 400, 11: 800, 12: 2000 },
+  freeSpins: 10,
+  freeMultiplier: 2,
+  // 연쇄 단계별 배수. 마지막 값 이후로는 그 값을 유지한다.
+  multipliers: [1, 2, 3, 5, 8, 12],
+  // 이 단계에 닿으면 잭팟 픽 보너스가 열린다.
+  // 5단은 1/488로 너무 잦아 공유 시드 효과가 +10%p까지 치솟았다. 7단은 1/13,748로
+  // 캐비닛의 잭팟 빈도(1/12,664)와 비슷해 시드 효과가 +0.37%p에 머문다.
+  jackpotChain: 7,
+  // 연쇄 상한. 게임 규칙이며 여기서 연쇄를 멈춘다. 실측에서 이 값에 닿는 경우는 없었다.
+  maxChain: 30,
+  weights: {
+    rank10: 7, rankj: 7, rankq: 6, rankk: 6, ranka: 6,
+    ankh: 5, lotus: 5, papyrus: 4, cobra: 4, falcon: 3, scarab: 3, mask: 2,
+    eye: 3, obelisk: 2,
+  },
+  // 1번 릴에는 와일드를 넣지 않는다.
+  reelWeights: [{ eye: 0 }],
+  seedOffset: 303,
+};
+
+PHARAOH.strips = buildStrips(
+  PHARAOH.reels,
+  PHARAOH.weights,
+  PHARAOH.reelWeights,
+  STRIP_SEED + PHARAOH.seedOffset,
+);
 
 // ── 게임 레지스트리 ───────────────────────
 // 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.

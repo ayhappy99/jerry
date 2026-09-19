@@ -269,6 +269,38 @@ const SPRITE = `
     <path d="M38 26h6l4 62h-6z" fill="#fdf6e3" opacity="0.28"/>
     <path d="M50 6 56 26h-6z" fill="#fff4c9" opacity="0.5"/>
   </symbol>
+
+  <!-- 저배당 석판 타일 -->
+  <symbol id="sym-rank10" viewBox="0 0 100 100">
+    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-lapis)"/>
+    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
+    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="34" font-weight="900" fill="url(#g-eg-gold)">10</text>
+  </symbol>
+  <symbol id="sym-rankj" viewBox="0 0 100 100">
+    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-teal)"/>
+    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
+    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">J</text>
+  </symbol>
+  <symbol id="sym-rankq" viewBox="0 0 100 100">
+    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-red)"/>
+    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
+    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="42" font-weight="900" fill="url(#g-eg-gold)">Q</text>
+  </symbol>
+  <symbol id="sym-rankk" viewBox="0 0 100 100">
+    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-stone)"/>
+    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
+    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="url(#g-eg-gold)">K</text>
+  </symbol>
+  <symbol id="sym-ranka" viewBox="0 0 100 100">
+    <rect x="13" y="9" width="74" height="82" rx="9" fill="url(#g-eg-gold)"/>
+    <rect x="13" y="9" width="74" height="22" rx="9" fill="#fdf6e3" opacity="0.18"/>
+    <rect x="19" y="15" width="62" height="70" rx="6" fill="none" stroke="url(#g-eg-gold)" stroke-width="3.5"/>
+    <text x="50" y="63" text-anchor="middle" font-family="Gothic A1, sans-serif" font-size="44" font-weight="900" fill="#2a1c08">A</text>
+  </symbol>
 </svg>
 `;
 
