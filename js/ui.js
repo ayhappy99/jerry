@@ -584,7 +584,7 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
       `<label class="switch"><input type="checkbox" data-sound ${sound ? 'checked' : ''}>` +
       '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
       `<label class="switch"><input type="checkbox" data-music ${music ? 'checked' : ''}>` +
-      '<span>배경음<span class="switch__desc">라운지풍 4코드 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
+      '<span>배경음<span class="switch__desc">일렉트로 하우스 128 BPM 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
       '<h3 class="modal__section">초기화</h3>' +
       '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
       '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
