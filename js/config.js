@@ -7,6 +7,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   2: settings.music(배경음) 추가
 //   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
 //   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
+//   5: player.tourDoneAt(게임 방법 안내를 본 시각) 추가
+//   6: settings.ambience(홀 생활소음) 추가
 export const SCHEMA_VERSION = 6;
 
 export const WILD = 'crown';
@@ -24,6 +26,7 @@ export const SYMBOLS = {
   diamond: { key: 'diamond', label: '다이아', kind: 'normal' },
   crown: { key: 'crown', label: '크라운', kind: 'wild' },
   star: { key: 'star', label: '스타', kind: 'scatter' },
+  coin: { key: 'coin', label: '골드 코인', kind: 'hold' },
   // 파라오의 문
   ankh: { key: 'ankh', label: '앙크', kind: 'normal' },
   lotus: { key: 'lotus', label: '연꽃', kind: 'normal' },
@@ -44,7 +47,7 @@ export const SYMBOLS = {
 // 심볼 순서. 릴 스트립을 만들 때의 배치 순서이자 배당표 표시 순서다.
 // 게임별 스트립은 자기 weights에 있는 키만 쓰므로 두 게임의 심볼을 한 배열에 둬도 섞이지 않는다.
 export const SYMBOL_ORDER = [
-  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star',
+  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star', 'coin',
   'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
   'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
 ];
@@ -138,6 +141,36 @@ export const HALL = {
 export const PICK_TILES = 9;
 export const PICK_MATCH = 3;
 
+// 골드 코인 홀드 앤 스핀.
+// 코인이 trigger개 이상 나오면 그 코인이 자리에 고정되고 빈 칸만 다시 돈다.
+// 새 코인이 하나라도 붙으면 남은 횟수가 respins로 초기화된다. 0이 되면 끝난다.
+// 15칸(5 x 3)을 모두 채우면 GRAND 잭팟을 받는다.
+//
+// 코인 심볼은 라인 배당이 없다. LINE_PAYS에 없으므로 engine의 linePayOf가 0을 돌려주고
+// 왼쪽부터 세는 연속을 끊는다. 즉 코인을 스트립에 넣으면 라인 환수율이 저절로 내려간다.
+// 그 내려간 몫을 홀드 앤 스핀이 되돌려 받는 구조다(tools/hold-sim.mjs로 균형점을 찾았다).
+export const HOLD = {
+  symbol: 'coin',
+  // 트리거 개수. 6개로 두면 1/2,300으로 사실상 볼 수 없고, 4개로 두면 1/41로 너무 잦다.
+  trigger: 5,
+  respins: 3,
+  // 리스핀에서 빈 칸 하나에 코인이 붙을 확률.
+  // 이 값이 모이는 코인 수와 전 칸 채움 빈도를 함께 정한다(0.05에서 평균 7.76개, 전 칸 1/200,000).
+  cellOdds: 0.05,
+  // 코인 값 = 총 베팅 배수. weight는 뽑힐 가중치다.
+  // 평균 7.78배. 이 값은 "홀드 앤 스핀이 채워야 할 몫 24.78%"에서 역산했다
+  // (24.78% ÷ 트리거 1/242 ÷ 평균 7.76개 = 7.74배).
+  values: [
+    { mult: 1, weight: 26 },
+    { mult: 2, weight: 18 },
+    { mult: 3, weight: 13 },
+    { mult: 5, weight: 13 },
+    { mult: 10, weight: 15 },
+    { mult: 20, weight: 11 },
+    { mult: 50, weight: 5 },
+  ],
+};
+
 // 매 스핀 총 베팅의 1%를 잭팟 풀에 적립한다. 프리스핀은 적립하지 않는다.
 export const JACKPOT_CONTRIB_RATE = 0.01;
 // 잭팟 미터는 실제 풀 값으로만 굴러간다. 화면에서만 올려 보여주는 가짜 증가는 넣지 않는다.
@@ -189,6 +222,12 @@ export const TIMING = {
   countUpTickMs: 55,
   bannerHold: 1800,
   toast: 2600,
+
+  // 홀드 앤 스핀
+  holdEnter: 1000,        // 트리거 코인을 보여주는 시간
+  holdRoll: 460,          // 빈 칸이 도는 시간
+  holdReveal: 380,        // 새로 붙은 코인을 보여주는 시간
+  holdFinish: 1200,       // 합계를 보여주는 시간
 
   // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
   attractIdle: 30000,
@@ -261,6 +300,16 @@ function defineMode(mode) {
   };
 }
 
+// 밸런스 탐색 도구가 가중치만 바꿔 같은 방식으로 모드를 다시 만들 수 있게 열어 둔다.
+// 도구가 스트립 생성을 따로 구현하면 게임과 어긋날 수 있다.
+export function rebuildMode(mode, weights) {
+  return {
+    ...mode,
+    weights,
+    strips: buildStrips(mode.reels, weights, mode.reelWeights, STRIP_SEED + mode.seedOffset),
+  };
+}
+
 export const MODE_KEYS = ['classic', 'lines9', 'bonus'];
 
 export const MODES = {
@@ -307,7 +356,13 @@ export const MODES = {
     wild: true,
     scatter: true,
     jackpot: true,
-    weights: { cherry: 12, lemon: 8, bell: 6, bar: 4, seven: 3, diamond: 2, crown: 1, star: 1 },
+    hold: true,
+    // 코인 3개. 코인은 라인 배당이 없어 연속을 끊으므로, 가중치를 올리면 라인 환수율이
+    // 내려가고 홀드 앤 스핀 트리거가 올라간다. 3에서 라인 62.92% / 트리거 1/242로
+    // 적중률 33%를 지키면서 보너스를 볼 수 있는 빈도가 나왔다.
+    weights: {
+      cherry: 12, lemon: 8, bell: 6, bar: 4, seven: 3, diamond: 2, crown: 1, star: 1, coin: 3,
+    },
     reelWeights: [{ crown: 0 }],
   }),
 };

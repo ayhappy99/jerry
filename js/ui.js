@@ -3,6 +3,7 @@
 import {
   AUTO_SPINS,
   BETS,
+  HOLD,
   CLASSIC_PAYS,
   EFFECTS,
   GAMES,
@@ -61,6 +62,7 @@ export const el = {
   freespinBadge: document.getElementById('freespin-badge'),
   chainBadge: document.getElementById('chain-badge'),
   attract: document.getElementById('attract'),
+  holdBadge: document.getElementById('hold-badge'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
   betSub: document.getElementById('bet-sub'),
@@ -326,6 +328,17 @@ export function setAttract(on) {
 // 프리스핀 전용 화면. 배경과 릴 프레임 색이 바뀐다.
 export function setFreeSpinScreen(on) {
   el.cabinet.dataset.free = String(on);
+}
+
+// 홀드 앤 스핀 전용 화면과 남은 리스핀 표시
+export function setHoldScreen(on) {
+  el.cabinet.dataset.hold = String(on);
+  if (!on) el.holdBadge.hidden = true;
+}
+
+export function setHoldBadge(text) {
+  el.holdBadge.hidden = text === null;
+  if (text !== null) el.holdBadge.textContent = text;
 }
 
 export function setFreeSpinBadge(remaining) {
@@ -1044,6 +1057,13 @@ function paytableRows(mode) {
           `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>${cells}</tr>`
         );
       }
+      if (key === HOLD.symbol) {
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 라인 배당 없음</small></span></div></td>` +
+          `<td colspan="3">${HOLD.trigger}개 이상 나오면 홀드 앤 스핀</td></tr>`
+        );
+      }
       const note = key === WILD ? '<small> 아무 심볼로 변신</small>' : '';
       const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}배</td>`).join('');
       return `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}${note}</span></div></td>${cells}</tr>`;
@@ -1154,6 +1174,11 @@ export function openPaytable(gameKey, modeKey) {
     mode.jackpot
       ? `한 줄에 <b>다이아가 ${JACKPOT_MATCH}개 이상</b>(왕관이 변신한 것은 빼고) 이어지면 잭팟 뽑기가 열려 ` +
         `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급에 쌓인 돈을 전부 받습니다.`
+      : '',
+    mode.hold
+      ? `<b>골드 코인이 ${HOLD.trigger}개 이상</b> 나오면 그 코인이 자리에 붙고 빈 칸만 ${HOLD.respins}번 더 돕니다. ` +
+        `새 코인이 하나라도 붙으면 횟수가 다시 ${HOLD.respins}번으로 늘어납니다. 끝나면 붙은 코인에 적힌 배수를 ` +
+        '모두 합쳐 받고, <b>15칸을 다 채우면 잭팟 뽑기</b>가 열립니다.'
       : '',
   ].filter((line) => line !== '');
 

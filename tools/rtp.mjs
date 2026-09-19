@@ -153,6 +153,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`  스캐터    ${pct(r.scatterRtp)}`);
     console.log(`  프리스핀  ${pct(r.freeRtp)}  (발동 ${pct(r.triggerRate)} = 1/${r.triggerRate ? Math.round(1 / r.triggerRate) : '-'}, 발동당 ${r.chain.toFixed(1)}회, 스핀당 ${r.freeSpinsPerSpin.toFixed(3)}회)`);
         console.log(`  잭팟적립  ${pct(r.jackpotRtp)}${r.jackpot ? `  (다이아 ${JACKPOT_MATCH}개 이상 1/${r.jackpot.odds.toLocaleString()})` : ''}`);
+    if (MODES[key].hold === true) {
+      // 홀드 앤 스핀은 리스핀이 앞선 상태에 의존해 해석적 계산이 불가능하다.
+      console.log(`  합계      ${pct(r.total)}  (홀드 앤 스핀 제외)`);
+      console.log('  → 홀드 앤 스핀을 포함한 합계는 node tools/hold-sim.mjs 3 10000000 으로 측정한다\n');
+      continue;
+    }
     console.log(`  합계      ${pct(r.total)}\n`);
   }
 }

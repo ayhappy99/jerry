@@ -449,6 +449,75 @@ body {
   box-shadow: 0 0 18px rgba(255, 47, 98, 0.7);
 }
 
+/* ── 홀드 앤 스핀 ───────────────────────── */
+/* 고정된 코인은 값과 함께 남고, 빈 칸은 눌러 둔다. */
+.cell--blank .cell__face {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.78) 100%);
+  box-shadow: inset 0 0 0 1px rgba(201, 150, 47, 0.18);
+}
+
+.cell--held .cell__face {
+  background: linear-gradient(180deg, rgba(247, 226, 163, 0.26) 0%, rgba(201, 150, 47, 0.14) 100%);
+  box-shadow: inset 0 0 0 2px var(--brass), 0 0 18px rgba(247, 226, 163, 0.45);
+}
+
+.cell__value {
+  position: absolute; bottom: 4%; left: 0; right: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--cell) * 0.24);
+  line-height: 1;
+  color: #fffdf2;
+  text-shadow: 0 1px 0 #3d2703, 0 0 8px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* 빈 칸이 도는 동안의 잔상 */
+.cell--rolling .cell__face {
+  background: linear-gradient(180deg, rgba(201, 150, 47, 0.1) 0%, rgba(247, 226, 163, 0.22) 50%, rgba(201, 150, 47, 0.1) 100%);
+  animation: hold-roll 0.16s linear infinite;
+}
+
+@keyframes hold-roll {
+  from { background-position: 0 0; }
+  to { background-position: 0 100%; }
+}
+
+/* 새로 붙은 코인 */
+.cell--fresh .cell__face {
+  animation: hold-land 0.42s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes hold-land {
+  0% { transform: scale(1.5); opacity: 0; }
+  60% { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* 남은 리스핀만 릴 우상단에 짧게 띄운다. 가운데에 두면 셀을 가린다. */
+.hold-badge {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  z-index: 3;
+  padding: 2px var(--sp-3);
+  border-radius: 999px;
+  background: var(--brass-frame);
+  color: #2a1608;
+  font-family: var(--font-display); font-size: var(--fs-sm); letter-spacing: 0.04em;
+  box-shadow: 0 0 22px rgba(247, 226, 163, 0.7);
+  white-space: nowrap;
+}
+
+.hold-badge[hidden] { display: none; }
+
+/* 홀드 앤 스핀 동안에는 캐비닛이 금빛으로 바뀐다 */
+.screen--cabinet[data-hold="true"] .cabinet__window {
+  background: linear-gradient(180deg, #140c02 0%, #2b1c04 50%, #140c02 100%);
+}
+
+.screen--cabinet[data-hold="true"] .cabinet__frame {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 34px rgba(247, 226, 163, 0.45);
+}
+
 /* ── 어트랙트 모드 ──────────────────────── */
 .attract {
   position: absolute; inset: 0;

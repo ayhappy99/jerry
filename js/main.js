@@ -23,8 +23,9 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
+import { spinHold, triggered } from './hold.js';
 import { buildGrid, buildPickTiles, drawJackpotTier, drawStops, randomInt } from './rng.js';
-import { clearHighlights, playCascade, renderReels, spinReels } from './reels.js';
+import { clearHighlights, playCascade, playHold, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
@@ -110,7 +111,7 @@ function jackpotHint() {
     return `연속 당첨 ${PHARAOH.jackpotChain}번이면 잭팟 뽑기 · 돌릴 때마다 거는 돈의 1%가 여기 쌓입니다`;
   }
   return game.mode.jackpot
-    ? `한 줄에 다이아 ${JACKPOT_MATCH}개 이상이면 잭팟 뽑기 · 돌릴 때마다 거는 돈의 1%가 여기 쌓입니다`
+    ? `다이아 ${JACKPOT_MATCH}개 또는 코인으로 15칸을 다 채우면 잭팟 뽑기 · 돌릴 때마다 1% 적립`
     : '이 게임에서는 잭팟이 터지지 않습니다. 공짜 스핀·잭팟 게임에서만 터집니다';
 }
 
@@ -221,6 +222,9 @@ function readoutText(result, payout) {
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 ${win.lineIndex + 1}번 줄`,
   );
+  if (result.hold != null) {
+    parts.push(`골드 코인 ${result.hold.coins.length}개, ${result.hold.payMultiple}배`);
+  }
   if (result.scatter !== null) parts.push(`${SYMBOLS[SCATTER].label} ${result.scatter.count}개`);
   if (parts.length === 0) return '당첨 없음';
   const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
@@ -239,6 +243,9 @@ function resultMessage(result, payout) {
   if (payout.totalWin === 0) return '';
   if (result.cascade !== undefined) {
     return `연속 당첨 ${result.cascade.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  if (result.hold != null) {
+    return `골드 코인 ${result.hold.coins.length}개 · ${ui.formatCoins(payout.totalWin)}`;
   }
   return `${result.lineWins.length}줄 당첨 · ${ui.formatCoins(payout.totalWin)}`;
 }
@@ -267,6 +274,9 @@ async function presentWin(result, payout, coinsBeforeWin) {
 
   if (result.freeSpinsAwarded > 0) {
     ui.showBigWin(`공짜 스핀 ${result.freeSpinsAwarded}번 획득!`, { speed, tier: 'free', effects });
+  }
+  if (result.hold != null && result.hold.full) {
+    ui.showBigWin('15칸 전부 채움! 잭팟 뽑기', { speed, tier: 'big', effects });
   }
 
   if (payout.jackpot !== null) {
@@ -329,7 +339,46 @@ function drawLines(isFree) {
     lineBet: game.lineBet,
     freeSpin: isFree,
   });
-  return { ...result, spin: { stops, grid } };
+
+  // 홀드 앤 스핀도 스핀 시작 시점에 전부 확정한다. 리스핀 연출은 이 결과를 재생만 한다.
+  const hold =
+    game.mode.hold === true && triggered(grid)
+      ? spinHold({ grid, reels: game.mode.reels, rows: game.mode.rows })
+      : null;
+  const holdWin = hold === null ? 0 : hold.payMultiple * result.totalBet;
+
+  return {
+    ...result,
+    hold,
+    totalWin: result.totalWin + holdWin,
+    // 15칸을 다 채우면 다이아 경로와 같은 픽 보너스를 연다.
+    jackpot: { ...result.jackpot, hit: result.jackpot.hit || (hold !== null && hold.full) },
+    spin: { stops, grid },
+  };
+}
+
+// 홀드 앤 스핀을 재생한다. 남은 리스핀과 모인 배수를 배지에 띄운다.
+async function playHoldBonus(result) {
+  const speed = presentationSpeed();
+  ui.setHoldScreen(true);
+  audio.duckMusic(0.6);
+  await playHold(ui.reelsHost(), game.mode, result.hold, {
+    speed,
+    instant: reducedMotion.matches,
+    onStep: ({ held, respinsLeft, added, done }) => {
+      const sum = result.hold.coins
+        .slice(0, held)
+        .reduce((total, coin) => total + coin.mult, 0);
+      ui.setHoldBadge(done ? null : `리스핀 ${respinsLeft}`);
+      ui.setMessage(`골드 코인 ${held}개 · ${sum}배`, true);
+      if (added.length > 0) audio.playReelStop();
+    },
+  });
+  if (!reducedMotion.matches) await delay(TIMING.holdFinish / speed);
+  ui.setHoldScreen(false);
+  // 트리거 당시 화면으로 되돌린다. 홀드 판을 그대로 두면 이어지는
+  // 라인 하이라이트가 엉뚱한 칸을 짚는다.
+  renderReels(ui.reelsHost(), game.mode, result.spin.stops);
 }
 
 // 캐스케이딩 게임 한 스핀. 연쇄 전체가 여기서 확정된다.
@@ -399,6 +448,7 @@ async function runSpin() {
 
   await revealSpin(result.spin);
   if (result.cascade !== undefined) await playCascadeSteps(result);
+  if (result.hold != null) await playHoldBonus(result);
 
   const coinsBeforeWin = game.state.wallet.coins;
   game.state.wallet.coins += payout.totalWin;

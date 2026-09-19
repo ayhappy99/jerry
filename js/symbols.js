@@ -402,6 +402,27 @@ const SPRITE = `
     <circle cx="47" cy="45" r="5" fill="url(#m-sheen)"/>
   </symbol>
 
+  <symbol id="sym-coin" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="92" rx="26" ry="4.5" fill="url(#m-shadow)"/>
+    <!-- 테두리 톱니(리딩): 원 하나에 파선을 걸어 만든다 -->
+    <circle cx="50" cy="50" r="41" fill="none" stroke="url(#m-gold)" stroke-width="7" stroke-dasharray="3 3.4"/>
+    <!-- 원판 -->
+    <circle cx="50" cy="50" r="38" fill="url(#m-gold)"/>
+    <circle cx="50" cy="50" r="38" fill="url(#m-occl)"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
+    <!-- 안쪽 단: 테두리보다 한 단 낮다 -->
+    <circle cx="50" cy="50" r="30" fill="none" stroke="#4a2c05" stroke-width="2.4" opacity="0.55"/>
+    <circle cx="50" cy="50" r="28" fill="url(#m-gold-soft)"/>
+    <circle cx="50" cy="50" r="28" fill="url(#m-occl)" opacity="0.6"/>
+    <circle cx="50" cy="50" r="28" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <!-- 음각 사방 빛살 -->
+    <path d="M50 30 54 46 70 50 54 54 50 70 46 54 30 50 46 46z" fill="#5c3a04" opacity="0.5"/>
+    <path d="M50 31.6 53.4 46.6 68.4 50 53.4 53.4 50 68.4 46.6 53.4 31.6 50 46.6 46.6z" fill="#fff6d0" opacity="0.5"/>
+    <!-- 금속 반사 -->
+    <ellipse cx="38" cy="36" rx="13" ry="8.5" fill="url(#m-sheen)" transform="rotate(-28 38 36)"/>
+  </symbol>
+
   <!-- ── 파라오의 문 심볼 (창작) ──
        캐비닛 심볼과 같은 광원·같은 조명 레이어를 쓴다. 릴에 섞여도 빛 방향이 어긋나지 않는다. -->
 
