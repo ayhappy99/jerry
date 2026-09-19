@@ -4,6 +4,8 @@ import {
   BETS,
   CLASSIC_PAYS,
   EFFECTS,
+  GAMES,
+  GAME_KEYS,
   HISTORY_LIMITS,
   JACKPOT_MATCH,
   JACKPOT_TIERS,
@@ -33,7 +35,13 @@ export const el = {
   sprite: document.getElementById('sprite'),
   fatal: document.getElementById('fatal'),
   onboarding: document.getElementById('screen-onboarding'),
+  lobby: document.getElementById('screen-lobby'),
   cabinet: document.getElementById('screen-cabinet'),
+  lobbySeat: document.getElementById('lobby-seat'),
+  lobbyCredit: document.getElementById('lobby-credit'),
+  lobbyJackpots: document.getElementById('lobby-jackpots'),
+  lobbyGames: document.getElementById('lobby-games'),
+  toLobby: document.getElementById('to-lobby'),
   nicknameForm: document.getElementById('nickname-form'),
   nicknameInput: document.getElementById('nickname-input'),
   nicknameError: document.getElementById('nickname-error'),
@@ -91,6 +99,7 @@ export function formatDateTime(timestamp) {
 
 export function showScreen(name) {
   el.onboarding.hidden = name !== 'onboarding';
+  el.lobby.hidden = name !== 'lobby';
   el.cabinet.hidden = name !== 'cabinet';
 }
 
@@ -122,6 +131,35 @@ export function modeTabs() {
 
 export function setSeat(nickname) {
   el.seat.textContent = `${nickname}님의 자리`;
+  el.lobbySeat.textContent = `${nickname}님, 어느 대에 앉으시겠습니까?`;
+}
+
+// ── 로비 ──────────────────────────────────
+
+function gameCardStats(section) {
+  const { stats } = section;
+  if (stats.spins === 0) return '아직 플레이 기록이 없습니다';
+  const rtp =
+    stats.totalWagered === 0 ? '-' : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
+  return `스핀 ${formatCoins(stats.spins)}회 · 실측 환수율 ${rtp} · 최고 ${formatCoins(stats.bestWin)}`;
+}
+
+export function renderLobby(state) {
+  el.lobbyCredit.textContent = formatCoins(state.wallet.coins);
+  el.lobbyGames.innerHTML = GAME_KEYS.map((key) => {
+    const game = GAMES[key];
+    const art = game.artSymbols.map((symbol) => symbolMarkup(symbol)).join('');
+    return (
+      `<button class="gamecard" type="button" role="listitem" data-game="${key}">` +
+      `<span class="gamecard__art" aria-hidden="true">${art}</span>` +
+      '<span class="gamecard__body">' +
+      `<span class="gamecard__name">${game.label}</span>` +
+      `<span class="gamecard__badge">${game.badge}</span>` +
+      `<span class="gamecard__tagline">${game.tagline}</span>` +
+      `<span class="gamecard__stats">${gameCardStats(state.games[key])}</span>` +
+      '</span></button>'
+    );
+  }).join('');
 }
 
 export function setCredit(value) {
@@ -139,8 +177,9 @@ export function setWin(value) {
 }
 
 // 4단 잭팟 바를 만든다. 티어 순서는 config의 JACKPOT_TIER_KEYS를 따른다.
-export function renderJackpotBar() {
-  el.jackpotBar.innerHTML = JACKPOT_TIER_KEYS.map((key) => {
+// 로비와 캐비닛 두 곳에 같은 바를 그리므로 대상 요소를 받는다.
+export function renderJackpotBar(host) {
+  host.innerHTML = JACKPOT_TIER_KEYS.map((key) => {
     const tier = JACKPOT_TIERS[key];
     return (
       `<div class="jp jp--${key}" data-tier="${key}">` +
@@ -151,18 +190,19 @@ export function renderJackpotBar() {
   }).join('');
 }
 
-function tierValueEl(key) {
-  return el.jackpotBar.querySelector(`[data-tier-value="${key}"]`);
-}
-
+// 잭팟 풀은 공유이므로 로비·캐비닛에 그려진 모든 바를 함께 갱신한다.
 export function setJackpot(pools) {
-  for (const key of JACKPOT_TIER_KEYS) tierValueEl(key).textContent = formatCoins(pools[key]);
+  for (const key of JACKPOT_TIER_KEYS) {
+    for (const node of document.querySelectorAll(`[data-tier-value="${key}"]`)) {
+      node.textContent = formatCoins(pools[key]);
+    }
+  }
 }
 
-// 적립분만큼 티어별로 굴려 올린다.
+// 적립분만큼 티어별로 굴려 올린다. 화면에 보이는 캐비닛 쪽 바만 움직인다.
 export function rollJackpot(from, to, duration) {
   for (const key of JACKPOT_TIER_KEYS) {
-    countUp(tierValueEl(key), from[key], to[key], duration);
+    countUp(el.jackpotBar.querySelector(`[data-tier-value="${key}"]`), from[key], to[key], duration);
   }
 }
 

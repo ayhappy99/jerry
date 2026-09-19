@@ -7,6 +7,8 @@ import {
   JACKPOT_ROLL_MS,
   JACKPOT_TIERS,
   JACKPOT_TIER_KEYS,
+  GAMES,
+  GAME_KEYS,
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
@@ -27,6 +29,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const game = {
   state: null,
+  key: null,
   mode: null,
   lineBet: 0,
   freeSpinsLeft: 0,
@@ -34,6 +37,11 @@ const game = {
   auto: false,
   looping: false,
 };
+
+// 현재 고른 게임이 따로 쌓는 설정·통계·기록. 코인과 잭팟 풀은 game.state에 공유로 둔다.
+function section() {
+  return game.state.games[game.key];
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,7 +73,7 @@ function syncMeters() {
   ui.setBet(game.lineBet, game.mode);
   ui.setJackpot(game.state.jackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
-  if (!game.busy) ui.setBetButtons(game.state.settings.betIdx);
+  if (!game.busy) ui.setBetButtons(section().settings.betIdx);
 }
 
 function syncJackpotHint() {
@@ -78,7 +86,7 @@ function syncJackpotHint() {
 
 function selectMode(modeKey) {
   game.mode = MODES[modeKey];
-  game.state.settings.mode = modeKey;
+  section().settings.mode = modeKey;
   ui.renderModeTabs(modeKey);
   renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
   syncJackpotHint();
@@ -87,7 +95,7 @@ function selectMode(modeKey) {
 }
 
 function changeBet(nextIdx) {
-  game.state.settings.betIdx = nextIdx;
+  section().settings.betIdx = nextIdx;
   game.lineBet = BETS[nextIdx];
   syncMeters();
   storage.save(game.state);
@@ -113,7 +121,7 @@ function contributeJackpot(totalBet) {
 }
 
 function recordStats(result, payout) {
-  const stats = game.state.stats;
+  const stats = section().stats;
   stats.spins += 1;
   if (!result.freeSpin) stats.totalWagered += result.totalBet;
   stats.totalWon += payout.totalWin;
@@ -132,7 +140,7 @@ function recordStats(result, payout) {
 
 function recordWinHistory(result, payout) {
   if (payout.jackpot !== null) {
-    storage.addJackpotRecord(game.state, {
+    storage.addJackpotRecord(section(), {
       nickname: game.state.player.nickname,
       amount: payout.jackpot.amount,
       tier: payout.jackpot.tier,
@@ -142,7 +150,7 @@ function recordWinHistory(result, payout) {
     });
   }
   if (payout.tier === 'big' || payout.tier === 'mega') {
-    storage.addBigWinRecord(game.state, {
+    storage.addBigWinRecord(section(), {
       nickname: game.state.player.nickname,
       amount: payout.totalWin,
       mode: result.modeKey,
@@ -471,8 +479,8 @@ function wireControls() {
     ui.modeTabs()[next].focus();
   });
 
-  ui.el.betDown.addEventListener('click', () => changeBet(game.state.settings.betIdx - 1));
-  ui.el.betUp.addEventListener('click', () => changeBet(game.state.settings.betIdx + 1));
+  ui.el.betDown.addEventListener('click', () => changeBet(section().settings.betIdx - 1));
+  ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
 
   ui.el.spin.addEventListener('click', () => { runSpinLoop(); });
@@ -501,8 +509,8 @@ function wireControls() {
     const opener = event.target.closest('[data-open]');
     if (opener === null) return;
     if (opener.dataset.open === 'paytable') ui.openPaytable(game.mode.key);
-    if (opener.dataset.open === 'history') ui.openHistory(game.state);
-    if (opener.dataset.open === 'stats') ui.openStats(game.state);
+    if (opener.dataset.open === 'history') ui.openHistory(section());
+    if (opener.dataset.open === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
     if (opener.dataset.open === 'settings') openSettings();
   });
 }
@@ -516,12 +524,36 @@ function wireOnboarding() {
     game.state.player.nickname = value;
     game.state.player.createdAt = Date.now();
     storage.save(game.state);
-    enterCabinet();
+    enterLobby();
   });
 }
 
-function enterCabinet() {
-  const modeKey = MODE_KEYS.includes(game.state.settings.mode) ? game.state.settings.mode : MODE_KEYS[1];
+function wireLobby() {
+  ui.el.lobbyGames.addEventListener('click', (event) => {
+    const card = event.target.closest('.gamecard');
+    if (card === null) return;
+    enterGame(card.dataset.game);
+  });
+  ui.el.toLobby.addEventListener('click', enterLobby);
+}
+
+function enterLobby() {
+  stopAuto();
+  ui.setSeat(game.state.player.nickname);
+  ui.renderLobby(game.state);
+  ui.setJackpot(game.state.jackpot.pools);
+  ui.showScreen('lobby');
+}
+
+function enterGame(gameKey) {
+  game.key = gameKey;
+  game.state.settings.game = gameKey;
+  game.freeSpinsLeft = 0;
+
+  const stored = section().settings;
+  const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
+  game.lineBet = BETS[stored.betIdx];
+
   ui.setSeat(game.state.player.nickname);
   ui.showScreen('cabinet');
   selectMode(modeKey);
@@ -529,24 +561,28 @@ function enterCabinet() {
   ui.setSoundButton(game.state.settings.sound);
   ui.setMessage('스핀을 눌러 시작하세요.', true);
   ui.setWin(0);
+  storage.save(game.state);
 }
 
 function boot() {
   mountSymbolSprite(ui.el.sprite);
   ui.mountBulbs();
-  ui.renderJackpotBar();
+  ui.renderJackpotBar(ui.el.jackpotBar);
+  ui.renderJackpotBar(ui.el.lobbyJackpots);
 
   game.state = storage.load();
-  game.lineBet = BETS[game.state.settings.betIdx];
+  game.key = GAME_KEYS.includes(game.state.settings.game) ? game.state.settings.game : GAME_KEYS[0];
+  game.lineBet = BETS[section().settings.betIdx];
   audio.setEnabled(game.state.settings.sound);
   audio.setMusicEnabled(game.state.settings.music);
   wireAudioUnlock();
   wireVisibility();
   wireOnboarding();
+  wireLobby();
   wireControls();
 
   if (storage.hasPlayer(game.state)) {
-    enterCabinet();
+    enterLobby();
     return;
   }
   ui.showScreen('onboarding');

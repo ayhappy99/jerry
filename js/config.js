@@ -6,7 +6,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   1: 최초
 //   2: settings.music(배경음) 추가
 //   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
-export const SCHEMA_VERSION = 3;
+//   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
+export const SCHEMA_VERSION = 4;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -267,3 +268,21 @@ export const MODES = {
 export function modePaylines(mode) {
   return PAYLINES.slice(0, mode.lines);
 }
+
+// ── 게임 레지스트리 ───────────────────────
+// 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.
+export const GAMES = {
+  cabinet: {
+    key: 'cabinet',
+    label: '럭키 캐비닛',
+    tagline: '어두운 옻칠 목재와 황동 프레임. 클래식 3릴부터 프리스핀·잭팟까지 모드 3종.',
+    // 페이라인 판정 엔진을 쓴다.
+    kind: 'lines',
+    modeKeys: MODE_KEYS,
+    badge: '3~5릴 · 모드 3종',
+    // 로비 카드에 띄울 대표 심볼
+    artSymbols: ['seven', 'diamond', 'crown'],
+  },
+};
+
+export const GAME_KEYS = ['cabinet'];

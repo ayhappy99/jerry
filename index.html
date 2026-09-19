@@ -38,6 +38,30 @@
   </section>
 </main>
 
+<!-- 로비: 닉네임 입력 후 게임을 고른다 -->
+<main id="screen-lobby" class="screen screen--lobby" hidden>
+  <header class="lobby__head">
+    <p class="lobby__kicker">LUCKY CABINET</p>
+    <h1 class="lobby__title">게임 선택</h1>
+    <p class="lobby__seat" id="lobby-seat"></p>
+  </header>
+
+  <section class="lobby__shared">
+    <div class="lobby__credit">
+      <span class="meter__label">크레딧 (게임 공용)</span>
+      <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
+    </div>
+    <p class="lobby__jplabel">공유 프로그레시브 잭팟</p>
+    <div class="jackpots" id="lobby-jackpots"></div>
+  </section>
+
+  <div class="lobby__games" id="lobby-games" role="list"></div>
+
+  <footer class="lobby__foot">
+    <button class="btn btn--ghost" type="button" data-open="settings">설정</button>
+  </footer>
+</main>
+
 <!-- 캐비닛 -->
 <main id="screen-cabinet" class="screen screen--cabinet" hidden>
   <header class="marquee">
@@ -46,6 +70,9 @@
       <h1 class="marquee__title">LUCKY<span>CABINET</span></h1>
       <p class="marquee__seat" id="seat-label"></p>
     </div>
+    <button class="icon-btn marquee__lobby" type="button" id="to-lobby" aria-label="게임 선택으로 돌아가기">
+      <span aria-hidden="true">◀</span>
+    </button>
     <button class="icon-btn marquee__settings" type="button" data-open="settings" aria-label="설정 열기">
       <span aria-hidden="true">⚙</span>
     </button>
