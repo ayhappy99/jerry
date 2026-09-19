@@ -604,3 +604,41 @@ body {
   .gamecard { gap: var(--sp-3); padding: var(--sp-3); }
   .gamecard__art { flex-direction: column; }
 }
+
+/* ── 파라오의 문 (6릴 4행) ──────────────── */
+/* 6열이 폭 제약이므로 이 게임에서만 셀을 줄인다. */
+.screen--cabinet[data-game="pharaoh"] { --cell: 88px; }
+
+@media (max-width: 900px) { .screen--cabinet[data-game="pharaoh"] { --cell: 78px; } }
+@media (max-width: 680px) { .screen--cabinet[data-game="pharaoh"] { --cell: 64px; } }
+@media (max-width: 480px) { .screen--cabinet[data-game="pharaoh"] { --cell: 48px; } }
+@media (max-width: 360px) { .screen--cabinet[data-game="pharaoh"] { --cell: 42px; } }
+
+/* 연쇄 단계 표시 */
+.chain-badge {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: 999px;
+  background: rgba(46, 196, 182, 0.92);
+  color: #04201d;
+  font-size: var(--fs-xs); font-weight: 900; letter-spacing: 0.06em;
+  box-shadow: 0 0 18px rgba(46, 196, 182, 0.7);
+}
+
+/* 연쇄로 사라지는 셀 */
+.cell--pop .cell__face {
+  animation: cell-pop-out var(--pop-dur, 260ms) ease-in forwards;
+}
+
+@keyframes cell-pop-out {
+  0% { transform: scale(1); opacity: 1; }
+  40% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(0.35) rotate(12deg); opacity: 0; }
+}
+
+/* 모드가 없는 게임에서는 탭을 숨긴다 */
+.modes[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cell--pop .cell__face { animation: none; opacity: 0; }
+}

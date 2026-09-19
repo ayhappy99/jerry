@@ -12,6 +12,7 @@ import {
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
+  PHARAOH,
   REFILL_AMOUNT,
   SYMBOLS,
   TIMING,
@@ -19,8 +20,9 @@ import {
 } from './config.js';
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
+import { spinCascade } from './cascade.js';
 import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
-import { clearHighlights, renderReels, spinReels } from './reels.js';
+import { clearHighlights, playCascade, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
@@ -30,6 +32,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const game = {
   state: null,
   key: null,
+  kind: null,
   mode: null,
   lineBet: 0,
   freeSpinsLeft: 0,
@@ -64,24 +67,43 @@ function countUpDuration(payout, result) {
   return (TIMING.countUpMin + Math.min(1, ratio / WIN_TIERS.mega) * span) / animationSpeed();
 }
 
+// 현재 게임의 릴 구성. 페이라인 게임은 모드, 캐스케이딩 게임은 PHARAOH가 그 역할을 한다.
+function spec() {
+  return game.kind === 'cascade' ? PHARAOH : game.mode;
+}
+
 function currentTotalBet() {
-  return totalBetOf(game.mode, game.lineBet);
+  return game.kind === 'cascade'
+    ? BETS[section().settings.betIdx] * PHARAOH.betUnits
+    : totalBetOf(game.mode, game.lineBet);
+}
+
+function betNote(unitBet) {
+  return game.kind === 'cascade'
+    ? `베팅 단위 ${ui.formatCoins(unitBet)} × ${PHARAOH.betUnits}`
+    : `라인당 ${ui.formatCoins(unitBet)} × ${game.mode.lines}`;
 }
 
 function syncMeters() {
+  const unitBet = BETS[section().settings.betIdx];
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(game.lineBet, game.mode);
+  ui.setBet(unitBet, currentTotalBet(), betNote(unitBet));
   ui.setJackpot(game.state.jackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
   if (!game.busy) ui.setBetButtons(section().settings.betIdx);
 }
 
+function jackpotHint() {
+  if (game.kind === 'cascade') {
+    return `연쇄 ${PHARAOH.jackpotChain}단 도달 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`;
+  }
+  return game.mode.jackpot
+    ? `한 라인에 다이아 ${JACKPOT_MATCH}개 이상 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`
+    : '프리스핀·잭팟 모드에서만 적중합니다';
+}
+
 function syncJackpotHint() {
-  ui.setJackpotHint(
-    game.mode.jackpot
-      ? `한 라인에 다이아 ${JACKPOT_MATCH}개 이상 → 픽 보너스에서 등급 추첨 · 매 스핀 총 베팅의 1% 적립`
-      : '프리스핀·잭팟 모드에서만 적중합니다',
-  );
+  ui.setJackpotHint(jackpotHint());
 }
 
 function selectMode(modeKey) {
@@ -97,6 +119,14 @@ function selectMode(modeKey) {
 function changeBet(nextIdx) {
   section().settings.betIdx = nextIdx;
   game.lineBet = BETS[nextIdx];
+  syncMeters();
+  storage.save(game.state);
+}
+
+// 캐스케이딩 게임은 모드가 없다. 릴만 그려 두고 탭 줄을 숨긴다.
+function setupCascade() {
+  renderReels(ui.reelsHost(), PHARAOH, drawStops(PHARAOH.strips));
+  syncJackpotHint();
   syncMeters();
   storage.save(game.state);
 }
@@ -166,6 +196,11 @@ function readoutText(result, payout) {
     const label = JACKPOT_TIERS[payout.jackpot.tier].label;
     return `${label} 잭팟 당첨. ${ui.formatCoins(payout.jackpot.amount)} 코인. 총 ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
   }
+  if (result.cascade !== undefined) {
+    if (payout.totalWin === 0) return '당첨 없음';
+    const free = result.freeSpinsAwarded > 0 ? ` 프리스핀 ${result.freeSpinsAwarded}회 획득.` : '';
+    return `연쇄 ${result.cascade.chain}단. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
+  }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 라인 ${win.lineIndex + 1}`,
   );
@@ -180,9 +215,15 @@ function resultMessage(result, payout) {
     const label = JACKPOT_TIERS[payout.jackpot.tier].label;
     return `${label} 잭팟! ${ui.formatCoins(payout.jackpot.amount)} 획득`;
   }
-  if (result.freeSpinsAwarded > 0) return `스캐터 ${result.scatter.count}개! 프리스핀 10회`;
-  if (payout.totalWin > 0) return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(payout.totalWin)}`;
-  return '';
+  if (result.freeSpinsAwarded > 0) {
+    const count = result.cascade === undefined ? result.scatter.count : result.cascade.scatters;
+    return `스캐터 ${count}개! 프리스핀 ${result.freeSpinsAwarded}회`;
+  }
+  if (payout.totalWin === 0) return '';
+  if (result.cascade !== undefined) {
+    return `연쇄 ${result.cascade.chain}단 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  return `${result.lineWins.length}개 라인 당첨 · ${ui.formatCoins(payout.totalWin)}`;
 }
 
 // 꽝이면 아무 연출도 하지 않는다. 조용히 다음 스핀을 받는다.
@@ -246,17 +287,62 @@ async function presentWin(result, payout, coinsBeforeWin) {
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
 async function revealSpin(spin) {
   if (reducedMotion.matches) {
-    renderReels(ui.reelsHost(), game.mode, spin.stops);
+    renderReels(ui.reelsHost(), spec(), spin.stops);
     return;
   }
-  const lastReel = game.mode.reels - 1;
+  const lastReel = spec().reels - 1;
   audio.startReelLoop();
-  await spinReels(ui.reelsHost(), game.mode, spin, {
+  await spinReels(ui.reelsHost(), spec(), spin, {
     turbo: game.state.settings.turbo,
     onAnticipate: () => audio.playAnticipation(),
     onReelStop: (reel) => {
       if (reel === lastReel) audio.stopReelLoop();
       audio.playReelStop();
+    },
+  });
+}
+
+// 페이라인 게임 한 스핀
+function drawLines(isFree) {
+  const stops = drawStops(game.mode.strips);
+  const grid = buildGrid(game.mode.strips, stops, game.mode.rows);
+  const result = evaluateSpin({
+    modeKey: game.mode.key,
+    grid,
+    lineBet: game.lineBet,
+    freeSpin: isFree,
+  });
+  return { ...result, spin: { stops, grid } };
+}
+
+// 캐스케이딩 게임 한 스핀. 연쇄 전체가 여기서 확정된다.
+function drawCascade(isFree, totalBet) {
+  const stops = drawStops(PHARAOH.strips);
+  const result = spinCascade({ stops, totalBet, freeSpin: isFree });
+  return {
+    modeKey: PHARAOH.key,
+    totalBet,
+    freeSpin: isFree,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: result.freeSpinsAwarded,
+    totalWin: result.totalWin,
+    jackpot: result.jackpot,
+    cascade: result,
+    spin: { stops, grid: result.initialGrid },
+  };
+}
+
+// 연쇄를 단계별로 재생한다. 각 단계의 ways와 배수를 배지에 띄운다.
+async function playCascadeSteps(result) {
+  const speed = presentationSpeed();
+  await playCascade(ui.reelsHost(), PHARAOH, result.cascade.steps, {
+    speed,
+    instant: reducedMotion.matches,
+    onStep: (step) => {
+      const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
+      ui.setChainBadge(`연쇄 ${step.chain}단 ×${step.chainMultiplier} · ${ways} ways`);
+      audio.playLineTick();
     },
   });
 }
@@ -283,24 +369,19 @@ async function runSpin() {
     contributeJackpot(totalBet);
   }
   ui.setCredit(game.state.wallet.coins);
-  ui.setBet(game.lineBet, game.mode);
+  ui.setBet(BETS[section().settings.betIdx], totalBet, betNote(BETS[section().settings.betIdx]));
   ui.setFreeSpinBadge(game.freeSpinsLeft);
+  ui.setChainBadge(null);
 
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
-  const stops = drawStops(game.mode.strips);
-  const grid = buildGrid(game.mode.strips, stops, game.mode.rows);
-  const result = evaluateSpin({
-    modeKey: game.mode.key,
-    grid,
-    lineBet: game.lineBet,
-    freeSpin: isFree,
-  });
+  const result = game.kind === 'cascade' ? drawCascade(isFree, totalBet) : drawLines(isFree);
   // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
   const jackpot = resolveJackpot(result);
   const totalWin = result.totalWin + (jackpot === null ? 0 : jackpot.amount);
   const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
-  await revealSpin({ stops, grid });
+  await revealSpin(result.spin);
+  if (result.cascade !== undefined) await playCascadeSteps(result);
 
   const coinsBeforeWin = game.state.wallet.coins;
   game.state.wallet.coins += payout.totalWin;
@@ -469,7 +550,7 @@ function wireControls() {
   // 탭 위젯 표준 키보드 조작: 좌우 화살표로 모드를 옮긴다.
   ui.el.modes.addEventListener('keydown', (event) => {
     const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
-    if (step === undefined) return;
+    if (step === undefined || game.kind === 'cascade') return;
     const tabs = ui.modeTabs();
     if (tabs.some((tab) => tab.disabled)) return;
     event.preventDefault();
@@ -508,7 +589,7 @@ function wireControls() {
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-open]');
     if (opener === null) return;
-    if (opener.dataset.open === 'paytable') ui.openPaytable(game.mode.key);
+    if (opener.dataset.open === 'paytable') ui.openPaytable(game.key, game.mode?.key);
     if (opener.dataset.open === 'history') ui.openHistory(section());
     if (opener.dataset.open === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
     if (opener.dataset.open === 'settings') openSettings();
@@ -547,16 +628,27 @@ function enterLobby() {
 
 function enterGame(gameKey) {
   game.key = gameKey;
+  game.kind = GAMES[gameKey].kind;
   game.state.settings.game = gameKey;
   game.freeSpinsLeft = 0;
+  game.mode = null;
 
   const stored = section().settings;
-  const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
   game.lineBet = BETS[stored.betIdx];
 
-  ui.setSeat(game.state.player.nickname);
+  ui.setSeat(game.state.player.nickname, GAMES[gameKey].label);
+  ui.setGameTheme(gameKey);
+  ui.setModesVisible(game.kind !== 'cascade');
   ui.showScreen('cabinet');
-  selectMode(modeKey);
+  ui.setChainBadge(null);
+
+  if (game.kind === 'cascade') {
+    setupCascade();
+  } else {
+    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
+    selectMode(modeKey);
+  }
+
   ui.setAutoButton(false);
   ui.setSoundButton(game.state.settings.sound);
   ui.setMessage('스핀을 눌러 시작하세요.', true);
@@ -572,6 +664,7 @@ function boot() {
 
   game.state = storage.load();
   game.key = GAME_KEYS.includes(game.state.settings.game) ? game.state.settings.game : GAME_KEYS[0];
+  game.kind = GAMES[game.key].kind;
   game.lineBet = BETS[section().settings.betIdx];
   audio.setEnabled(game.state.settings.sound);
   audio.setMusicEnabled(game.state.settings.music);

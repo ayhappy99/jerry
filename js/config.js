@@ -148,6 +148,9 @@ export const HISTORY_LIMITS = { jackpotHistory: 20, bigWins: 10 };
 export const NICKNAME_RULES = { min: 2, max: 12 };
 
 export const TIMING = {
+  cascadeHold: 620,       // 연쇄 당첨을 보여주는 시간
+  cascadePop: 260,        // 당첨 심볼이 터지는 시간
+  cascadeDrop: 300,       // 새 심볼이 내려오는 시간
   reelSpinBase: 620,      // 1번 릴이 도는 최소 시간
   reelStagger: 200,       // 릴 간 정지 간격
   reelStopBounce: 220,    // 정지 후 오버슈트 복귀
@@ -366,6 +369,17 @@ export const GAMES = {
     // 로비 카드에 띄울 대표 심볼
     artSymbols: ['seven', 'diamond', 'crown'],
   },
+
+  pharaoh: {
+    key: 'pharaoh',
+    label: '파라오의 문',
+    tagline: '6릴 올웨이즈. 당첨 심볼이 무너지고 새 심볼이 내려와 연쇄가 이어진다.',
+    // 올웨이즈 캐스케이딩 엔진을 쓴다.
+    kind: 'cascade',
+    modeKeys: [],
+    badge: '6릴 4행 · 최대 4096 ways',
+    artSymbols: ['mask', 'scarab', 'eye'],
+  },
 };
 
-export const GAME_KEYS = ['cabinet'];
+export const GAME_KEYS = ['cabinet', 'pharaoh'];

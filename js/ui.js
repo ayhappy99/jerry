@@ -6,6 +6,7 @@ import {
   EFFECTS,
   GAMES,
   GAME_KEYS,
+  PHARAOH,
   HISTORY_LIMITS,
   JACKPOT_MATCH,
   JACKPOT_TIERS,
@@ -57,6 +58,7 @@ export const el = {
   reels: document.getElementById('reels'),
   lines: document.getElementById('lines'),
   freespinBadge: document.getElementById('freespin-badge'),
+  chainBadge: document.getElementById('chain-badge'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
   betMeter: document.getElementById('bet-meter'),
@@ -129,8 +131,9 @@ export function modeTabs() {
   return [...el.modes.querySelectorAll('.mode-tab')];
 }
 
-export function setSeat(nickname) {
-  el.seat.textContent = `${nickname}님의 자리`;
+export function setSeat(nickname, gameLabel = null) {
+  el.seat.textContent =
+    gameLabel === null ? `${nickname}님의 자리` : `${gameLabel} · ${nickname}님의 자리`;
   el.lobbySeat.textContent = `${nickname}님, 어느 대에 앉으시겠습니까?`;
 }
 
@@ -166,10 +169,10 @@ export function setCredit(value) {
   el.credit.textContent = formatCoins(value);
 }
 
-export function setBet(lineBet, mode) {
-  el.betLabel.textContent = formatCoins(lineBet);
-  el.betMeter.textContent = formatCoins(lineBet * mode.lines);
-  el.betSub.textContent = `라인당 ${formatCoins(lineBet)} × ${mode.lines}`;
+export function setBet(unitBet, totalBet, note) {
+  el.betLabel.textContent = formatCoins(unitBet);
+  el.betMeter.textContent = formatCoins(totalBet);
+  el.betSub.textContent = note;
 }
 
 export function setWin(value) {
@@ -249,6 +252,20 @@ export function setBusy(busy, autoRunning) {
 export function setAutoButton(running) {
   el.auto.dataset.running = String(running);
   el.auto.textContent = running ? '중지' : '자동';
+}
+
+// 모드가 없는 게임에서는 탭 줄을 숨긴다.
+export function setModesVisible(visible) {
+  el.modes.hidden = !visible;
+}
+
+export function setGameTheme(gameKey) {
+  el.cabinet.dataset.game = gameKey;
+}
+
+export function setChainBadge(text) {
+  el.chainBadge.hidden = text === null;
+  if (text !== null) el.chainBadge.textContent = text;
 }
 
 export function setFreeSpinBadge(remaining) {
@@ -877,7 +894,61 @@ function paylineGrid(mode) {
     .join('');
 }
 
-export function openPaytable(modeKey) {
+function waysPaytableRows() {
+  const counts = [3, 4, 5, 6];
+  return PHARAOH.symbolOrder
+    .map((key) => {
+      if (key === PHARAOH.wild) {
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 와일드</small></span></div></td>` +
+          '<td colspan="4">스캐터를 뺀 모든 심볼을 대체</td></tr>'
+        );
+      }
+      if (key === PHARAOH.scatter) {
+        const shown = [4, 5, 6];
+        const cells = shown.map((n) => `<td>${PHARAOH.scatterPays[n]}×</td>`).join('');
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 스캐터</small></span></div></td>` +
+          `<td>-</td>${cells}</tr>`
+        );
+      }
+      const cells = counts.map((n) => `<td>${PHARAOH.pays[key][n]}×</td>`).join('');
+      return (
+        `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>${cells}</tr>`
+      );
+    })
+    .join('');
+}
+
+function openWaysPaytable() {
+  const rules = [
+    `왼쪽 릴부터 연속된 릴에 같은 심볼이 있으면 행과 무관하게 당첨입니다. ${PHARAOH.minMatch}릴 이상이어야 합니다.`,
+    '배당은 <b>총 베팅 배수 × ways</b>입니다. ways는 각 릴에 나온 개수를 곱한 값이고 ' +
+      `6릴 ${PHARAOH.rows}행이면 최대 ${PHARAOH.rows ** PHARAOH.reels}가지입니다.`,
+    '심볼마다 따로 계산해 동시에 모두 지급합니다.',
+    `당첨 심볼이 사라지고 위에서 새 심볼이 내려와 다시 판정합니다(연쇄). 연쇄 배수는 ` +
+      `${PHARAOH.multipliers.join(' → ')}로 올라갑니다.`,
+    `스캐터 ${PHARAOH.scatterMin}개 이상이면 프리스핀 ${PHARAOH.freeSpins}회를 받고 당첨금이 ` +
+      `${PHARAOH.freeMultiplier}배가 됩니다.`,
+    `연쇄가 ${PHARAOH.jackpotChain}단에 닿으면 잭팟 픽 보너스가 열립니다.`,
+  ];
+  openModal({
+    title: `배당표 · ${GAMES.pharaoh.label}`,
+    body:
+      '<p class="modal__note">ways 하나당 총 베팅 배수입니다.</p>' +
+      '<table class="table"><thead><tr><th>심볼</th><th>3릴</th><th>4릴</th><th>5릴</th><th>6릴</th></tr></thead>' +
+      `<tbody>${waysPaytableRows()}</tbody></table>` +
+      `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
+  });
+}
+
+export function openPaytable(gameKey, modeKey) {
+  if (GAMES[gameKey].kind === 'cascade') {
+    openWaysPaytable();
+    return;
+  }
   const mode = MODES[modeKey];
   const header =
     mode.payKind === 'classic'
