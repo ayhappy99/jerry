@@ -2,11 +2,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body {
-  margin: 0; padding: 0;
-  /* 당겨서 새로고침과 고무줄 스크롤을 막는다. 스핀 중 화면이 밀리면 조작을 방해한다. */
-  overscroll-behavior: none;
-}
+html, body { margin: 0; padding: 0; }
 
 body {
   min-height: 100vh;
@@ -166,7 +162,8 @@ body {
 .jp--grand { --jp-color: var(--neon); }
 .jp--major { --jp-color: var(--brass-lite); }
 .jp--minor { --jp-color: var(--credit); }
-.jp--mini { --jp-color: var(--cream); }
+/* 연한 금(MAJOR)과 크림은 작은 칸에서 구분이 안 된다. 기존 팔레트 안에서 옮겼다 */
+.jp--mini { --jp-color: var(--sym-diamond); }
 
 .jp__label {
   display: block;
@@ -200,9 +197,14 @@ body {
 .jackpot__hint { margin: 0; font-size: var(--fs-xs); opacity: 0.7; }
 
 /* ── 복주머니 잭팟 용기 ──────────────────────
-   텍스트 미터 대신 쓴다. 등급마다 수정 복주머니 하나가 서 있고,
-   적립될수록 안에 동전이 쌓이고, 터질 때 팡 하고 흩어진다.
-   기하는 js/vessel.js에, 채움 높이는 --fill(0~1)에 있다. */
+   텍스트 미터 대신 쓴다. 등급마다 천으로 된 복주머니 하나가 서 있고,
+   터질 때 팡 하고 흩어진다.
+
+   속이 보이지 않는다. 얼마나 찼는지 밖에서 알 수 있으면 언제 터질지 짐작이 되고,
+   터지는 순간의 놀라움이 사라진다. 그래서 채움 표시도, 임박 표시도 두지 않았다.
+   대신 네 개가 늘 같은 속도로 숨쉬듯 움직인다 — 어느 것이 임박했는지 알려 주지 않는다.
+
+   기하는 js/vessel.js에 있다. */
 .vessels {
   display: grid;
   grid-template-columns: 1.24fr 1fr 1fr 1fr;
@@ -211,8 +213,12 @@ body {
   align-items: end;
 }
 
+/* display를 직접 지정한 요소는 [hidden]만으로 숨지 않는다. 브라우저 기본
+   스타일시트의 [hidden]{display:none}보다 이쪽 선택자가 더 강하기 때문이다. */
+.jackpots[hidden], .vessels[hidden] { display: none; }
+
 .vessel {
-  --jp-color: var(--cream);
+  --jp-color: var(--sym-diamond);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -224,7 +230,7 @@ body {
 .vessel--grand { --jp-color: var(--neon); }
 .vessel--major { --jp-color: var(--brass-lite); }
 .vessel--minor { --jp-color: var(--credit); }
-.vessel--mini { --jp-color: var(--cream); }
+.vessel--mini { --jp-color: var(--sym-diamond); }
 
 /* 터질 때 동전이 상자 밖으로 날아가야 하므로 잘라내지 않는다 */
 .vessel__art {
@@ -232,22 +238,20 @@ body {
   width: 100%;
   height: auto;
   overflow: visible;
+  /* 네 개가 같은 속도로 숨쉰다. 등급이나 적립량에 따라 달라지지 않는다 */
+  animation: vessel-breathe 3.4s ease-in-out infinite;
 }
 
-/* 쌓인 돈. fill이 1이면 제자리, 0이면 용기 아래로 완전히 내려간다.
-   판정은 cluster.js가 이미 끝냈고 여기서는 높이만 옮긴다. */
-.vessel__pile {
-  transform: translateY(calc((1 - var(--fill, 0)) * 95px));
-  transition: transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1);
-}
+.vessel__shadow { fill: url(#m-shadow); }
 
-/* 유리면. 등급 색으로 옅게 물들여 안쪽 금이 그 색을 입는다 */
-.vessel__glass { fill: var(--jp-color); opacity: 0.16; }
-.vessel__edge { stroke: var(--jp-color); stroke-width: 2.6; opacity: 0.85; }
-.vessel__facet { fill: #fff; opacity: 0.14; }
-.vessel__spec { fill: #fff; opacity: 0.2; }
-.vessel__frill { fill: var(--jp-color); opacity: 0.42; }
-.vessel__gather { stroke: #fff; opacity: 0.3; }
+/* 천. 등급 색을 어두운 바닥 위에 얹고 그늘을 강하게 덮어 옷감처럼 보이게 한다 */
+.vessel__cloth { fill: var(--jp-color); opacity: 0.82; }
+.vessel__shade { fill: url(#m-occl); }
+.vessel__edge { stroke: var(--jp-color); stroke-width: 2.4; opacity: 0.6; }
+.vessel__gathers { stroke: #1a0608; stroke-width: 2; opacity: 0.3; stroke-linecap: round; }
+.vessel__sheen { fill: #fff; opacity: 0.13; }
+.vessel__medal { stroke: #fff8dc; stroke-width: 2.2; opacity: 0.5; }
+.vessel__bok { fill: #fff8dc; opacity: 0.78; }
 
 .vessel__name {
   font-family: var(--font-display);
@@ -283,20 +287,9 @@ body {
   transform-origin: center;
 }
 
-/* 곧 터질 것 같은 느낌. --fill이 높을 때만 켠다. 적중 시점을 알려주는 게
-   아니라(적중 지점은 무작위다) 가득 찬 용기가 흔들리는 것뿐이다. */
-.vessel--near .vessel__art { animation: vessel-near 1.6s ease-in-out infinite; }
-.vessel--brim .vessel__art { animation: vessel-brim 0.42s ease-in-out infinite; }
-
-@keyframes vessel-near {
-  0%, 100% { filter: none; }
-  50% { filter: drop-shadow(0 0 10px var(--jp-color)); }
-}
-
-@keyframes vessel-brim {
-  0%, 100% { transform: translateX(0) rotate(0); filter: drop-shadow(0 0 8px var(--jp-color)); }
-  25% { transform: translateX(-1.5px) rotate(-1deg); }
-  75% { transform: translateX(1.5px) rotate(1deg); filter: drop-shadow(0 0 18px var(--jp-color)); }
+@keyframes vessel-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.014); }
 }
 
 /* ── 팡! ──
@@ -306,10 +299,10 @@ body {
 
 .vessel--burst .vessel__shell { animation: vessel-shatter 900ms ease-out forwards; }
 .vessel--burst .vessel__top { animation: vessel-blowoff 900ms ease-out forwards; }
-.vessel--burst .vessel__pile,
-.vessel--burst .vessel__inner { animation: vessel-empty 900ms ease-out forwards; }
 .vessel--burst .vessel__flash { animation: vessel-flash 420ms ease-out 120ms forwards; }
 .vessel--burst .vessel__sprays { opacity: 1; }
+/* 터지는 동안에는 숨쉬기를 멈춘다. 두 변형이 겹치면 튀어 보인다 */
+.vessel--burst .vessel__art { animation: none; }
 
 .vessel--burst .vessel__wave {
   stroke: var(--jp-color);
@@ -339,12 +332,6 @@ body {
   0%, 14% { transform: translateY(0) rotate(0); opacity: 1; }
   40% { transform: translateY(-16px) rotate(-7deg); opacity: 1; }
   100% { transform: translateY(-52px) rotate(-22deg); opacity: 0; }
-}
-
-@keyframes vessel-empty {
-  0%, 16% { opacity: 1; }
-  40% { opacity: 0; }
-  100% { opacity: 0; }
 }
 
 @keyframes vessel-flash {
@@ -387,8 +374,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vessel__pile { transition: none; }
-  .vessel--near .vessel__art, .vessel--brim .vessel__art { animation: none; }
+  .vessel__art { animation: none; }
 }
 
 /* ── 모드 탭 ────────────────────────────── */
@@ -848,6 +834,8 @@ body {
   border-radius: var(--radius-sm);
   background: linear-gradient(180deg, #05100c 0%, #020706 100%);
   box-shadow: var(--shadow-inset);
+  /* 금액이 칸 폭에 맞춰 줄어들게 한다. 자릿수를 세지 않아도 잘리지 않는다 */
+  container-type: inline-size;
 }
 
 .dock__betsub {
@@ -914,23 +902,31 @@ body {
 .dock__auto .btn--auto { width: 100%; height: 100%; }
 
 .controls__bet {
-  display: flex; align-items: center; gap: var(--sp-1);
+  display: flex; align-items: center; gap: var(--sp-2);
   min-width: 0;
 }
 
-/* 좁은 칸에서도 "최대"가 두 줄로 쪼개지지 않게 한다. */
-.controls__bet .btn--ghost { white-space: nowrap; padding: var(--sp-2); }
+.controls__bet .btn--round { flex: 0 0 auto; }
 
+/* 좁은 칸에서도 "최대"가 두 줄로 쪼개지지 않게 한다. */
+.controls__bet .btn--ghost { flex: 1 1 auto; white-space: nowrap; padding: var(--sp-2); }
+
+/* 금액 칸. 한 줄을 통째로 쓰고 글자는 칸 폭에 맞춰 줄어든다 */
 .controls__betlabel {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: block;
+  width: 100%;
+  margin: var(--sp-1) 0 var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.8) 100%);
   text-align: center;
   font-family: var(--font-display);
-  font-size: var(--fs-lg);
+  font-size: min(var(--fs-2xl), 17cqi);
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   color: var(--brass-lite);
   white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ── 하단 툴바 ──────────────────────────── */
@@ -1143,13 +1139,9 @@ body {
    하단 툴바는 숨기고 마퀴의 ☰ 메뉴 하나로 들어간다.
    데스크톱(높이 620px 초과)은 기존 세로 배치를 그대로 쓴다. */
 @media (orientation: landscape) and (max-height: 620px) {
-  /* 화면 높이에 딱 맞춰 고정한다. 스크롤이 생기면 URL 바가 숨었다 나타나며
-     dvh가 흔들리고, 그때마다 릴 크기가 다시 계산돼 크기가 튄다. */
-  html, body { height: 100%; overflow: hidden; }
-
   .screen--cabinet {
     display: grid;
-    height: 100dvh;
+    min-height: 100svh;
     max-width: none;
     padding: var(--sp-2);
     gap: var(--sp-2);
@@ -1223,7 +1215,11 @@ body {
   .meter__label small, .dock__winlabel small { display: none; }
   .dock__bet { padding: var(--sp-1) var(--sp-2); }
   .btn--round { width: 34px; height: 34px; font-size: var(--fs-md); }
-  .controls__betlabel { font-size: var(--fs-md); }
+  .controls__betlabel {
+    margin: 0 0 var(--sp-1);
+    padding: 0 var(--sp-1);
+    font-size: min(var(--fs-xl), 17cqi);
+  }
 
   /* 자동 횟수 목록은 조작바 왼쪽으로 열면 릴을 덮는다. 위로 올린다. */
   .autopick { bottom: calc(100% + var(--sp-1)); right: 0; }
@@ -1235,21 +1231,26 @@ body {
      공통  화면 패딩 8 + 8, 마퀴 37, 그리드 간격 8 x 3, 릴 프레임 테두리 28, 여유 4
      캐비닛 잭팟 바 40 + 모드 탭 25            → 합계 174, 3행
      파라오 잭팟 바 40 (모드 탭 없음)          → 합계 149, 4행
+     복주머니 잭팟 바 50 (모드 탭 없음) + 행 간격 5 x 4 → 합계 179, 5행
    폭도 함께 제한한다. 오른쪽 조작 칸 250 + 간격/패딩 24 + 프레임 테두리 28 = 302.
-   세로 화면의 최대값(108 / 88)을 넘지 않게 상한을 둔다. */
+   세로 화면의 최대값(108 / 88 / 76)을 넘지 않게 상한을 둔다.
+
+   max()로 바닥을 깐다. 화면이 너무 낮으면 심볼을 읽을 수 없을 만큼 줄어드는데,
+   그때는 줄이는 대신 페이지가 스크롤되게 두는 편이 낫다.
+   dvh가 아니라 svh를 쓴다. 스크롤 중 URL 바가 숨었다 나타나면 dvh가 흔들려
+   릴 크기가 계산될 때마다 튀지만, svh는 URL 바가 보이는 상태로 고정이다. */
 @media (orientation: landscape) and (max-height: 620px) {
   :root {
-    --cell: min(108px, (100dvh - 174px) / 3, (100vw - 302px) / 5);
+    --cell: max(64px, min(108px, (100svh - 174px) / 3, (100vw - 302px) / 5));
     --cell-gap: 5px;
   }
 
   .screen--cabinet[data-game="pharaoh"] {
-    --cell: min(88px, (100dvh - 149px) / 4, (100vw - 302px) / 6);
+    --cell: max(56px, min(88px, (100svh - 149px) / 4, (100vw - 302px) / 6));
   }
 
-  /* 복주머니 잭팟 바 50 (모드 탭 없음) + 5행이라 행 간격 5 x 4 → 합계 179 */
   .screen--cabinet[data-game="pouch"] {
-    --cell: min(76px, (100dvh - 179px) / 5, (100vw - 302px) / 5);
+    --cell: max(56px, min(76px, (100svh - 179px) / 5, (100vw - 302px) / 5));
   }
 }
 

@@ -25,7 +25,7 @@
 <h2>잭팟 바 — 좁은 화면 330px</h2>
 <div class="vessels bar bar--sm" id="bar-sm"></div>
 
-<h2>채움 단계</h2>
+<h2>확대</h2>
 <div class="row" id="steps"></div>
 
 <h2>팡!</h2>
@@ -48,20 +48,17 @@ const tiers = POUCH_JACKPOT.tiers;
 for (const id of ['bar', 'bar-sm']) {
   const host = document.getElementById(id);
   host.innerHTML = vesselBarMarkup(keys, tiers);
-  const fills = { grand: 0.62, major: 0.34, minor: 0.88, mini: 0.12 };
-  const amounts = { grand: 71400000, major: 11200000, minor: 4600000, mini: 290000 };
+  const amounts = { grand: 41400000, major: 6200000, minor: 1600000, mini: 380000 };
   for (const key of keys) {
-    host.querySelector(`.vessel[data-tier="${key}"]`).style.setProperty('--fill', fills[key]);
     host.querySelector(`[data-pouch-value="${key}"]`).textContent = amounts[key].toLocaleString('ko-KR');
   }
-  host.querySelector('.vessel[data-tier="minor"]').classList.add('vessel--near');
 }
 
-// 채움 0 ~ 1
-document.getElementById('steps').innerHTML = [0, 0.12, 0.3, 0.55, 0.78, 0.95, 1].map((f) =>
-  `<div class="one"><div class="vessel vessel--grand" style="--fill:${f}">` +
-  vesselMarkup(`s${String(f).replace('.', '')}`, 'GRAND') +
-  `</div><div class="cap">fill ${f}</div></div>`).join('');
+// 등급별 천 색을 크게 본다. 속이 보이지 않으므로 채움 단계는 없다.
+document.getElementById('steps').innerHTML = keys.map((key) =>
+  `<div class="one" style="width:180px"><div class="vessel vessel--${key}">` +
+  vesselMarkup(tiers[key].label) +
+  `</div><div class="cap">${key}</div></div>`).join('');
 
 const grand = () => document.querySelector('#bar .vessel[data-tier="grand"]');
 const all = () => [...document.querySelectorAll('#bar .vessel')];

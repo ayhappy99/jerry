@@ -32,7 +32,6 @@ import {
   WIN_TIERS,
   modePaylines,
 } from './config.js';
-import { pouchFill } from './cluster.js';
 import { cellAt, clearHighlights } from './reels.js';
 import { symbolMarkup } from './symbols.js';
 import { vesselBarMarkup } from './vessel.js';
@@ -251,30 +250,18 @@ function vesselOf(key) {
   return el.pouchBar.querySelector(`.vessel[data-tier="${key}"]`);
 }
 
-// 채움 높이는 pouchFill이 준 값을 그대로 넣는다. 연출이 값을 만들지 않는다.
-function setVesselFill(vessel, key, pool) {
-  const fill = pouchFill(key, pool);
-  vessel.style.setProperty('--fill', String(fill));
-  // 가득 찬 용기가 빛나고 흔들린다. 언제 터지는지 알려주는 게 아니다.
-  // 터질 지점은 시드~천장 사이 무작위이고 이 표시와 무관하다.
-  vessel.classList.toggle('vessel--near', fill >= POUCH_JACKPOT.nearFill && fill < POUCH_JACKPOT.brimFill);
-  vessel.classList.toggle('vessel--brim', fill >= POUCH_JACKPOT.brimFill);
-}
-
+// 주머니는 속이 보이지 않는다. 얼마나 찼는지 알 수 있으면 언제 터질지 짐작이 되므로
+// 화면에 남기는 단서는 금액 하나뿐이다.
 export function setPouchJackpot(pools) {
   for (const key of POUCH_TIER_KEYS) {
-    const vessel = vesselOf(key);
-    vessel.querySelector(`[data-pouch-value="${key}"]`).textContent = formatCoins(pools[key]);
-    setVesselFill(vessel, key, pools[key]);
+    vesselOf(key).querySelector(`[data-pouch-value="${key}"]`).textContent = formatCoins(pools[key]);
   }
 }
 
-// 적립분만큼 금액을 굴려 올리고 채움 높이도 같이 올린다.
+// 적립분만큼 금액을 굴려 올린다.
 export function rollPouchJackpot(from, to, duration) {
   for (const key of POUCH_TIER_KEYS) {
-    const vessel = vesselOf(key);
-    countUp(vessel.querySelector(`[data-pouch-value="${key}"]`), from[key], to[key], duration);
-    setVesselFill(vessel, key, to[key]);
+    countUp(vesselOf(key).querySelector(`[data-pouch-value="${key}"]`), from[key], to[key], duration);
   }
 }
 
@@ -288,7 +275,7 @@ export function revealJackpotBar(ms) {
 // 팡! 끝나면 클래스를 떼어 다음 적립을 다시 그릴 수 있게 한다.
 export function burstVessel(key, ms) {
   const vessel = vesselOf(key);
-  vessel.classList.remove('vessel--burst', 'vessel--near', 'vessel--brim');
+  vessel.classList.remove('vessel--burst');
   // 연달아 터질 때 애니메이션이 처음부터 다시 돌게 강제로 배치를 다시 계산한다
   void vessel.offsetWidth;
   vessel.classList.add('vessel--burst');
@@ -1288,7 +1275,10 @@ function openClusterPaytable() {
       '변신 심볼만으로 뭉친 것은 당첨이 아닙니다.',
     `아래 복주머니 네 개에는 돌릴 때마다 거는 돈의 <b>${(POUCH_JACKPOT.contribRate * 100).toFixed(0)}%</b>가 쌓입니다. ` +
       `${tierList} 각각 <b>천장</b>이 있어서, 늦어도 그 금액에 닿기 전에 <b>반드시 터집니다</b>. ` +
-      '터질 지점은 미리 정해져 있고 화면에는 보이지 않습니다.',
+      '주머니는 속이 안 보이고 터질 지점도 화면에 나오지 않습니다. 쌓인 금액만 보입니다.',
+    'MINI는 평균 150번, MINOR는 500번, MAJOR는 2,000번, GRAND는 8,000번쯤 돌리면 ' +
+      '한 번 터집니다(한 번에 20만을 걸 때 기준). 자주 터지는 쪽이라 한 번에 주는 돈은 ' +
+      '그만큼 작습니다.',
     '복주머니 잭팟은 이 게임만의 돈입니다. 다른 게임의 잭팟과 섞이지 않습니다.',
   ];
   openModal({
