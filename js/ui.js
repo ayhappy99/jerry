@@ -56,7 +56,6 @@ export const el = {
   seat: document.getElementById('seat-label'),
   jackpotBar: document.getElementById('jackpot-bar'),
   pouchBar: document.getElementById('pouch-jackpot-bar'),
-  jackpotHint: document.getElementById('jackpot-hint'),
   modes: document.getElementById('modes'),
   window: document.querySelector('.cabinet__window'),
   frame: document.querySelector('.cabinet__frame'),
@@ -148,14 +147,6 @@ export function setSeat(nickname, gameLabel = null) {
 
 // ── 로비 ──────────────────────────────────
 
-function gameCardStats(section) {
-  const { stats } = section;
-  if (stats.spins === 0) return '아직 한 번도 돌리지 않았습니다';
-  const rtp =
-    stats.totalWagered === 0 ? '-' : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
-  return `${formatCoins(stats.spins)}회 돌림 · 돌려받은 비율 ${rtp} · 최고 ${formatCoins(stats.bestWin)}`;
-}
-
 export function renderLobby(state) {
   el.lobbyCredit.textContent = formatCoins(state.wallet.coins);
   el.lobbyGames.innerHTML = GAME_KEYS.map((key) => {
@@ -168,7 +159,6 @@ export function renderLobby(state) {
       `<span class="gamecard__name">${game.label}</span>` +
       `<span class="gamecard__badge">${game.badge}</span>` +
       `<span class="gamecard__tagline">${game.tagline}</span>` +
-      `<span class="gamecard__stats">${gameCardStats(state.games[key])}</span>` +
       '</span></button>'
     );
   }).join('');
@@ -228,10 +218,6 @@ export function flashJackpotTier(key, ms) {
   setTimeout(() => box.classList.remove('jp--hit'), ms);
 }
 
-export function setJackpotHint(text) {
-  el.jackpotHint.textContent = text;
-}
-
 // ── 복주머니 잭팟 바 ──────────────────────
 // 복주머니는 공유 풀을 쓰지 않으므로 이 바는 캐비닛 화면에만 있다.
 
@@ -272,6 +258,15 @@ export function revealJackpotBar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// 이번 스핀에 채워진 주머니를 한 번 밝힌다. 숫자만 굴러가면 눈에 안 띈다.
+export function flashVessel(key) {
+  const vessel = vesselOf(key);
+  vessel.classList.remove('vessel--fed');
+  void vessel.offsetWidth;
+  vessel.classList.add('vessel--fed');
+  setTimeout(() => vessel.classList.remove('vessel--fed'), TIMING.vesselFeed);
+}
+
 // 팡! 끝나면 클래스를 떼어 다음 적립을 다시 그릴 수 있게 한다.
 export function burstVessel(key, ms) {
   const vessel = vesselOf(key);
@@ -296,10 +291,11 @@ export function setReadout(text) {
   el.readout.textContent = text;
 }
 
-export function setBetButtons(betIdx) {
+// maxIdx는 지금 가진 코인으로 돌릴 수 있는 가장 큰 단계다. 베팅 단계의 끝이 아니다.
+export function setBetButtons(betIdx, maxIdx) {
   el.betDown.disabled = betIdx === 0;
   el.betUp.disabled = betIdx === BETS.length - 1;
-  el.betMax.disabled = betIdx === BETS.length - 1;
+  el.betMax.disabled = betIdx === maxIdx;
 }
 
 export function setSoundButton(on) {
@@ -956,12 +952,41 @@ export function closeTour() {
   tourNode = null;
 }
 
+/**
+ * 스와이프·뒤로 동작이 닫을 수 있는 층. 위에서부터 하나만 닫고 닫았는지 알려준다.
+ * true를 돌려주면 호출자는 이전 화면으로 가지 않는다.
+ */
+export function closeTopLayer() {
+  // 뽑기 화면은 골라야 넘어간다. 스와이프로 건너뛸 수 없다.
+  if (el.overlayRoot.querySelector('.pick') !== null) return true;
+  if (el.modalRoot.firstElementChild !== null) {
+    closeModal();
+    return true;
+  }
+  if (autoPickOpen()) {
+    closeAutoPick();
+    return true;
+  }
+  const confirm = el.overlayRoot.querySelector('.overlay--jackpot [data-confirm]');
+  if (confirm !== null) {
+    confirm.click();
+    return true;
+  }
+  // 안내는 노드를 지우지 않고 "그만 보기"를 누른다. 그래야 기다리고 있는 약속이 풀리고
+  // 안내를 본 시각이 저장된다. 노드만 지우면 runTour가 영원히 멈춰 선다.
+  const skip = tourNode === null ? null : tourNode.querySelector('[data-tour-skip]');
+  if (skip !== null) {
+    skip.click();
+    return true;
+  }
+  return false;
+}
+
 // 가로 화면에서는 하단 툴바를 숨기고 이 메뉴 하나로 모든 항목에 들어간다.
 const MENU_ITEMS = [
   { open: 'howto', icon: '?', label: '게임 방법', desc: '처음이면 여기부터' },
   { open: 'paytable', icon: '▤', label: '배당표', desc: '심볼별로 얼마를 받는지' },
   { open: 'history', icon: '★', label: '기록', desc: '잭팟·크게 딴 기록' },
-  { open: 'stats', icon: '📊', label: '통계', desc: '돌린 횟수와 돌려받은 비율' },
   { act: 'sound', icon: '♪', label: '소리 켜고 끄기', desc: '효과음과 배경음' },
   { act: 'refill', icon: '＋', label: '코인 충전', desc: '코인이 떨어졌을 때' },
   { open: 'settings', icon: '⚙', label: '설정', desc: '닉네임·속도·소리·초기화' },
@@ -1084,43 +1109,6 @@ export function openHistory({ jackpotHistory, bigWins }) {
         `아직 없습니다. 거는 돈의 ${WIN_TIERS.big}배 이상 따면 여기에 남습니다.`,
         (entry) => ` · ${Math.floor(entry.multiple)}배`,
       ),
-  });
-}
-
-// ── 통계 ──────────────────────────────────
-
-function stat(label, value, accent = false) {
-  return (
-    `<div class="stat"><span class="stat__label">${label}</span>` +
-    `<span class="stat__value${accent ? ' stat__value--accent' : ''}">${value}</span></div>`
-  );
-}
-
-export function openStats({ stats, wallet }) {
-  // 실측 환수율 = 총 획득 / 총 베팅. 프리스핀 당첨은 베팅 없이 얻으므로 분자에만 들어간다.
-  const rtp =
-    stats.totalWagered === 0
-      ? '아직 돌린 적 없음'
-      : `${((stats.totalWon / stats.totalWagered) * 100).toFixed(2)}%`;
-
-  openModal({
-    title: '통계',
-    body:
-      '<div class="stat-grid">' +
-      stat('돌린 횟수', `${formatCoins(stats.spins)}회`) +
-      stat('돌려받은 비율', rtp, true) +
-      stat('걸었던 돈 합계', formatCoins(stats.totalWagered)) +
-      stat('받은 돈 합계', formatCoins(stats.totalWon)) +
-      stat('최고 당첨', formatCoins(stats.bestWin)) +
-      stat('공짜 스핀 획득', `${formatCoins(stats.freeSpinsTriggered)}회`) +
-      stat('연속으로 못 딴 횟수', `${formatCoins(stats.longestDrySpell)}회`) +
-      stat('충전 횟수', `${formatCoins(wallet.totalRefills)}회`) +
-      '</div>' +
-      (stats.bestWinAt === null
-        ? ''
-        : `<p class="modal__note">최고 당첨 시각 ${formatDateTime(stats.bestWinAt)}</p>`) +
-      '<p class="modal__note">돌려받은 비율 = 받은 돈 합계 ÷ 걸었던 돈 합계. 100%보다 낮은 것이 정상이고, ' +
-      '많이 돌릴수록 설계값(클래식 95.02% / 9줄 95.00% / 보너스 94.94%)에 가까워집니다.</p>',
   });
 }
 
@@ -1266,19 +1254,24 @@ function openClusterPaytable() {
     '<tr><th>심볼</th>' +
     bands.map((n, i) => `<th>${n}${i === bands.length - 1 ? '+' : ''}</th>`).join('') +
     '</tr>';
-  const tierList = POUCH_TIER_KEYS.map((key) => POUCH_JACKPOT.tiers[key].label).join('/');
+  // 어느 주머니가 채워지는지는 config의 feed가 정한다. 개수가 큰 것부터 먼저 걸리므로
+  // 맨 위만 "이상"이고 나머지는 정확히 그 개수다.
+  const feedList = POUCH_JACKPOT.feed
+    .map((entry, index) => {
+      const range = index === 0 ? `${entry.count}개 이상` : `${entry.count}개`;
+      return `<b>${range}</b>이면 ${POUCH_JACKPOT.tiers[entry.tier].label}`;
+    })
+    .join(', ');
   const rules = [
     `<b>줄이 없습니다.</b> 같은 심볼이 <b>위아래 옆으로 붙어</b> ${POUCH.minCluster}칸 이상 뭉치면 당첨입니다. ` +
       '대각선은 붙은 것으로 보지 않습니다.',
     '뭉친 칸이 많을수록 받는 돈이 커집니다. 표의 칸 수가 그 구간입니다.',
     `<b>${SYMBOLS[POUCH.wild].label}</b>는 아무 심볼로든 변신해서, 떨어져 있던 두 덩어리를 하나로 이어 줍니다. ` +
       '변신 심볼만으로 뭉친 것은 당첨이 아닙니다.',
-    `아래 복주머니 네 개에는 돌릴 때마다 거는 돈의 <b>${(POUCH_JACKPOT.contribRate * 100).toFixed(0)}%</b>가 쌓입니다. ` +
-      `${tierList} 각각 <b>천장</b>이 있어서, 늦어도 그 금액에 닿기 전에 <b>반드시 터집니다</b>. ` +
+    `<b>${SYMBOLS[POUCH.wild].label} 심볼이 화면에 나오면</b> 그 개수만큼 큰 주머니에 돈이 쌓입니다. ` +
+      `${feedList}. 하나도 없으면 아무 주머니도 쌓이지 않습니다.`,
+    '주머니마다 <b>천장</b>이 있어서, 늦어도 그 금액에 닿기 전에 <b>반드시 터집니다</b>. ' +
       '주머니는 속이 안 보이고 터질 지점도 화면에 나오지 않습니다. 쌓인 금액만 보입니다.',
-    'MINI는 평균 150번, MINOR는 500번, MAJOR는 2,000번, GRAND는 8,000번쯤 돌리면 ' +
-      '한 번 터집니다(한 번에 20만을 걸 때 기준). 자주 터지는 쪽이라 한 번에 주는 돈은 ' +
-      '그만큼 작습니다.',
     '복주머니 잭팟은 이 게임만의 돈입니다. 다른 게임의 잭팟과 섞이지 않습니다.',
   ];
   openModal({

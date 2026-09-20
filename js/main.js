@@ -2,7 +2,6 @@
 
 import {
   BETS,
-  HALL,
   JACKPOT_CONTRIB_RATE,
   JACKPOT_MATCH,
   JACKPOT_ROLL_MS,
@@ -25,9 +24,9 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
-import { contributePouch, spinCluster } from './cluster.js';
+import { contributePouch, countPouches, pouchFeed, spinCluster } from './cluster.js';
 import { spinHold, triggered } from './hold.js';
-import { buildGrid, buildPickTiles, drawJackpotTier, drawStops, randomInt } from './rng.js';
+import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
 import { clearHighlights, playCascade, playHold, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
@@ -48,8 +47,6 @@ const game = {
   // 어트랙트 모드(유휴 시 데모 스핀)
   attract: false,
   idleTimer: null,
-  // 가상의 홀 적립 타이머
-  hallTimer: null,
   auto: false,
   // 남은 자동 스핀 횟수. null은 무한이다.
   autoLeft: null,
@@ -94,10 +91,23 @@ function betUnits() {
   return spec().betUnits;
 }
 
+// 베팅 단계 idx를 골랐을 때 실제로 빠지는 총액
+function totalBetAt(idx) {
+  return game.kind === 'lines' ? totalBetOf(game.mode, BETS[idx]) : BETS[idx] * betUnits();
+}
+
 function currentTotalBet() {
-  return game.kind === 'lines'
-    ? totalBetOf(game.mode, game.lineBet)
-    : BETS[section().settings.betIdx] * betUnits();
+  return totalBetAt(section().settings.betIdx);
+}
+
+// "최대"는 지금 가진 코인으로 한 판 돌릴 수 있는 가장 큰 금액이다.
+// 베팅 단계의 마지막 값이 아니다 — 못 돌릴 금액을 골라 주면 SPIN이 바로 막힌다.
+function affordableBetIdx() {
+  const coins = game.state.wallet.coins;
+  for (let idx = BETS.length - 1; idx > 0; idx -= 1) {
+    if (totalBetAt(idx) <= coins) return idx;
+  }
+  return 0;
 }
 
 // 총액이 어떻게 나왔는지 계산식으로 보여준다. "왜 10배가 빠지냐"에 화면이 답해야 한다.
@@ -114,24 +124,7 @@ function syncMeters() {
   ui.setJackpot(game.state.jackpot.pools);
   if (game.kind === 'cluster') ui.setPouchJackpot(game.state.pouchJackpot.pools);
   ui.setFreeSpinBadge(game.freeSpinsLeft);
-  if (!game.busy) ui.setBetButtons(section().settings.betIdx);
-}
-
-function jackpotHint() {
-  if (game.kind === 'cluster') {
-    const pct = (POUCH_JACKPOT.contribRate * 100).toFixed(0);
-    return `돌릴 때마다 거는 돈의 ${pct}%가 복주머니에 쌓입니다 · 등급마다 천장이 있어 반드시 터집니다`;
-  }
-  if (game.kind === 'cascade') {
-    return `연속 당첨 ${PHARAOH.jackpotChain}번이면 잭팟 뽑기 · 돌릴 때마다 거는 돈의 1%가 여기 쌓입니다`;
-  }
-  return game.mode.jackpot
-    ? `다이아 ${JACKPOT_MATCH}개 또는 코인으로 15칸을 다 채우면 잭팟 뽑기 · 돌릴 때마다 1% 적립`
-    : '이 게임에서는 잭팟이 터지지 않습니다. 공짜 스핀·잭팟 게임에서만 터집니다';
-}
-
-function syncJackpotHint() {
-  ui.setJackpotHint(jackpotHint());
+  if (!game.busy) ui.setBetButtons(section().settings.betIdx, affordableBetIdx());
 }
 
 function selectMode(modeKey) {
@@ -139,7 +132,6 @@ function selectMode(modeKey) {
   section().settings.mode = modeKey;
   ui.renderModeTabs(modeKey);
   renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
-  syncJackpotHint();
   syncMeters();
   storage.save(game.state);
 }
@@ -154,7 +146,6 @@ function changeBet(nextIdx) {
 // 캐스케이딩 게임은 모드가 없다. 릴만 그려 두고 탭 줄을 숨긴다.
 function setupCascade() {
   renderReels(ui.reelsHost(), PHARAOH, drawStops(PHARAOH.strips));
-  syncJackpotHint();
   syncMeters();
   storage.save(game.state);
 }
@@ -162,7 +153,6 @@ function setupCascade() {
 // 덩어리 게임도 모드가 없다.
 function setupCluster() {
   renderReels(ui.reelsHost(), POUCH, drawStops(POUCH.strips));
-  syncJackpotHint();
   syncMeters();
   storage.save(game.state);
 }
@@ -212,12 +202,13 @@ function contributeJackpot(totalBet) {
 
 // 복주머니 잭팟 적립. 풀이 미리 정해 둔 지점에 닿으면 그 등급이 터진다.
 // 적립과 적중 판정이 한 함수에 있는 이유: 이 잭팟은 적립의 결과로만 터진다.
-function contributePouchPool(totalBet) {
+function contributePouchPool(totalBet, feed) {
   const before = { ...game.state.pouchJackpot.pools };
   const next = contributePouch({
     pools: game.state.pouchJackpot.pools,
     hitPoints: game.state.pouchJackpot.hitPoints,
     totalBet,
+    feed,
   });
   game.state.pouchJackpot = { pools: next.pools, hitPoints: next.hitPoints };
   // 터진 등급은 풀이 이미 시드로 되돌아갔다. 화면은 터지기 직전 금액까지 올려 둬야
@@ -225,6 +216,8 @@ function contributePouchPool(totalBet) {
   const shown = { ...next.pools };
   for (const hit of next.hits) shown[hit.tier] = hit.amount;
   ui.rollPouchJackpot(before, shown, JACKPOT_ROLL_MS / animationSpeed());
+  // 어느 주머니가 채워졌는지 보여 준다. 숫자만 굴러가면 눈에 안 띈다.
+  if (feed !== null) ui.flashVessel(feed.tier);
   return next.hits;
 }
 
@@ -478,9 +471,16 @@ async function playHoldBonus(result) {
 
 // 덩어리 게임 한 스핀. 격자와 당첨이 전부 여기서 확정된다.
 // 잭팟은 적립의 결과이므로 적립에서 나온 hits를 그대로 싣는다.
-function drawCluster(totalBet, pouchHits) {
+// 덩어리 게임 한 스핀의 순수 부분. 격자와 당첨, 그리고 어느 주머니를 채울지가
+// 여기서 확정된다. 적립은 격자에 달려 있으므로 격자를 먼저 뽑아야 한다.
+function drawClusterSpin(totalBet) {
   const stops = drawStops(POUCH.strips);
   const result = spinCluster({ stops, totalBet });
+  return { stops, result, feed: pouchFeed(countPouches(result.grid)) };
+}
+
+// 그 위에 적립 결과를 얹어 스핀 결과로 만든다.
+function clusterResult(spin, totalBet, pouchHits) {
   return {
     modeKey: POUCH.key,
     totalBet,
@@ -488,11 +488,12 @@ function drawCluster(totalBet, pouchHits) {
     lineWins: [],
     scatter: null,
     freeSpinsAwarded: 0,
-    totalWin: result.totalWin,
+    totalWin: spin.result.totalWin,
     jackpot: { hit: pouchHits.length > 0 },
-    cluster: result,
+    cluster: spin.result,
+    pouchFeed: spin.feed,
     pouchHits,
-    spin: { stops, grid: result.grid },
+    spin: { stops: spin.stops, grid: spin.result.grid },
   };
 }
 
@@ -542,7 +543,10 @@ async function runSpin() {
   ui.setWin(0);
   ui.setMessage(isFree ? `공짜 스핀 ${game.freeSpinsLeft}번 남음 · 당첨금 2배` : '', true);
 
-  // 복주머니 잭팟 적중은 적립의 결과다. 적립은 스핀 시작 시점에 끝난다.
+  // 덩어리 게임의 복주머니 적립은 격자에 달려 있다. 어느 주머니가 채워질지가
+  // 화면에 나온 복주머니 심볼 개수로 정해지므로 격자를 먼저 뽑는다.
+  const clusterSpin = game.kind === 'cluster' ? drawClusterSpin(totalBet) : null;
+
   let pouchHits = [];
   if (isFree) {
     setFreeSpins(game.freeSpinsLeft - 1);
@@ -551,7 +555,7 @@ async function runSpin() {
     // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 모드도 적립하지 않는다.
     // (클래식·9라인에서 적립하면 맞출 수 없는 돈을 내는 셈이 되어 환수율이 1%p 낮아진다)
     if (canWinJackpot()) contributeJackpot(totalBet);
-    if (game.kind === 'cluster') pouchHits = contributePouchPool(totalBet);
+    if (clusterSpin !== null) pouchHits = contributePouchPool(totalBet, clusterSpin.feed);
   }
   ui.setCredit(game.state.wallet.coins);
   ui.setBet(totalBet, betNote(BETS[section().settings.betIdx]));
@@ -560,7 +564,7 @@ async function runSpin() {
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
   const result =
     game.kind === 'cascade' ? drawCascade(isFree, totalBet)
-    : game.kind === 'cluster' ? drawCluster(totalBet, pouchHits)
+    : clusterSpin !== null ? clusterResult(clusterSpin, totalBet, pouchHits)
     : drawLines(isFree);
   // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
   const jackpot = resolveJackpot(result);
@@ -736,48 +740,6 @@ function setAmbience(on) {
   storage.save(game.state);
 }
 
-// ── 가상의 홀 ─────────────────────────────
-// 옆 기계들이 함께 잭팟을 쌓고 가끔 터뜨린다. 미터가 살아 움직이고 알림이 뜬다.
-// 적립과 적중을 같은 비율로 맞췄으므로 내 환수율은 바뀌지 않는다(근거는 config.HALL 주석).
-
-function hallSpinsPerTick() {
-  return (HALL.machines / HALL.spinSeconds) * (HALL.tickMs / 1000);
-}
-
-function hallJackpot() {
-  const tier = drawJackpotTier();
-  const amount = game.state.jackpot.pools[tier];
-  game.state.jackpot.pools[tier] = JACKPOT_TIERS[tier].seed;
-  const seat = HALL.seats[randomInt(HALL.seats.length)];
-  ui.setJackpot(game.state.jackpot.pools);
-  ui.flashJackpotTier(tier, TIMING.toast);
-  ui.toast(`${seat}번 대 ${JACKPOT_TIERS[tier].label} 당첨 ${ui.formatCoins(amount)}`);
-}
-
-function hallTick() {
-  const spins = hallSpinsPerTick();
-  const totalBet = currentTotalBet();
-  for (const key of JACKPOT_TIER_KEYS) {
-    game.state.jackpot.pools[key] +=
-      spins * totalBet * JACKPOT_CONTRIB_RATE * JACKPOT_TIERS[key].contribShare;
-  }
-  // 스핀 1회당 저장하는 원칙을 지키려고 여기서는 저장하지 않는다.
-  // 다음 스핀의 save()가 함께 기록하고, 그 전에 창을 닫으면 마지막 저장 시점으로 돌아간다.
-  if (!game.busy) ui.setJackpot(game.state.jackpot.pools);
-  if (Math.random() < spins / HALL.jackpotOdds) hallJackpot();
-}
-
-function startHall() {
-  if (game.hallTimer !== null) return;
-  game.hallTimer = setInterval(hallTick, HALL.tickMs);
-}
-
-function stopHall() {
-  if (game.hallTimer === null) return;
-  clearInterval(game.hallTimer);
-  game.hallTimer = null;
-}
-
 // ── 어트랙트 모드 ─────────────────────────
 // 실제 캐비닛은 손을 떼면 혼자 돌며 손님을 부른다.
 // 데모일 뿐이므로 코인을 건드리지 않고 판정도 하지 않는다. 통계와 저장도 없다.
@@ -848,14 +810,43 @@ function wireVisibility() {
       audio.stopMusic();
       audio.stopAmbience();
       stopAttract();
-      stopHall();
       return;
     }
     audio.startMusic();
     audio.startAmbience();
     resetIdle();
-    if (!ui.el.cabinet.hidden) startHall();
   });
+}
+
+// 왼쪽에서 오른쪽으로 미는 동작: 열려 있는 것을 닫고, 없으면 이전 화면으로 간다.
+// 조건을 좁게 잡아 릴을 훑거나 표를 가로로 넘기는 동작과 겹치지 않게 한다.
+const SWIPE = { minX: 72, maxY: 50, maxMs: 600 };
+
+function swipeBack() {
+  if (ui.closeTopLayer()) return;
+  if (!ui.el.cabinet.hidden) enterLobby();
+}
+
+function wireSwipeBack() {
+  let start = null;
+
+  document.addEventListener('pointerdown', (event) => {
+    // 가로로 스크롤되는 칸(배당표 표) 안에서는 그쪽 동작이 우선이다
+    start = event.target.closest('.table-scroll') === null
+      ? { x: event.clientX, y: event.clientY, at: performance.now() }
+      : null;
+  });
+
+  document.addEventListener('pointerup', (event) => {
+    if (start === null) return;
+    const dx = event.clientX - start.x;
+    const dy = Math.abs(event.clientY - start.y);
+    const ms = performance.now() - start.at;
+    start = null;
+    if (dx >= SWIPE.minX && dy <= SWIPE.maxY && ms <= SWIPE.maxMs) swipeBack();
+  });
+
+  document.addEventListener('pointercancel', () => { start = null; });
 }
 
 // 첫 제스처에서 오디오를 준비한다. 소리가 꺼져 있으면 컨텍스트를 만들지 않는다.
@@ -890,22 +881,20 @@ const TOUR_RULE = {
 const TOUR_JACKPOT = {
   lines: {
     target: '#jackpot-bar',
-    text: '돌릴 때마다 거는 돈의 <b>1%</b>가 여기 쌓입니다. 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
-      '럭키 캐비닛과 파라오의 문이 같은 잭팟을 함께 쌓습니다.',
+    text: '<b>쌓이는 상금</b>입니다. 돌릴 때마다 조금씩 쌓이고, 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
+      '럭키 캐비닛과 파라오의 문이 같은 상금을 함께 쌓습니다.',
   },
   cascade: {
     target: '#jackpot-bar',
-    text: '돌릴 때마다 거는 돈의 <b>1%</b>가 여기 쌓입니다. 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
-      '럭키 캐비닛과 파라오의 문이 같은 잭팟을 함께 쌓습니다.',
+    text: '<b>쌓이는 상금</b>입니다. 돌릴 때마다 조금씩 쌓이고, 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
+      '럭키 캐비닛과 파라오의 문이 같은 상금을 함께 쌓습니다.',
   },
   cluster: {
     target: '#pouch-jackpot-bar',
-    // 적립률은 config에서 읽는다. 숫자를 여기 박아 두면 밸런스를 고칠 때 어긋난다.
-    text: `돌릴 때마다 거는 돈의 <b>${(POUCH_JACKPOT.contribRate * 100).toFixed(0)}%</b>가 ` +
-      '이 복주머니에 쌓입니다. 주머니는 속이 안 보여서 얼마나 찼는지 알 수 없어요. ' +
-      '등급마다 <b>천장</b>이 있어서, 늦어도 그 금액에 닿기 전에 반드시 <b>팡</b> 하고 터집니다. ' +
-      'MINI는 평균 150번쯤 돌리면 한 번 터질 정도로 자주 나와요. ' +
-      '이 돈은 복주머니 게임만의 것이라 다른 게임과 섞이지 않아요.',
+    text: '<b>복주머니 심볼이 화면에 나오면</b> 그 개수만큼 큰 주머니에 돈이 쌓입니다. ' +
+      '1개면 MINI, 2개면 MINOR, 3개면 MAJOR, 4개 이상이면 GRAND예요. 하나도 없으면 안 쌓입니다. ' +
+      '주머니는 속이 안 보여서 얼마나 찼는지 알 수 없어요. 그래도 천장이 있어서 ' +
+      '언젠가는 반드시 <b>팡</b> 하고 터집니다.',
   },
 };
 
@@ -1005,7 +994,6 @@ function openPanel(name) {
   }
   if (name === 'paytable') ui.openPaytable(game.key, game.mode?.key);
   if (name === 'history') ui.openHistory(section());
-  if (name === 'stats') ui.openStats({ stats: section().stats, wallet: game.state.wallet });
   if (name === 'settings') openSettings();
 }
 
@@ -1031,7 +1019,7 @@ function wireControls() {
 
   ui.el.betDown.addEventListener('click', () => changeBet(section().settings.betIdx - 1));
   ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
-  ui.el.betMax.addEventListener('click', () => changeBet(BETS.length - 1));
+  ui.el.betMax.addEventListener('click', () => changeBet(affordableBetIdx()));
 
   // loopPromise는 체험형 안내가 "직접 돌려 보세요" 단계를 기다리는 데 쓴다.
   ui.el.spin.addEventListener('click', () => { game.loopPromise = runSpinLoop(); });
@@ -1105,7 +1093,6 @@ function wireLobby() {
 function enterLobby() {
   stopAuto();
   stopAttract();
-  stopHall();
   if (game.idleTimer !== null) clearTimeout(game.idleTimer);
   ui.closeAutoPick();
   ui.setSeat(game.state.player.nickname);
@@ -1148,7 +1135,6 @@ function enterGame(gameKey) {
   storage.save(game.state);
 
   resetIdle();
-  startHall();
 
   // 처음 앉은 사람에게는 안내를 자동으로 한 번 띄운다.
   if (game.state.player.tourDoneAt === null) runTour();
@@ -1170,6 +1156,7 @@ function boot() {
   audio.setAmbienceEnabled(game.state.settings.ambience);
   wireAudioUnlock();
   wireVisibility();
+  wireSwipeBack();
   wireOnboarding();
   wireLobby();
   wireControls();

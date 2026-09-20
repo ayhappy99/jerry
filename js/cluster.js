@@ -108,24 +108,49 @@ export function seedPouchHitPoints() {
   return Object.fromEntries(TIER_KEYS.map((key) => [key, drawHitPoint(key)]));
 }
 
+// 화면에 나온 복주머니 심볼 개수
+export function countPouches(grid) {
+  let count = 0;
+  for (const column of grid) {
+    for (const cell of column) {
+      if (cell === POUCH.wild) count += 1;
+    }
+  }
+  return count;
+}
+
 /**
- * 스핀 1회의 적립과 적중 판정. 풀이 터지는 지점에 닿으면 그 등급이 터진다.
- * 상태를 바꾸지 않고 다음 상태를 만들어 돌려준다.
- * @param {{pools: object, hitPoints: object, totalBet: number}} input
+ * 그 개수가 어느 주머니를 채우는지. 해당하는 것이 없으면 null이고
+ * 그 스핀에는 어느 주머니도 움직이지 않는다.
  */
-export function contributePouch({ pools, hitPoints, totalBet }) {
+export function pouchFeed(count) {
+  for (const entry of POUCH_JACKPOT.feed) {
+    if (count >= entry.count) return entry;
+  }
+  return null;
+}
+
+/**
+ * 스핀 1회의 적립과 적중 판정. 심볼이 정한 주머니 하나만 채운다.
+ * 풀이 터지는 지점에 닿으면 그 등급이 터진다.
+ * 상태를 바꾸지 않고 다음 상태를 만들어 돌려준다.
+ * @param {{pools: object, hitPoints: object, totalBet: number, feed: object|null}} input
+ */
+export function contributePouch({ pools, hitPoints, totalBet, feed }) {
   const nextPools = { ...pools };
   const nextHitPoints = { ...hitPoints };
   const hits = [];
 
-  for (const key of TIER_KEYS) {
+  if (feed !== null) {
+    const key = feed.tier;
     const tier = POUCH_JACKPOT.tiers[key];
-    nextPools[key] += totalBet * POUCH_JACKPOT.contribRate * tier.contribShare;
-    if (nextPools[key] < hitPoints[key]) continue;
-    // 터졌다. 적립된 전액을 주고 시드로 되돌리며 다음 터질 지점을 새로 뽑는다.
-    hits.push({ tier: key, amount: nextPools[key] });
-    nextPools[key] = tier.seed;
-    nextHitPoints[key] = drawHitPoint(key);
+    nextPools[key] += totalBet * feed.rate;
+    if (nextPools[key] >= hitPoints[key]) {
+      // 터졌다. 적립된 전액을 주고 시드로 되돌리며 다음 터질 지점을 새로 뽑는다.
+      hits.push({ tier: key, amount: nextPools[key] });
+      nextPools[key] = tier.seed;
+      nextHitPoints[key] = drawHitPoint(key);
+    }
   }
 
   return { pools: nextPools, hitPoints: nextHitPoints, hits };

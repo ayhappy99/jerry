@@ -216,23 +216,6 @@
   white-space: nowrap;
 }
 
-.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
-
-.stat {
-  padding: var(--sp-3);
-  border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.stat__label { display: block; font-size: var(--fs-xs); opacity: 0.75; }
-.stat__value {
-  display: block;
-  font-family: var(--font-display); font-size: var(--fs-md);
-  font-variant-numeric: tabular-nums;
-  color: var(--cream);
-}
-.stat__value--accent { color: var(--credit); }
-
 /* 페이라인 미니 그리드 */
 .lines-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
 
