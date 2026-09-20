@@ -55,7 +55,6 @@
     </div>
     <p class="lobby__jplabel">럭키 캐비닛 · 파라오의 문이 같이 쌓는 잭팟</p>
     <div class="jackpots" id="lobby-jackpots"></div>
-    <p class="lobby__jpnote">복주머니는 자기 잭팟을 따로 쌓습니다</p>
   </section>
 
   <div class="lobby__games" id="lobby-games" role="list"></div>
@@ -86,7 +85,6 @@
     <div class="jackpots" id="jackpot-bar"></div>
     <!-- 복주머니 전용. 공유 풀 바와 둘 중 하나만 보인다 -->
     <div class="vessels" id="pouch-jackpot-bar" hidden></div>
-    <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
 
   <div class="modes" id="modes" role="tablist" aria-label="게임 모드"></div>
@@ -128,7 +126,7 @@
           <div class="controls__bet">
             <button class="btn btn--round" type="button" id="bet-down" aria-label="거는 돈 낮추기">−</button>
             <button class="btn btn--round" type="button" id="bet-up" aria-label="거는 돈 올리기">＋</button>
-            <button class="btn btn--ghost" type="button" id="bet-max">최대</button>
+            <button class="btn btn--ghost" type="button" id="bet-max" aria-label="지금 가진 코인으로 한 판 돌릴 수 있는 최대 금액">최대</button>
           </div>
           <p class="dock__betsub" id="bet-sub"></p>
         </div>
@@ -153,7 +151,6 @@
     <button class="tool" type="button" data-open="howto"><span aria-hidden="true">?</span><span class="tool__label">게임 방법</span></button>
     <button class="tool" type="button" data-open="paytable"><span aria-hidden="true">▤</span><span class="tool__label">배당표</span></button>
     <button class="tool" type="button" data-open="history"><span aria-hidden="true">★</span><span class="tool__label">기록</span></button>
-    <button class="tool" type="button" data-open="stats"><span aria-hidden="true">📊</span><span class="tool__label">통계</span></button>
     <button class="tool" type="button" id="sound-toggle"><span aria-hidden="true">♪</span><span class="tool__label">소리</span></button>
     <button class="tool" type="button" id="refill"><span aria-hidden="true">＋</span><span class="tool__label">충전</span></button>
     <button class="tool" type="button" data-open="settings"><span aria-hidden="true">⚙</span><span class="tool__label">설정</span></button>
