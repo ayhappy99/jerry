@@ -288,6 +288,43 @@ const SPRITE = `
     </g>
     <!-- 가면의 네메스 머리쓰개 -->
     <path id="p-nemes" d="M50 5C30 5 18 17 16 35l-4 31 17 6 3 15h36l3-15 17-6-4-31C82 17 70 5 50 5z"/>
+
+    <!-- ── 복주머니 잭팟 용기 ──
+         쌓이는 돈이 보여야 하므로 수정(水晶) 복주머니로 그린다. 천이면 속이 안 보인다.
+         용기 기하는 js/vessel.js가, 색과 움직임은 css/cabinet.css가 맡는다. -->
+    <linearGradient id="v-gold" x1="0%" y1="0%" x2="30%" y2="100%">
+      <stop offset="0%" stop-color="#fff3c4"/>
+      <stop offset="22%" stop-color="#e8bd54"/>
+      <stop offset="46%" stop-color="#a5741c"/>
+      <stop offset="64%" stop-color="#f2d98e"/>
+      <stop offset="84%" stop-color="#8a5c12"/>
+      <stop offset="100%" stop-color="#d4a94f"/>
+    </linearGradient>
+    <!-- 쌓인 돈의 표면. 위로 갈수록 빛이 번진다 -->
+    <linearGradient id="v-surface" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff8dc" stop-opacity="0"/>
+      <stop offset="48%" stop-color="#fff8dc" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffd980" stop-opacity="0"/>
+    </linearGradient>
+    <!-- 용기 안쪽 그늘 -->
+    <linearGradient id="v-inner" x1="0%" y1="0%" x2="26%" y2="100%">
+      <stop offset="0%" stop-color="#1a0d06"/>
+      <stop offset="100%" stop-color="#050302"/>
+    </linearGradient>
+    <!-- 낱개 엽전. 무늬 한 칸과 터질 때 튀는 동전이 같은 걸 쓴다 -->
+    <g id="v-coin">
+      <circle cx="9" cy="9" r="8.4" fill="url(#v-gold)"/>
+      <circle cx="9" cy="9" r="8.4" fill="none" stroke="#3d2a08" stroke-width="1"/>
+      <circle cx="9" cy="9" r="8.4" fill="none" stroke="url(#m-key)" stroke-width="1.6"/>
+      <rect x="6.6" y="6.6" width="4.8" height="4.8" rx="0.6" fill="#2a1c06"/>
+    </g>
+    <!-- 엇갈려 쌓인 동전 무늬. 타일 한 칸을 브라우저가 한 번만 그려 두고 반복한다 -->
+    <pattern id="v-coins" width="22" height="19" patternUnits="userSpaceOnUse">
+      <use href="#v-coin" transform="scale(0.84)"/>
+      <use href="#v-coin" transform="translate(11 9.5) scale(0.68) rotate(20 9 9)"/>
+      <use href="#v-coin" transform="translate(-11 9.5) scale(0.92) rotate(-14 9 9)"/>
+      <use href="#v-coin" transform="translate(17 -3) scale(0.58) rotate(34 9 9)"/>
+    </pattern>
   </defs>
 
   <symbol id="sym-cherry" viewBox="0 0 100 100">
