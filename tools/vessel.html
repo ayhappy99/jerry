@@ -52,7 +52,7 @@ for (const id of ['bar', 'bar-sm']) {
   const amounts = { grand: 71400000, major: 11200000, minor: 4600000, mini: 290000 };
   for (const key of keys) {
     host.querySelector(`.vessel[data-tier="${key}"]`).style.setProperty('--fill', fills[key]);
-    host.querySelector(`[data-tier-value="${key}"]`).textContent = amounts[key].toLocaleString('ko-KR');
+    host.querySelector(`[data-pouch-value="${key}"]`).textContent = amounts[key].toLocaleString('ko-KR');
   }
   host.querySelector('.vessel[data-tier="minor"]').classList.add('vessel--near');
 }

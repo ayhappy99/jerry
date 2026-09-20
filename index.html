@@ -50,11 +50,12 @@
 
   <section class="lobby__shared">
     <div class="lobby__credit">
-      <span class="meter__label">내 코인 <small>두 게임이 같이 씁니다</small></span>
+      <span class="meter__label">내 코인 <small>세 게임이 같이 씁니다</small></span>
       <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
     </div>
-    <p class="lobby__jplabel">두 게임이 같이 쌓는 잭팟</p>
+    <p class="lobby__jplabel">럭키 캐비닛 · 파라오의 문이 같이 쌓는 잭팟</p>
     <div class="jackpots" id="lobby-jackpots"></div>
+    <p class="lobby__jpnote">복주머니는 자기 잭팟을 따로 쌓습니다</p>
   </section>
 
   <div class="lobby__games" id="lobby-games" role="list"></div>
@@ -83,6 +84,8 @@
   <section class="jackpot" aria-labelledby="jackpot-label">
     <p class="jackpot__label" id="jackpot-label">계속 쌓이는 잭팟 <small>PROGRESSIVE JACKPOT</small></p>
     <div class="jackpots" id="jackpot-bar"></div>
+    <!-- 복주머니 전용. 공유 풀 바와 둘 중 하나만 보인다 -->
+    <div class="vessels" id="pouch-jackpot-bar" hidden></div>
     <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
 

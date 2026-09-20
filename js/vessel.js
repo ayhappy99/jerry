@@ -98,7 +98,12 @@ export function vesselBarMarkup(tierKeys, tiers) {
   return tierKeys.map((key) =>
     `<div class="vessel vessel--${key}" data-tier="${key}" style="--fill:0">` +
     vesselMarkup(key, tiers[key].label) +
-    `<output class="vessel__value" data-tier-value="${key}" aria-label="${tiers[key].label} 잭팟">0</output>` +
-    '</div>',
+    '<span class="vessel__meta">' +
+    // 가로 화면에서는 용기가 작아 금띠의 글자를 읽을 수 없다. 그때만 이 이름표를 쓴다.
+    `<span class="vessel__tier">${tiers[key].label}</span>` +
+    // 속성 이름을 공유 잭팟 바와 다르게 둔다. 같으면 setJackpot의 전역 선택자가
+    // 이 칸까지 덮어써서 공유 풀 금액이 복주머니에 표시된다.
+    `<output class="vessel__value" data-pouch-value="${key}" aria-label="${tiers[key].label} 잭팟">0</output>` +
+    '</span></div>',
   ).join('');
 }

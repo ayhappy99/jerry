@@ -182,6 +182,17 @@
   white-space: nowrap;
 }
 
+/* 구간이 7칸인 덩어리 배당표는 좁은 화면에서 열이 잘린다. 여백과 글자를 줄이고
+   심볼 열만 고정 폭을 준다. 그래도 넘치면 감싼 상자가 좌우로 스크롤된다. */
+.table--bands { font-size: var(--fs-xs); }
+.table--bands th, .table--bands td { padding: var(--sp-1) 3px; }
+.table--bands th:first-child, .table--bands td:first-child { padding-left: 0; }
+.table--bands .table__sym { gap: var(--sp-1); }
+.table--bands .symbol { width: 26px; height: 26px; }
+.table--bands td[colspan] { white-space: normal; text-align: left; line-height: 1.5; }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 .symbol { width: 34px; height: 34px; flex: 0 0 auto; }
 .symbol--lg { width: 46px; height: 46px; }
 

@@ -9,7 +9,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
 //   5: player.tourDoneAt(게임 방법 안내를 본 시각) 추가
 //   6: settings.ambience(홀 생활소음) 추가
-export const SCHEMA_VERSION = 6;
+//   7: pouchJackpot(복주머니 전용 풀 + 터질 지점) 추가. 공유 풀과 별개다
+export const SCHEMA_VERSION = 7;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -238,6 +239,11 @@ export const TIMING = {
   holdRoll: 460,          // 빈 칸이 도는 시간
   holdReveal: 380,        // 새로 붙은 코인을 보여주는 시간
   holdFinish: 1200,       // 합계를 보여주는 시간
+
+  clusterHold: 640,       // 덩어리 당첨을 보여주는 시간
+  clusterGap: 220,        // 다음 덩어리로 넘어가는 간격
+  pouchReveal: 420,       // 잭팟 바를 화면 안으로 들이는 시간
+  pouchBurst: 1100,       // 복주머니가 팡 하고 터지는 시간
 
   // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
   attractIdle: 30000,
@@ -496,8 +502,14 @@ POUCH.symbolOrder = SYMBOL_ORDER.filter((key) => (POUCH.weights[key] ?? 0) > 0);
 // 환수율은 해석적으로 정확히 나온다.
 //   등급 t의 기여 = contribRate × share_t × (시드 + 천장) / (천장 − 시드)
 // 적립분은 전액 되돌아오고, 시드만큼이 공짜로 얹히기 때문이다.
+export const POUCH_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
+
 export const POUCH_JACKPOT = {
   contribRate: 0.02,
+  // 용기가 빛나고 흔들리기 시작하는 채움 비율. 보여 주기용 기준일 뿐이고
+  // 실제로 터지는 지점(시드~천장 사이 무작위)과는 아무 관계가 없다.
+  nearFill: 0.72,
+  brimFill: 0.9,
   tiers: {
     grand: { key: 'grand', label: 'GRAND', seed: 20000000, mustHitBy: 120000000, contribShare: 0.4 },
     major: { key: 'major', label: 'MAJOR', seed: 5000000, mustHitBy: 24000000, contribShare: 0.3 },
@@ -531,6 +543,17 @@ export const GAMES = {
     badge: '6릴 4행 · 최대 4096 ways',
     artSymbols: ['mask', 'scarab', 'eye'],
   },
+
+  pouch: {
+    key: 'pouch',
+    label: '복주머니',
+    tagline: '5x5 덩어리 판정. 등급마다 복주머니에 돈이 쌓이고, 천장에 닿으면 팡 터진다.',
+    // 덩어리(클러스터) 판정 엔진을 쓴다.
+    kind: 'cluster',
+    modeKeys: [],
+    badge: '5x5 덩어리 · 반드시 터지는 잭팟',
+    artSymbols: ['pouch', 'tiger', 'toad'],
+  },
 };
 
-export const GAME_KEYS = ['cabinet', 'pharaoh'];
+export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch'];
