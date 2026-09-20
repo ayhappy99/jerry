@@ -130,10 +130,3 @@ export function contributePouch({ pools, hitPoints, totalBet }) {
 
   return { pools: nextPools, hitPoints: nextHitPoints, hits };
 }
-
-// 복주머니가 얼마나 찼는지. 0~1. 용기 채움 높이를 이 값으로 그린다.
-export function pouchFill(tierKey, pool) {
-  const tier = POUCH_JACKPOT.tiers[tierKey];
-  const span = tier.mustHitBy - tier.seed;
-  return Math.min(1, Math.max(0, (pool - tier.seed) / span));
-}

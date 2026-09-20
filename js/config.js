@@ -65,28 +65,28 @@ export const SYMBOL_ORDER = [
 
 // 5릴 라인 배당 (라인 베팅 배수)
 export const LINE_PAYS = {
-  cherry: { 3: 5, 4: 15, 5: 40 },
-  lemon: { 3: 5, 4: 20, 5: 60 },
-  bell: { 3: 10, 4: 40, 5: 120 },
-  bar: { 3: 15, 4: 60, 5: 200 },
-  seven: { 3: 25, 4: 100, 5: 400 },
-  diamond: { 3: 50, 4: 250, 5: 1000 },
-  crown: { 3: 100, 4: 500, 5: 2000 },
+  cherry: { 3: 6, 4: 18, 5: 40 },
+  lemon: { 3: 6, 4: 20, 5: 60 },
+  bell: { 3: 12, 4: 40, 5: 120 },
+  bar: { 3: 18, 4: 60, 5: 200 },
+  seven: { 3: 30, 4: 120, 5: 400 },
+  diamond: { 3: 60, 4: 300, 5: 1200 },
+  crown: { 3: 120, 4: 600, 5: 2000 },
 };
 
 // 클래식 3릴 배당 (라인 베팅 배수, 3개 일치)
 // 레몬만 지시서 초기값 15에서 12로 낮췄다. 이유는 README의 밸런스 항목 참고.
 export const CLASSIC_PAYS = {
-  cherry: 10,
-  lemon: 12,
+  cherry: 12,
+  lemon: 15,
   bell: 30,
   bar: 60,
   seven: 150,
-  diamond: 400,
+  diamond: 500,
 };
 
 // 스캐터 배당 (총 베팅 배수)
-export const SCATTER_PAYS = { 3: 2, 4: 10, 5: 50 };
+export const SCATTER_PAYS = { 3: 2, 4: 12, 5: 60 };
 
 // 페이라인. 값은 행 인덱스(0=상단)
 export const PAYLINES = [
@@ -113,19 +113,22 @@ export const REFILL_AMOUNT = 1000000;
 // contribShare: 적립분 1%를 티어별로 나누는 비율. pickWeight: 픽 보너스에서 티어가 뽑힐 가중치.
 // 적립 비율을 추첨 가중치보다 크게 두면 그 티어의 평균 풀이 커진다.
 // 평균 풀 비율은 (contribShare / pickWeight)에 비례하므로 GRAND가 가장 크게 쌓인다.
+// 잭팟이 20배 자주 터지게 만든 대신 시드를 3.75배 낮췄다. 시드는 매 적중마다
+// 공짜로 나가는 돈이라 빈도와 곱해져 환수율에 바로 들어간다. 30,000,000을 그대로 두고
+// 빈도만 올리면 시드 효과 하나가 26%p를 먹는다.
 export const JACKPOT_TIERS = {
-  grand: { key: 'grand', label: 'GRAND', seed: 30000000, contribShare: 0.5, pickWeight: 8 },
-  major: { key: 'major', label: 'MAJOR', seed: 8000000, contribShare: 0.25, pickWeight: 16 },
-  minor: { key: 'minor', label: 'MINOR', seed: 3000000, contribShare: 0.15, pickWeight: 30 },
-  mini: { key: 'mini', label: 'MINI', seed: 1000000, contribShare: 0.1, pickWeight: 46 },
+  grand: { key: 'grand', label: 'GRAND', seed: 8000000, contribShare: 0.5, pickWeight: 8 },
+  major: { key: 'major', label: 'MAJOR', seed: 2000000, contribShare: 0.25, pickWeight: 16 },
+  minor: { key: 'minor', label: 'MINOR', seed: 800000, contribShare: 0.15, pickWeight: 30 },
+  mini: { key: 'mini', label: 'MINI', seed: 300000, contribShare: 0.1, pickWeight: 46 },
 };
 
 // 잭팟 트리거: 한 라인에 순수 다이아가 이 개수 이상(와일드 대체 불인정).
-// 5개에서 4개로 낮춘 이유는 4단으로 쪼개면 티어별 빈도가 4~12배 희박해져
-// 픽 보너스를 사실상 볼 수 없기 때문이다. 릴 스트립과 배당은 건드리지 않으므로
-// 라인 RTP는 그대로다. 대신 적중이 잦아진 만큼 시드를 낮춰 시드 효과를 억제했다.
+// 5 → 4 → 3으로 두 번 낮췄다. 4개는 1/17,334로 한 자리에 앉아 있는 동안 사실상
+// 볼 수 없었다. 3개면 1/867이다. 릴 스트립과 라인 배당은 건드리지 않으므로
+// 라인 RTP는 그대로고, 늘어난 적중 빈도는 시드 효과로만 환수율에 들어온다.
 export const JACKPOT_SYMBOL = 'diamond';
-export const JACKPOT_MATCH = 4;
+export const JACKPOT_MATCH = 3;
 
 export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
 
@@ -139,11 +142,16 @@ export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
 // 1/jackpotOdds 확률로 터뜨린다. 적립이 N배 빨라지는 만큼 리셋도 N배 자주 일어나므로
 // 내가 잭팟을 맞추는 순간의 풀 기대 크기가 혼자 돌릴 때와 같다.
 // 내 적중률과 내 베팅은 그대로이니 내 환수율도 그대로다.
+// jackpotOdds는 내 적중 확률과 같아야 한다. 다르면 풀을 비우는 쪽이 한쪽으로 몰려
+// 중립이 깨진다. 내가 20배 자주 터뜨리게 됐으므로 홀도 같이 옮겼다.
+// machines/spinSeconds는 적립 속도와 홀 적중 빈도를 함께 정한다. 중립성은 둘과
+// 무관하지만(비율만 맞으면 된다) 알림이 너무 잦으면 방해가 되므로 8대 3초로 낮췄다.
+// 8/3초 ÷ 1/867 = 약 5분마다 홀 잭팟 알림 하나.
 export const HALL = {
-  machines: 48,
-  spinSeconds: 2,
-  // 스핀당 잭팟 적중 확률의 역수. 프리스핀·잭팟 모드 실측값(1/12,664)을 쓴다.
-  jackpotOdds: 12664,
+  machines: 8,
+  spinSeconds: 3,
+  // 스핀당 잭팟 적중 확률의 역수. 프리스핀·잭팟 모드 실측값(1/867)을 쓴다.
+  jackpotOdds: 867,
   tickMs: 250,
   // 알림에 쓰는 자리 번호. 실제 사람 이름은 쓰지 않는다.
   seats: [3, 5, 7, 8, 11, 12, 14, 17, 21, 23, 26, 29, 31, 34],
@@ -406,13 +414,13 @@ export const PHARAOH = {
   ],
   // ways당 총 베팅 배수. 실측 계수로 맞춘 확정값은 README의 밸런스 항목 참고.
   pays: {
-    rank10: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
-    rankj: { 3: 0.015, 4: 0.06, 5: 0.25, 6: 1 },
+    rank10: { 3: 0.01, 4: 0.06, 5: 0.25, 6: 1 },
+    rankj: { 3: 0.02, 4: 0.08, 5: 0.3, 6: 1.2 },
     rankq: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
-    rankk: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
-    ranka: { 3: 0.045, 4: 0.12, 5: 0.4, 6: 1.5 },
-    ankh: { 3: 0.05, 4: 0.15, 5: 0.6, 6: 2.5 },
-    lotus: { 3: 0.06, 4: 0.2, 5: 0.6, 6: 3 },
+    rankk: { 3: 0.03, 4: 0.12, 5: 0.4, 6: 1.5 },
+    ranka: { 3: 0.05, 4: 0.15, 5: 0.5, 6: 1.8 },
+    ankh: { 3: 0.06, 4: 0.18, 5: 0.6, 6: 3 },
+    lotus: { 3: 0.06, 4: 0.25, 5: 0.6, 6: 3 },
     papyrus: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
     cobra: { 3: 0.1, 4: 0.3, 5: 1.5, 6: 6 },
     falcon: { 3: 0.15, 4: 0.5, 5: 2, 6: 10 },
@@ -430,7 +438,7 @@ export const PHARAOH = {
   // 이 단계에 닿으면 잭팟 픽 보너스가 열린다.
   // 5단은 1/488로 너무 잦아 공유 시드 효과가 +10%p까지 치솟았다. 7단은 1/13,748로
   // 캐비닛의 잭팟 빈도(1/12,664)와 비슷해 시드 효과가 +0.37%p에 머문다.
-  jackpotChain: 7,
+  jackpotChain: 5,
   // 연쇄 상한. 게임 규칙이며 여기서 연쇄를 멈춘다. 실측에서 이 값에 닿는 경우는 없었다.
   maxChain: 30,
   weights: {
@@ -469,14 +477,17 @@ export const POUCH = {
   sizeBands: [5, 6, 7, 8, 9, 10, 12],
   // 배당은 총 베팅 배수다. 300만 스핀으로 (심볼, 구간)별 계수를 재고
   // 목표 92.06%에 맞춰 역산한 값이다(tools/cluster-sim.mjs, README 밸런스 항목).
+  // 잭팟 몫 6.00%를 빼고 남는 99.00%를 덩어리가 채운다.
+  // 배당표 전체에 배율을 걸고 보기 좋은 값으로 스냅한 뒤, 개별 배당을 한 칸씩
+  // 움직이는 그리디로 맞췄다. 사다리 단조성은 세로(개수)·가로(심볼) 둘 다 검사한다.
   pays: {
-    yeopjeon: { 5: 0.8, 6: 1.5, 7: 2, 8: 3, 9: 4, 10: 6, 12: 12 },
-    maedeup: { 5: 1, 6: 2, 7: 3, 8: 5, 9: 8, 10: 10, 12: 20 },
-    moran: { 5: 1.5, 6: 2.5, 7: 4, 8: 6, 9: 10, 10: 12, 12: 30 },
-    cheongja: { 5: 1.8, 6: 3, 7: 5, 8: 8, 9: 12, 10: 18, 12: 40 },
-    crane: { 5: 3, 6: 5, 7: 8, 8: 12, 9: 15, 10: 25, 12: 60 },
-    toad: { 5: 4, 6: 8, 7: 12, 8: 18, 9: 30, 10: 40, 12: 80 },
-    tiger: { 5: 6, 6: 12, 7: 18, 8: 25, 9: 40, 10: 60, 12: 150 },
+    yeopjeon: { 5: 0.8, 6: 1.5, 7: 2.5, 8: 2.5, 9: 4, 10: 6, 12: 15 },
+    maedeup: { 5: 1.2, 6: 2, 7: 3, 8: 6, 9: 8, 10: 12, 12: 30 },
+    moran: { 5: 1.8, 6: 3, 7: 4, 8: 6, 9: 12, 10: 12, 12: 30 },
+    cheongja: { 5: 2, 6: 3, 7: 6, 8: 8, 9: 12, 10: 20, 12: 40 },
+    crane: { 5: 3, 6: 6, 7: 8, 8: 12, 9: 18, 10: 30, 12: 60 },
+    toad: { 5: 4, 6: 8, 7: 12, 8: 20, 9: 30, 10: 60, 12: 80 },
+    tiger: { 5: 6, 6: 12, 7: 20, 8: 30, 9: 40, 10: 60, 12: 180 },
   },
   // 가중치를 16배로 키워 스트립을 704칸으로 만든다. 44칸으로 두면 세로로 붙는 정도가
   // 스트립 배열의 우연에 지배되어, 같은 가중치인데도 심볼별 덩어리 빈도가 20배씩 흔들렸다
@@ -504,17 +515,26 @@ POUCH.symbolOrder = SYMBOL_ORDER.filter((key) => (POUCH.weights[key] ?? 0) > 0);
 // 적립분은 전액 되돌아오고, 시드만큼이 공짜로 얹히기 때문이다.
 export const POUCH_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
 
+// 잭팟 하나가 터지는 평균 주기는 (천장 - 시드) / (2 x 적립률 x 분배비율 x 총베팅)이고,
+// 평균 지급액은 주기 x 그 등급의 환수율 x 총베팅이다. 즉 환수율을 고정하면
+// "자주 터지는 것"과 "많이 주는 것"은 정확히 반비례한다. 둘을 동시에 올리는 방법은
+// 잭팟에 배정하는 환수율 자체를 올리는 것뿐이고, 그만큼 덩어리 배당이 내려간다.
+//
+// 자주 터지는 쪽을 골랐다. 잭팟 몫을 2.94%에서 6.00%로 올리고 천장을 절반으로 낮췄다.
+// 그 결과 총 베팅 20만 기준 평균 주기는 아래와 같다(어느 등급이든 106스핀마다 하나).
+//   GRAND 7,895스핀 · 평균 3,600만 (180배)
+//   MAJOR 2,000스핀 · 평균 600만 (30배)
+//   MINOR   500스핀 · 평균 120만 (6배)
+//   MINI    147스핀 · 평균 30만 (1.5배)
+// 네 등급 모두 천장 = 시드 x 5로 맞췄다. 그래서 등급별 환수율이 0.06 x 분배비율로
+// 딱 떨어지고, 분배비율을 건드리면 환수율과 주기가 같은 비율로 움직인다.
 export const POUCH_JACKPOT = {
-  contribRate: 0.02,
-  // 용기가 빛나고 흔들리기 시작하는 채움 비율. 보여 주기용 기준일 뿐이고
-  // 실제로 터지는 지점(시드~천장 사이 무작위)과는 아무 관계가 없다.
-  nearFill: 0.72,
-  brimFill: 0.9,
+  contribRate: 0.04,
   tiers: {
-    grand: { key: 'grand', label: 'GRAND', seed: 20000000, mustHitBy: 120000000, contribShare: 0.4 },
-    major: { key: 'major', label: 'MAJOR', seed: 5000000, mustHitBy: 24000000, contribShare: 0.3 },
-    minor: { key: 'minor', label: 'MINOR', seed: 1000000, mustHitBy: 5000000, contribShare: 0.2 },
-    mini: { key: 'mini', label: 'MINI', seed: 200000, mustHitBy: 1000000, contribShare: 0.1 },
+    grand: { key: 'grand', label: 'GRAND', seed: 12000000, mustHitBy: 60000000, contribShare: 0.38 },
+    major: { key: 'major', label: 'MAJOR', seed: 2000000, mustHitBy: 10000000, contribShare: 0.25 },
+    minor: { key: 'minor', label: 'MINOR', seed: 400000, mustHitBy: 2000000, contribShare: 0.2 },
+    mini: { key: 'mini', label: 'MINI', seed: 100000, mustHitBy: 500000, contribShare: 0.17 },
   },
 };
 

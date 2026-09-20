@@ -1,17 +1,22 @@
-// 복주머니 잭팟 용기의 기하. 돈이 쌓이는 높이는 CSS 변수 --fill(0~1)이 정하고,
-// 터지는 연출은 CSS가 맡는다. 이 파일은 문자열만 만들고 DOM을 만지지 않는다.
+// 복주머니 잭팟 용기의 기하. 이 파일은 문자열만 만들고 DOM을 만지지 않는다.
 //
-// 천 주머니면 속이 안 보이므로 수정(水晶) 복주머니로 그린다.
-// 주머니 몸을 클립으로 쓰고 그 안에서 동전 무늬를 위로 밀어 올리는 방식이다.
+// 속이 보이지 않는 천 주머니다. 얼마나 찼는지 밖에서 알 수 없어야 하기 때문이다.
+// 채움 높이를 보여 주면 언제 터질지 짐작할 수 있고, 터지는 순간의 놀라움이 사라진다.
+// 금액은 주머니 아래 숫자가 알려 주고, 그 숫자와 터질 지점의 거리는 숨어 있다.
 
-// 용기 몸. 클립과 유리면이 같은 경로를 쓴다.
+// 용기 몸. 천과 터질 때 번지는 섬광이 같은 경로를 쓴다.
 const BODY = 'M40 44C22 55 10 75 10 98c0 24 20 41 50 41s50-17 50-41c0-23-12-43-30-54z';
 
 // 부푼 천과 그 주름. 금띠 위로 올라온 부분이다.
 const FRILL = 'M40 34C42 21 49 14 60 14s18 7 20 20z';
 
-// 쌓인 돈이 차지할 수 있는 최대 높이. CSS가 (1 - fill) 만큼 아래로 밀어낸다.
-export const FILL_SPAN = 95;
+// 목에서 아래로 퍼지는 주름. 조여 묶은 천이라 위에서 모이고 아래로 벌어진다.
+const GATHERS = [
+  'M44 48C36 62 32 80 33 98',
+  'M52 46C48 62 46 80 47 100',
+  'M68 46C72 62 74 80 73 100',
+  'M76 48C84 62 88 80 87 98',
+];
 
 // 터질 때 튀는 동전. 각도와 거리를 미리 정해 두고 CSS가 그대로 날린다.
 // 무작위로 뽑지 않는 이유: 같은 잭팟이 매번 같게 보여야 녹화·점검이 가능하다.
@@ -31,41 +36,31 @@ function sprayCoins() {
 
 /**
  * 용기 하나의 마크업.
- * @param {string} tierKey 등급 키. 같은 문서에 네 개가 놓이므로 클립 id에 섞는다.
- * @param {string} label 띠에 새길 등급 이름
+ * @param {string} label 금띠에 새길 등급 이름
  */
-export function vesselMarkup(tierKey, label) {
-  const clip = `v-clip-${tierKey}`;
+export function vesselMarkup(label) {
   return (
     '<svg class="vessel__art" viewBox="0 0 120 152" aria-hidden="true">' +
-    `<defs><clipPath id="${clip}"><path d="${BODY}"/></clipPath></defs>` +
+    '<ellipse class="vessel__shadow" cx="60" cy="144" rx="34" ry="6"/>' +
 
-    // 안쪽 그늘. 빈 용기가 검게 비어 보이게 한다
-    `<path class="vessel__inner" d="${BODY}" fill="url(#v-inner)"/>` +
-
-    // 쌓인 돈. 클립 안에서 통째로 위아래로 움직인다
-    `<g clip-path="url(#${clip})">` +
-    '<g class="vessel__pile">' +
-    `<rect x="8" y="44" width="104" height="${FILL_SPAN}" fill="url(#v-gold)"/>` +
-    `<rect x="8" y="44" width="104" height="${FILL_SPAN}" fill="url(#v-coins)"/>` +
-    '<rect x="8" y="41" width="104" height="8" fill="url(#v-surface)"/>' +
-    '</g></g>' +
-
-    // 유리 껍데기. 반투명이라 쌓인 돈이 등급 색으로 물들어 보인다.
-    // 터질 때 이 묶음 하나만 부풀려 날리면 되므로 g로 묶는다.
+    // 천으로 된 몸. 터질 때 이 묶음 하나만 부풀려 날리면 되므로 g로 묶는다
     '<g class="vessel__shell">' +
-    `<path class="vessel__glass" d="${BODY}"/>` +
-    `<path class="vessel__edge" d="${BODY}" fill="none"/>` +
+    `<path class="vessel__cloth" d="${BODY}"/>` +
+    `<path class="vessel__shade" d="${BODY}"/>` +
     `<path d="${BODY}" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>` +
-    '<path class="vessel__facet" d="M34 56C24 66 18 80 18 98c0 12 4 23 12 31-6-10-9-21-9-31 0-15 4-30 13-42z"/>' +
-    '<ellipse class="vessel__spec" cx="38" cy="72" rx="8" ry="16" transform="rotate(-18 38 72)"/>' +
+    `<path class="vessel__edge" d="${BODY}" fill="none"/>` +
+    `<g class="vessel__gathers" fill="none">${GATHERS.map((d) => `<path d="${d}"/>`).join('')}</g>` +
+    '<ellipse class="vessel__sheen" cx="38" cy="74" rx="13" ry="22" transform="rotate(-18 38 74)"/>' +
+    // 복(福) 메달
+    '<circle class="vessel__medal" cx="60" cy="92" r="21" fill="none"/>' +
+    '<g class="vessel__bok"><use href="#p-bok" transform="translate(49.2 77.3) scale(0.9)"/></g>' +
     '</g>' +
 
     // 목을 조인 금띠와 그 위로 부푼 천. 터질 때 같이 위로 튄다
     '<g class="vessel__top">' +
-    `<path d="${FRILL}" fill="url(#v-inner)"/>` +
-    `<path class="vessel__frill" d="${FRILL}"/>` +
-    '<g class="vessel__gather" fill="none" stroke-width="1.5" stroke-linecap="round">' +
+    `<path class="vessel__cloth" d="${FRILL}"/>` +
+    `<path class="vessel__shade" d="${FRILL}"/>` +
+    '<g class="vessel__gathers" fill="none" stroke-width="1.5">' +
     '<path d="M49.6 33C48.4 26 51 20 55 16"/>' +
     '<path d="M59.6 33L60.4 15"/>' +
     '<path d="M70.4 33C71.6 26 69 20 65 16"/>' +
@@ -96,8 +91,8 @@ export function vesselMarkup(tierKey, label) {
  */
 export function vesselBarMarkup(tierKeys, tiers) {
   return tierKeys.map((key) =>
-    `<div class="vessel vessel--${key}" data-tier="${key}" style="--fill:0">` +
-    vesselMarkup(key, tiers[key].label) +
+    `<div class="vessel vessel--${key}" data-tier="${key}">` +
+    vesselMarkup(tiers[key].label) +
     '<span class="vessel__meta">' +
     // 가로 화면에서는 용기가 작아 금띠의 글자를 읽을 수 없다. 그때만 이 이름표를 쓴다.
     `<span class="vessel__tier">${tiers[key].label}</span>` +
