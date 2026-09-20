@@ -160,6 +160,52 @@ const SPRITE = `
       <stop offset="100%" stop-color="#5fd7f0" stop-opacity="0"/>
     </radialGradient>
 
+    <!-- 복주머니 팔레트. 단청(丹靑)의 오방색에서 가져왔다 -->
+    <linearGradient id="g-kr-red" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#ffb3a8"/>
+      <stop offset="20%" stop-color="#ef6a5a"/>
+      <stop offset="48%" stop-color="#c62828"/>
+      <stop offset="76%" stop-color="#8a1616"/>
+      <stop offset="100%" stop-color="#4a0a0a"/>
+    </linearGradient>
+    <linearGradient id="g-kr-blue" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#a9d8e8"/>
+      <stop offset="20%" stop-color="#5aa8c8"/>
+      <stop offset="48%" stop-color="#2a6f96"/>
+      <stop offset="76%" stop-color="#174a68"/>
+      <stop offset="100%" stop-color="#0a2436"/>
+    </linearGradient>
+    <linearGradient id="g-kr-green" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#bfe8c0"/>
+      <stop offset="20%" stop-color="#6fc276"/>
+      <stop offset="48%" stop-color="#2f8a46"/>
+      <stop offset="76%" stop-color="#1b5a2e"/>
+      <stop offset="100%" stop-color="#0c2a16"/>
+    </linearGradient>
+    <linearGradient id="g-kr-jade" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#e2f4ec"/>
+      <stop offset="22%" stop-color="#a9d6c4"/>
+      <stop offset="50%" stop-color="#6faa95"/>
+      <stop offset="78%" stop-color="#3f6f60"/>
+      <stop offset="100%" stop-color="#1d3830"/>
+    </linearGradient>
+    <linearGradient id="g-kr-bronze" x1="8%" y1="0%" x2="26%" y2="100%">
+      <stop offset="0%" stop-color="#f6e3b8"/>
+      <stop offset="18%" stop-color="#d4a94f"/>
+      <stop offset="38%" stop-color="#7a5a18"/>
+      <stop offset="54%" stop-color="#e8cd88"/>
+      <stop offset="72%" stop-color="#6b4c12"/>
+      <stop offset="88%" stop-color="#b08c2e"/>
+      <stop offset="100%" stop-color="#3d2a08"/>
+    </linearGradient>
+    <linearGradient id="g-kr-white" x1="6%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="24%" stop-color="#f4f6f8"/>
+      <stop offset="56%" stop-color="#dde3e8"/>
+      <stop offset="82%" stop-color="#a8b2bb"/>
+      <stop offset="100%" stop-color="#5f6a73"/>
+    </linearGradient>
+
     <!-- 이집션 팔레트. 같은 방식으로 스톱을 늘려 재질감을 올렸다 -->
     <linearGradient id="g-eg-gold" x1="8%" y1="0%" x2="26%" y2="100%">
       <stop offset="0%" stop-color="#fff8dc"/>
@@ -227,6 +273,19 @@ const SPRITE = `
     <path id="p-hood" d="M50 24C30 24 12 37 9 56c-2 14 5 24 17 24h48c12 0 19-10 17-24C88 37 70 24 50 24z"/>
     <!-- 연꽃 꽃잎 하나. 끝이 뾰족하고 아래가 평평하다. 회전시켜 다섯 장을 만든다 -->
     <path id="p-petal" d="M0-30C13-12 15 4 9 18H-9C-15 4-13-12 0-30z"/>
+    <!-- 모란 꽃잎. 끝이 갈라져 있어 단순한 타원과 달리 꽃잎으로 읽힌다 -->
+    <path id="p-moran-petal" d="M0 0C-15-5-18-21-10-30-6-35-2-31 0-26 2-31 6-35 10-30 18-21 15-5 0 0Z"/>
+    <!-- 복(福) 자. 24x34 자리에 ㅂ·ㅗ·ㄱ을 쌓았다. 글꼴에 기대지 않으려고 직접 그린다 -->
+    <g id="p-bok">
+      <rect x="0" y="0" width="2.8" height="12" rx="1"/>
+      <rect x="21.2" y="0" width="2.8" height="12" rx="1"/>
+      <rect x="0" y="4.8" width="24" height="2.8" rx="1"/>
+      <rect x="0" y="9.2" width="24" height="2.8" rx="1"/>
+      <rect x="10.6" y="14" width="2.8" height="5.2" rx="1"/>
+      <rect x="0" y="18.6" width="24" height="2.8" rx="1"/>
+      <rect x="2" y="24" width="20" height="2.8" rx="1"/>
+      <rect x="19.2" y="24" width="2.8" height="10" rx="1"/>
+    </g>
     <!-- 가면의 네메스 머리쓰개 -->
     <path id="p-nemes" d="M50 5C30 5 18 17 16 35l-4 31 17 6 3 15h36l3-15 17-6-4-31C82 17 70 5 50 5z"/>
   </defs>
@@ -421,6 +480,297 @@ const SPRITE = `
     <path d="M50 31.6 53.4 46.6 68.4 50 53.4 53.4 50 68.4 46.6 53.4 31.6 50 46.6 46.6z" fill="#fff6d0" opacity="0.5"/>
     <!-- 금속 반사 -->
     <ellipse cx="38" cy="36" rx="13" ry="8.5" fill="url(#m-sheen)" transform="rotate(-28 38 36)"/>
+  </symbol>
+
+  <!-- ── 복주머니 심볼 (창작) ──
+       오방색과 전통 문양에서 형태만 가져왔다. 같은 광원과 조명 레이어를 쓴다. -->
+
+  <symbol id="sym-yeopjeon" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="90" rx="26" ry="4.4" fill="url(#m-shadow)"/>
+    <!-- 엽전: 둥근 몸에 네모 구멍 -->
+    <circle cx="50" cy="50" r="36" fill="url(#g-kr-bronze)"/>
+    <circle cx="50" cy="50" r="36" fill="url(#m-occl)"/>
+    <circle cx="50" cy="50" r="36" fill="none" stroke="url(#m-key)" stroke-width="3"/>
+    <circle cx="50" cy="50" r="36" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
+    <!-- 안쪽으로 한 단 낮춘 자리 -->
+    <circle cx="50" cy="50" r="29" fill="none" stroke="#3d2a08" stroke-width="1.6" opacity="0.45"/>
+    <!-- 네모 구멍. 파낸 자리라 위·왼쪽 벽은 그늘지고 아래·오른쪽 벽은 빛을 받는다 -->
+    <rect x="39" y="39" width="22" height="22" rx="1" fill="#120b08"/>
+    <path d="M39 61V39h22l-3 3H42v19z" fill="#000" opacity="0.55"/>
+    <path d="M61 39v22H39l3-3h16V42z" fill="#f6e3b8" opacity="0.26"/>
+    <!-- 둘레에 새긴 네 글자 자리 -->
+    <g fill="#3d2a08" opacity="0.55">
+      <rect x="45" y="24" width="10" height="3.4" rx="1.7"/>
+      <rect x="45" y="72.6" width="10" height="3.4" rx="1.7"/>
+      <rect x="24" y="45" width="3.4" height="10" rx="1.7"/>
+      <rect x="72.6" y="45" width="3.4" height="10" rx="1.7"/>
+    </g>
+    <ellipse cx="36" cy="34" rx="11" ry="7" fill="url(#m-sheen)" transform="rotate(-28 36 34)"/>
+  </symbol>
+
+  <symbol id="sym-maedeup" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="94" rx="16" ry="3.2" fill="url(#m-shadow)"/>
+    <!-- 매듭 노리개: 네 갈래 고리 · 엮인 가운데 · 아래로 늘어진 술.
+         고리 속이 비어 릴 배경이 보이므로 꽃(모란)과 헷갈리지 않는다. -->
+    <circle cx="50" cy="9" r="4.6" fill="none" stroke="url(#g-kr-bronze)" stroke-width="3"/>
+    <!-- 곧은 세로선은 경계 상자 폭이 0이라 그라디언트가 칠해지지 않는다. 살짝 기울여 둔다 -->
+    <path d="M49.4 11L50.6 29" fill="none" stroke="url(#g-kr-blue)" stroke-width="6" stroke-linecap="round"/>
+    <!-- 위 고리를 아래보다 크게 둔다. 좌우가 같으면 나비 날개로 읽힌다 -->
+    <g fill="none" stroke-width="9">
+      <ellipse cx="32" cy="31" rx="8" ry="14" stroke="url(#g-kr-blue)" transform="rotate(-45 32 31)"/>
+      <ellipse cx="68" cy="31" rx="8" ry="14" stroke="url(#g-kr-blue)" transform="rotate(45 68 31)"/>
+      <ellipse cx="34" cy="54" rx="7" ry="10.5" stroke="url(#g-kr-blue)" transform="rotate(45 34 54)"/>
+      <ellipse cx="66" cy="54" rx="7" ry="10.5" stroke="url(#g-kr-blue)" transform="rotate(-45 66 54)"/>
+    </g>
+    <g fill="none" stroke-width="9" stroke="url(#m-occl)">
+      <ellipse cx="32" cy="31" rx="8" ry="14" transform="rotate(-45 32 31)"/>
+      <ellipse cx="68" cy="31" rx="8" ry="14" transform="rotate(45 68 31)"/>
+      <ellipse cx="34" cy="54" rx="7" ry="10.5" transform="rotate(45 34 54)"/>
+      <ellipse cx="66" cy="54" rx="7" ry="10.5" transform="rotate(-45 66 54)"/>
+    </g>
+    <!-- 엮인 가운데. 가로 가닥을 깔고 세로 가닥을 위로 올린 뒤 겹친 자리에 그늘을 넣는다 -->
+    <g fill="url(#g-kr-blue)">
+      <rect x="33" y="34.5" width="34" height="7" rx="3.5"/>
+      <rect x="33" y="44.5" width="34" height="7" rx="3.5"/>
+    </g>
+    <g fill="#0a2436" opacity="0.4">
+      <rect x="39.5" y="34.5" width="2.5" height="7"/>
+      <rect x="49.5" y="34.5" width="2.5" height="7"/>
+      <rect x="39.5" y="44.5" width="2.5" height="7"/>
+      <rect x="49.5" y="44.5" width="2.5" height="7"/>
+    </g>
+    <g fill="url(#g-kr-blue)">
+      <rect x="41.5" y="26" width="7" height="34" rx="3.5"/>
+      <rect x="51.5" y="26" width="7" height="34" rx="3.5"/>
+    </g>
+    <g fill="url(#m-occl)">
+      <rect x="33" y="34.5" width="34" height="7" rx="3.5"/>
+      <rect x="33" y="44.5" width="34" height="7" rx="3.5"/>
+      <rect x="41.5" y="26" width="7" height="34" rx="3.5"/>
+      <rect x="51.5" y="26" width="7" height="34" rx="3.5"/>
+    </g>
+    <path d="M43 28c-1 10-1 20 0 30" fill="none" stroke="#a9d8e8" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+    <!-- 술 -->
+    <rect x="41" y="59" width="18" height="8" rx="3" fill="url(#g-kr-bronze)"/>
+    <rect x="41" y="59" width="18" height="8" rx="3" fill="url(#m-occl)" opacity="0.5"/>
+    <g fill="none" stroke="url(#g-kr-blue)" stroke-width="3" stroke-linecap="round">
+      <path d="M44 66l-4 22"/>
+      <path d="M47 66l-2.4 23"/>
+      <path d="M49.6 66l0.8 24"/>
+      <path d="M53 66l2.4 23"/>
+      <path d="M56 66l4 22"/>
+    </g>
+  </symbol>
+
+  <symbol id="sym-moran" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="91" rx="26" ry="4.4" fill="url(#m-shadow)"/>
+    <!-- 모란: 끝이 갈라진 겹꽃잎을 두 겹으로 돌려 세웠다 -->
+    <path d="M25 72C15 72 8 78 5 87c11 3 21-1 26-9z" fill="url(#g-kr-green)"/>
+    <path d="M75 72c10 0 17 6 20 15-11 3-21-1-26-9z" fill="url(#g-kr-green)"/>
+    <path d="M25 72C15 72 8 78 5 87c11 3 21-1 26-9z" fill="url(#m-occl)" opacity="0.7"/>
+    <path d="M75 72c10 0 17 6 20 15-11 3-21-1-26-9z" fill="url(#m-occl)"/>
+    <g fill="url(#g-kr-red)">
+      <use href="#p-moran-petal" transform="translate(50 52) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(72) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(144) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(216) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(288) scale(1.05)"/>
+    </g>
+    <g fill="url(#m-occl)">
+      <use href="#p-moran-petal" transform="translate(50 52) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(72) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(144) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(216) scale(1.05)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(288) scale(1.05)"/>
+    </g>
+    <!-- 안쪽 겹. 바깥 겹 사이에 끼워 겹꽃으로 읽히게 한다 -->
+    <g fill="url(#g-kr-red)" stroke="#ffb3a8" stroke-width="1" stroke-opacity="0.45">
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(36) scale(0.62)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(108) scale(0.62)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(180) scale(0.62)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(252) scale(0.62)"/>
+      <use href="#p-moran-petal" transform="translate(50 52) rotate(324) scale(0.62)"/>
+    </g>
+    <!-- 꽃술. 단추가 아니라 실이 퍼진 모양이라 꽃 가운데로 읽힌다 -->
+    <g fill="none" stroke="url(#g-kr-bronze)" stroke-width="1.8" stroke-linecap="round">
+      <path d="M50 52 50 40M50 52 44 42M50 52 56 42M50 52 41 48M50 52 59 48M50 52 44 58M50 52 56 58"/>
+    </g>
+    <g fill="#f6e3b8">
+      <circle cx="50" cy="39" r="1.7"/><circle cx="43.4" cy="41.2" r="1.7"/><circle cx="56.6" cy="41.2" r="1.7"/>
+      <circle cx="40.2" cy="47.4" r="1.7"/><circle cx="59.8" cy="47.4" r="1.7"/>
+      <circle cx="43.4" cy="58.8" r="1.7"/><circle cx="56.6" cy="58.8" r="1.7"/>
+    </g>
+    <circle cx="50" cy="52" r="5" fill="url(#g-kr-bronze)"/>
+    <circle cx="50" cy="52" r="5" fill="url(#m-occl)" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-cheongja" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="94" rx="24" ry="4" fill="url(#m-shadow)"/>
+    <!-- 청자 매병: 어깨가 넓고 굽으로 갈수록 좁아지는 실루엣 -->
+    <path d="M41 13h18c0 4-2 6-3 8 14 4 26 12 26 24 0 17-8 31-16 40H34c-8-9-16-23-16-40 0-12 12-20 26-24-1-2-3-4-3-8z"
+          fill="url(#g-kr-jade)"/>
+    <path d="M41 13h18c0 4-2 6-3 8 14 4 26 12 26 24 0 17-8 31-16 40H34c-8-9-16-23-16-40 0-12 12-20 26-24-1-2-3-4-3-8z"
+          fill="url(#m-occl)"/>
+    <!-- 유약이 흘러내린 세로 광택 -->
+    <path d="M36 26c-8 6-14 12-14 21 0 13 4 24 10 32-4-10-6-21-6-32 0-9 4-15 10-21z" fill="#e2f4ec" opacity="0.45"/>
+    <!-- 아가리 -->
+    <rect x="38" y="10" width="24" height="5" rx="2.5" fill="url(#g-kr-jade)"/>
+    <rect x="38" y="10" width="24" height="5" rx="2.5" fill="url(#m-occl)" opacity="0.6"/>
+    <!-- 상감 문양: 어깨와 아래를 두른 띠 사이에 모란 덩굴을 새겼다 -->
+    <g fill="none" stroke="#1d3830" stroke-width="2.2" stroke-linecap="round" opacity="0.5">
+      <path d="M20 38Q50 47 80 38"/>
+      <path d="M26 71Q50 78 74 71"/>
+      <path d="M31 57C35 50 41 52 43 57"/>
+      <path d="M69 57C65 50 59 52 57 57"/>
+      <circle cx="50" cy="55" r="4.4"/>
+    </g>
+    <g fill="#1d3830" opacity="0.42">
+      <circle cx="50" cy="47.5" r="2.6"/><circle cx="57.1" cy="52.7" r="2.6"/>
+      <circle cx="54.4" cy="61.1" r="2.6"/><circle cx="45.6" cy="61.1" r="2.6"/>
+      <circle cx="42.9" cy="52.7" r="2.6"/>
+    </g>
+    <!-- 굽 -->
+    <path d="M33 84h34l-1.5 7h-31z" fill="url(#g-kr-jade)"/>
+    <path d="M33 84h34l-1.5 7h-31z" fill="url(#m-occl)" opacity="0.75"/>
+  </symbol>
+
+  <symbol id="sym-crane" viewBox="0 0 100 100">
+    <ellipse cx="46" cy="94" rx="24" ry="3.6" fill="url(#m-shadow)"/>
+    <!-- 단정학: 검은 목이 흰 몸과 대비되고 정수리가 붉다 -->
+    <path d="M28 52C16 54 8 62 8 72c10 2 20-4 26-14z" fill="#26303a"/>
+    <path d="M28 52C16 54 8 62 8 72c10 2 20-4 26-14z" fill="url(#m-occl)" opacity="0.6"/>
+    <ellipse cx="46" cy="58" rx="22" ry="16" fill="url(#g-kr-white)" transform="rotate(-10 46 58)"/>
+    <ellipse cx="46" cy="58" rx="22" ry="16" fill="url(#m-occl)" opacity="0.55" transform="rotate(-10 46 58)"/>
+    <path d="M32 50C42 47 56 51 62 60" fill="none" stroke="#a8b2bb" stroke-width="2" opacity="0.7" stroke-linecap="round"/>
+    <path d="M58 52C66 44 68 33 67 25" fill="none" stroke="#26303a" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="69" cy="20" r="8.4" fill="url(#g-kr-white)"/>
+    <circle cx="69" cy="20" r="8.4" fill="url(#m-occl)" opacity="0.4"/>
+    <path d="M62 15c2-4 10-5 14-1-4 3-10 3-14 1z" fill="url(#g-kr-red)"/>
+    <circle cx="72" cy="19" r="2.2" fill="#12161c"/>
+    <path d="M77 19l16 3-16 3z" fill="url(#g-kr-bronze)"/>
+    <g fill="none" stroke="#3a2a12" stroke-width="3" stroke-linecap="round">
+      <path d="M42 72v10l-4 5"/>
+      <path d="M52 72v10l4 5"/>
+    </g>
+  </symbol>
+
+  <symbol id="sym-toad" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="91" rx="30" ry="5" fill="url(#m-shadow)"/>
+    <!-- 두꺼비: 넓적한 초록 몸에 볼록한 눈, 입에 금 엽전을 물었다 -->
+    <circle cx="31" cy="31" r="12" fill="url(#g-kr-green)"/>
+    <circle cx="69" cy="31" r="12" fill="url(#g-kr-green)"/>
+    <path d="M50 24C28 24 14 40 14 58c0 18 16 30 36 30s36-12 36-30c0-18-14-34-36-34z" fill="url(#g-kr-green)"/>
+    <path d="M50 24C28 24 14 40 14 58c0 18 16 30 36 30s36-12 36-30c0-18-14-34-36-34z" fill="url(#m-occl)"/>
+    <path d="M50 24C28 24 14 40 14 58c0 18 16 30 36 30s36-12 36-30c0-18-14-34-36-34z"
+          fill="none" stroke="url(#m-key)" stroke-width="2.6"/>
+    <ellipse cx="34" cy="46" rx="10" ry="6" fill="url(#m-sheen)" transform="rotate(-24 34 46)"/>
+    <!-- 볼록한 눈 -->
+    <circle cx="31" cy="31" r="12" fill="url(#m-occl)" opacity="0.45"/>
+    <circle cx="69" cy="31" r="12" fill="url(#m-occl)" opacity="0.7"/>
+    <circle cx="31" cy="31" r="12" fill="none" stroke="url(#m-key)" stroke-width="2.2"/>
+    <circle cx="69" cy="31" r="12" fill="none" stroke="url(#m-key)" stroke-width="2.2"/>
+    <ellipse cx="31" cy="30" rx="5" ry="5.6" fill="#0d1a10"/>
+    <ellipse cx="69" cy="30" rx="5" ry="5.6" fill="#0d1a10"/>
+    <circle cx="29" cy="28" r="1.8" fill="#dff3e2"/>
+    <circle cx="67" cy="28" r="1.8" fill="#dff3e2"/>
+    <!-- 등의 혹 -->
+    <g fill="#0c2a16" opacity="0.3">
+      <circle cx="38" cy="46" r="3.2"/><circle cx="62" cy="46" r="3.2"/><circle cx="50" cy="42" r="3.2"/>
+      <circle cx="26" cy="58" r="2.8"/><circle cx="74" cy="58" r="2.8"/>
+    </g>
+    <!-- 입 -->
+    <path d="M32 56C40 63 60 63 68 56" fill="none" stroke="#0c2a16" stroke-width="3.2" stroke-linecap="round"/>
+    <!-- 입에 문 금 엽전. 초록 몸 위의 금이라 따로 읽힌다 -->
+    <ellipse cx="50" cy="74" rx="15" ry="12" fill="url(#g-kr-bronze)"/>
+    <ellipse cx="50" cy="74" rx="15" ry="12" fill="url(#m-occl)" opacity="0.5"/>
+    <ellipse cx="50" cy="74" rx="15" ry="12" fill="none" stroke="#3d2a08" stroke-width="2.4"/>
+    <ellipse cx="50" cy="74" rx="15" ry="12" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <rect x="45.5" y="69.5" width="9" height="9" rx="1" fill="#120b08"/>
+  </symbol>
+
+  <symbol id="sym-tiger" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="92" rx="30" ry="4.6" fill="url(#m-shadow)"/>
+    <!-- 민화 호랑이: 귀가 크고 볼 털이 벌어진 정면 얼굴 -->
+    <path d="M14 36C10 24 15 14 25 13c5 6 6 15 4 24z" fill="url(#g-kr-bronze)"/>
+    <path d="M86 36C90 24 85 14 75 13c-5 6-6 15-4 24z" fill="url(#g-kr-bronze)"/>
+    <path d="M14 36C10 24 15 14 25 13c5 6 6 15 4 24z" fill="url(#m-occl)" opacity="0.7"/>
+    <path d="M86 36C90 24 85 14 75 13c-5 6-6 15-4 24z" fill="url(#m-occl)"/>
+    <path d="M18 32c-2-8 1-14 7-15 3 4 3 10 2 15z" fill="#6b1616" opacity="0.6"/>
+    <path d="M82 32c2-8-1-14-7-15-3 4-3 10-2 15z" fill="#6b1616" opacity="0.6"/>
+    <path d="M50 20C36 20 24 28 20 40l-8 4 8 4-7 7 8 3-6 8h9c5 12 14 18 26 18s21-6 26-18h9l-6-8 8-3-7-7 8-4-8-4C76 28 64 20 50 20z"
+          fill="url(#g-kr-bronze)"/>
+    <path d="M50 20C36 20 24 28 20 40l-8 4 8 4-7 7 8 3-6 8h9c5 12 14 18 26 18s21-6 26-18h9l-6-8 8-3-7-7 8-4-8-4C76 28 64 20 50 20z"
+          fill="url(#m-occl)" opacity="0.75"/>
+    <path d="M50 20C36 20 24 28 20 40l-8 4 8 4-7 7 8 3-6 8h9c5 12 14 18 26 18s21-6 26-18h9l-6-8 8-3-7-7 8-4-8-4C76 28 64 20 50 20z"
+          fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <!-- 이마와 볼의 검은 줄무늬 -->
+    <g fill="#20150a" opacity="0.88">
+      <path d="M44 23h4.4l1 19h-6.4z"/>
+      <path d="M51.6 23H56l1 19h-6.4z"/>
+      <path d="M36 26l4.4-1 3 16-5.4 1z"/>
+      <path d="M64 26l-4.4-1-3 16 5.4 1z"/>
+      <path d="M22 45c6 1 10 3 13 6l-2 4.6c-4-3-7-4.6-12-5.6z"/>
+      <path d="M78 45c-6 1-10 3-13 6l2 4.6c4-3 7-4.6 12-5.6z"/>
+      <path d="M23 57c6 0 10 1 13 3l-1 4.6c-4-2-7-2.6-12-2.6z"/>
+      <path d="M77 57c-6 0-10 1-13 3l1 4.6c4-2 7-2.6 12-2.6z"/>
+    </g>
+    <!-- 주둥이. 밝은 면이라 코·이빨이 또렷하게 읽힌다 -->
+    <ellipse cx="50" cy="70" rx="16" ry="11" fill="#fff4d8" opacity="0.92"/>
+    <ellipse cx="50" cy="70" rx="16" ry="11" fill="url(#m-occl)" opacity="0.35"/>
+    <!-- 눈 -->
+    <path d="M30 48C34 42 44 42 47 48 43 54 33 54 30 48z" fill="#fff6d8"/>
+    <path d="M70 48C66 42 56 42 53 48 57 54 67 54 70 48z" fill="#fff6d8"/>
+    <circle cx="38.5" cy="48" r="3.6" fill="#140c04"/>
+    <circle cx="61.5" cy="48" r="3.6" fill="#140c04"/>
+    <circle cx="37.2" cy="46.6" r="1.2" fill="#fff"/>
+    <circle cx="60.2" cy="46.6" r="1.2" fill="#fff"/>
+    <g fill="none" stroke="#20150a" stroke-width="3" opacity="0.8" stroke-linecap="round">
+      <path d="M29 43C33 38 44 38 48 43"/>
+      <path d="M71 43C67 38 56 38 52 43"/>
+    </g>
+    <!-- 코 · 입 · 송곳니 -->
+    <path d="M45 63h10l-5 6z" fill="#b02525"/>
+    <g fill="none" stroke="#20150a" stroke-width="2.8" stroke-linecap="round">
+      <path d="M50 69v3"/>
+      <path d="M50 72C47 77 41 77 39 73"/>
+      <path d="M50 72c3 5 9 5 11-1"/>
+    </g>
+    <path d="M42 75l2.4 7 2.4-7zM53.2 75l2.4 7 2.4-7z" fill="#fffdf2"/>
+    <g fill="none" stroke="#fff4d8" stroke-width="1.4" opacity="0.45" stroke-linecap="round">
+      <path d="M35 66l-11-3M35 70l-12 1M65 66l11-3M65 70l12 1"/>
+    </g>
+  </symbol>
+
+  <symbol id="sym-pouch" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="93" rx="28" ry="4.6" fill="url(#m-shadow)"/>
+    <!-- 복주머니(와일드): 조인 목 위로 천이 부풀고 아래는 둥글다 -->
+    <path d="M35 34C37 24 43 19 50 19s13 5 15 15z" fill="url(#g-kr-red)"/>
+    <path d="M35 34C37 24 43 19 50 19s13 5 15 15z" fill="url(#m-occl)"/>
+    <!-- 조인 끈의 두 끝이 어깨를 타고 흘러내린다 -->
+    <g fill="none" stroke="url(#g-kr-bronze)" stroke-width="3.2" stroke-linecap="round">
+      <path d="M43 34C36 29 29 29 24 34"/>
+      <path d="M57 34c7-5 14-5 19 0"/>
+    </g>
+    <circle cx="22" cy="36" r="3.6" fill="url(#g-kr-bronze)"/>
+    <circle cx="78" cy="36" r="3.6" fill="url(#g-kr-bronze)"/>
+    <path d="M36 40C24 47 16 58 16 68c0 14 15 24 34 24s34-10 34-24c0-10-8-21-20-28z" fill="url(#g-kr-red)"/>
+    <path d="M36 40C24 47 16 58 16 68c0 14 15 24 34 24s34-10 34-24c0-10-8-21-20-28z" fill="url(#m-occl)"/>
+    <path d="M36 40C24 47 16 58 16 68c0 14 15 24 34 24s34-10 34-24c0-10-8-21-20-28z"
+          fill="none" stroke="url(#m-key)" stroke-width="2.6"/>
+    <g fill="none" stroke="#4a0a0a" stroke-width="2" opacity="0.32">
+      <path d="M31 48c-5 8-7 17-5 26"/>
+      <path d="M69 48c5 8 7 17 5 26"/>
+    </g>
+    <ellipse cx="32" cy="56" rx="10" ry="13" fill="url(#m-sheen)" opacity="0.4" transform="rotate(-18 32 56)"/>
+    <!-- 목을 조인 금띠 -->
+    <rect x="31" y="33" width="38" height="11" rx="5.5" fill="url(#g-kr-bronze)"/>
+    <rect x="31" y="33" width="38" height="11" rx="5.5" fill="url(#m-occl)" opacity="0.45"/>
+    <rect x="34" y="35.4" width="32" height="3" rx="1.5" fill="#f6e3b8" opacity="0.6"/>
+    <!-- 복(福) -->
+    <circle cx="50" cy="66" r="17" fill="none" stroke="#f6e3b8" stroke-width="2.2" opacity="0.55"/>
+    <g fill="#f6e3b8" opacity="0.92">
+      <use href="#p-bok" transform="translate(41.36 53.76) scale(0.72)"/>
+    </g>
   </symbol>
 
   <!-- ── 파라오의 문 심볼 (창작) ──
