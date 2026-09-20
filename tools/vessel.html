@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>복주머니 잭팟 용기 점검 (개발용)</title>
+<!-- 개발용. 저장소 루트에서 python3 -m http.server 로 띄운 뒤 /tools/vessel.html 로 연다.
+     채움 높이별 모습과 팡! 연출을 실제 CSS 그대로 본다. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/cabinet.css">
+<style>
+  body{margin:0;padding:20px;background:linear-gradient(180deg,#2a0a14,#14060a 45%,#0a0605);
+       color:#f2e4c6;font-family:system-ui,sans-serif}
+  h2{font-size:13px;letter-spacing:.14em;color:#c9962f;margin:22px 0 10px;
+     border-top:1px solid #6d4a10;padding-top:10px}
+  .bar{max-width:520px;margin-bottom:8px}
+  .bar--sm{max-width:330px}
+  .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end}
+  .one{width:120px}
+  .cap{font-size:11px;opacity:.7;text-align:center;margin-top:2px}
+  button{font:inherit;padding:6px 12px;margin-right:6px;background:#3a1a12;color:#f2e4c6;
+         border:1px solid #6d4a10;border-radius:6px;cursor:pointer}
+</style></head><body>
+<div id="sprite" style="position:absolute;width:0;height:0;overflow:hidden"></div>
+
+<h2>잭팟 바 — 세로 폭 520px</h2>
+<div class="vessels bar" id="bar"></div>
+
+<h2>잭팟 바 — 좁은 화면 330px</h2>
+<div class="vessels bar bar--sm" id="bar-sm"></div>
+
+<h2>채움 단계</h2>
+<div class="row" id="steps"></div>
+
+<h2>팡!</h2>
+<div>
+  <button id="burst">그랜드 터뜨리기</button>
+  <button id="burst-all">네 개 다</button>
+  <button id="reset">되돌리기</button>
+</div>
+
+<script type="module">
+import { mountSymbolSprite } from '../js/symbols.js';
+import { vesselBarMarkup, vesselMarkup } from '../js/vessel.js';
+import { POUCH_JACKPOT } from '../js/config.js';
+
+mountSymbolSprite(document.getElementById('sprite'));
+const keys = Object.keys(POUCH_JACKPOT.tiers);
+const tiers = POUCH_JACKPOT.tiers;
+
+// 바 두 개. 넓은 쪽과 좁은 쪽을 같은 값으로 채워 크기 대응을 본다.
+for (const id of ['bar', 'bar-sm']) {
+  const host = document.getElementById(id);
+  host.innerHTML = vesselBarMarkup(keys, tiers);
+  const fills = { grand: 0.62, major: 0.34, minor: 0.88, mini: 0.12 };
+  const amounts = { grand: 71400000, major: 11200000, minor: 4600000, mini: 290000 };
+  for (const key of keys) {
+    host.querySelector(`.vessel[data-tier="${key}"]`).style.setProperty('--fill', fills[key]);
+    host.querySelector(`[data-pouch-value="${key}"]`).textContent = amounts[key].toLocaleString('ko-KR');
+  }
+  host.querySelector('.vessel[data-tier="minor"]').classList.add('vessel--near');
+}
+
+// 채움 0 ~ 1
+document.getElementById('steps').innerHTML = [0, 0.12, 0.3, 0.55, 0.78, 0.95, 1].map((f) =>
+  `<div class="one"><div class="vessel vessel--grand" style="--fill:${f}">` +
+  vesselMarkup(`s${String(f).replace('.', '')}`, 'GRAND') +
+  `</div><div class="cap">fill ${f}</div></div>`).join('');
+
+const grand = () => document.querySelector('#bar .vessel[data-tier="grand"]');
+const all = () => [...document.querySelectorAll('#bar .vessel')];
+const fire = (nodes) => {
+  for (const n of nodes) { n.classList.remove('vessel--burst'); void n.offsetWidth; n.classList.add('vessel--burst'); }
+};
+document.getElementById('burst').onclick = () => fire([grand()]);
+document.getElementById('burst-all').onclick = () => fire(all());
+document.getElementById('reset').onclick = () => all().forEach((n) => n.classList.remove('vessel--burst'));
+</script></body></html>

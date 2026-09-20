@@ -7,7 +7,10 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   2: settings.music(배경음) 추가
 //   3: jackpot.pool(단일) → jackpot.pools(4단 티어별)
 //   4: 게임 2종 지원. 통계·기록을 games[게임키] 아래로 분리(코인·잭팟 풀은 공유)
-export const SCHEMA_VERSION = 5;
+//   5: player.tourDoneAt(게임 방법 안내를 본 시각) 추가
+//   6: settings.ambience(홀 생활소음) 추가
+//   7: pouchJackpot(복주머니 전용 풀 + 터질 지점) 추가. 공유 풀과 별개다
+export const SCHEMA_VERSION = 7;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -24,6 +27,16 @@ export const SYMBOLS = {
   diamond: { key: 'diamond', label: '다이아', kind: 'normal' },
   crown: { key: 'crown', label: '크라운', kind: 'wild' },
   star: { key: 'star', label: '스타', kind: 'scatter' },
+  coin: { key: 'coin', label: '골드 코인', kind: 'hold' },
+  // 복주머니 (5x5 클러스터)
+  yeopjeon: { key: 'yeopjeon', label: '엽전', kind: 'normal' },
+  maedeup: { key: 'maedeup', label: '매듭', kind: 'normal' },
+  moran: { key: 'moran', label: '모란', kind: 'normal' },
+  cheongja: { key: 'cheongja', label: '청자', kind: 'normal' },
+  crane: { key: 'crane', label: '학', kind: 'normal' },
+  toad: { key: 'toad', label: '금두꺼비', kind: 'normal' },
+  tiger: { key: 'tiger', label: '호랑이', kind: 'normal' },
+  pouch: { key: 'pouch', label: '복주머니', kind: 'wild' },
   // 파라오의 문
   ankh: { key: 'ankh', label: '앙크', kind: 'normal' },
   lotus: { key: 'lotus', label: '연꽃', kind: 'normal' },
@@ -44,9 +57,10 @@ export const SYMBOLS = {
 // 심볼 순서. 릴 스트립을 만들 때의 배치 순서이자 배당표 표시 순서다.
 // 게임별 스트립은 자기 weights에 있는 키만 쓰므로 두 게임의 심볼을 한 배열에 둬도 섞이지 않는다.
 export const SYMBOL_ORDER = [
-  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star',
+  'cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond', 'crown', 'star', 'coin',
   'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
   'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
+  'yeopjeon', 'maedeup', 'moran', 'cheongja', 'crane', 'toad', 'tiger', 'pouch',
 ];
 
 // 5릴 라인 배당 (라인 베팅 배수)
@@ -118,8 +132,55 @@ export const JACKPOT_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
 // 픽 보너스: 타일 9장(3×3) 중 같은 티어 3개를 모으면 그 티어 당첨.
 // 당첨 티어만 3개를 넣고 나머지 세 티어는 2개씩 넣는다(3 + 2×3 = 9).
 // 그래서 당첨 티어 외에는 3개가 모일 수 없고 결과가 모호해지지 않는다.
+// 옆 기계들이 함께 쌓고 함께 터뜨리는 가상의 홀.
+//
+// 환수율이 바뀌지 않는 이유: 적립 속도와 적중 빈도를 내 기계와 같은 비율로 맞춘다.
+// 홀이 초당 (machines / spinSeconds) 스핀만큼 적립하고, 같은 스핀 수에
+// 1/jackpotOdds 확률로 터뜨린다. 적립이 N배 빨라지는 만큼 리셋도 N배 자주 일어나므로
+// 내가 잭팟을 맞추는 순간의 풀 기대 크기가 혼자 돌릴 때와 같다.
+// 내 적중률과 내 베팅은 그대로이니 내 환수율도 그대로다.
+export const HALL = {
+  machines: 48,
+  spinSeconds: 2,
+  // 스핀당 잭팟 적중 확률의 역수. 프리스핀·잭팟 모드 실측값(1/12,664)을 쓴다.
+  jackpotOdds: 12664,
+  tickMs: 250,
+  // 알림에 쓰는 자리 번호. 실제 사람 이름은 쓰지 않는다.
+  seats: [3, 5, 7, 8, 11, 12, 14, 17, 21, 23, 26, 29, 31, 34],
+};
+
 export const PICK_TILES = 9;
 export const PICK_MATCH = 3;
+
+// 골드 코인 홀드 앤 스핀.
+// 코인이 trigger개 이상 나오면 그 코인이 자리에 고정되고 빈 칸만 다시 돈다.
+// 새 코인이 하나라도 붙으면 남은 횟수가 respins로 초기화된다. 0이 되면 끝난다.
+// 15칸(5 x 3)을 모두 채우면 GRAND 잭팟을 받는다.
+//
+// 코인 심볼은 라인 배당이 없다. LINE_PAYS에 없으므로 engine의 linePayOf가 0을 돌려주고
+// 왼쪽부터 세는 연속을 끊는다. 즉 코인을 스트립에 넣으면 라인 환수율이 저절로 내려간다.
+// 그 내려간 몫을 홀드 앤 스핀이 되돌려 받는 구조다(tools/hold-sim.mjs로 균형점을 찾았다).
+export const HOLD = {
+  symbol: 'coin',
+  // 트리거 개수. 6개로 두면 1/2,300으로 사실상 볼 수 없고, 4개로 두면 1/41로 너무 잦다.
+  trigger: 5,
+  respins: 3,
+  // 리스핀에서 빈 칸 하나에 코인이 붙을 확률.
+  // 이 값이 모이는 코인 수와 전 칸 채움 빈도를 함께 정한다(0.05에서 평균 7.76개, 전 칸 1/200,000).
+  cellOdds: 0.05,
+  // 코인 값 = 총 베팅 배수. weight는 뽑힐 가중치다.
+  // 평균 7.78배. 이 값은 "홀드 앤 스핀이 채워야 할 몫 24.78%"에서 역산했다
+  // (24.78% ÷ 트리거 1/242 ÷ 평균 7.76개 = 7.74배).
+  values: [
+    { mult: 1, weight: 26 },
+    { mult: 2, weight: 18 },
+    { mult: 3, weight: 13 },
+    { mult: 5, weight: 13 },
+    { mult: 10, weight: 15 },
+    { mult: 20, weight: 11 },
+    { mult: 50, weight: 5 },
+  ],
+};
 
 // 매 스핀 총 베팅의 1%를 잭팟 풀에 적립한다. 프리스핀은 적립하지 않는다.
 export const JACKPOT_CONTRIB_RATE = 0.01;
@@ -172,6 +233,21 @@ export const TIMING = {
   countUpTickMs: 55,
   bannerHold: 1800,
   toast: 2600,
+
+  // 홀드 앤 스핀
+  holdEnter: 1000,        // 트리거 코인을 보여주는 시간
+  holdRoll: 460,          // 빈 칸이 도는 시간
+  holdReveal: 380,        // 새로 붙은 코인을 보여주는 시간
+  holdFinish: 1200,       // 합계를 보여주는 시간
+
+  clusterHold: 640,       // 덩어리 당첨을 보여주는 시간
+  clusterGap: 220,        // 다음 덩어리로 넘어가는 간격
+  pouchReveal: 420,       // 잭팟 바를 화면 안으로 들이는 시간
+  pouchBurst: 1100,       // 복주머니가 팡 하고 터지는 시간
+
+  // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
+  attractIdle: 30000,
+  attractGap: 1400,
   turboDivisor: 3,
   // prefers-reduced-motion 에서 당첨 연출을 더 짧게 줄이는 배수
   reducedMotionDivisor: 6,
@@ -240,6 +316,16 @@ function defineMode(mode) {
   };
 }
 
+// 밸런스 탐색 도구가 가중치만 바꿔 같은 방식으로 모드를 다시 만들 수 있게 열어 둔다.
+// 도구가 스트립 생성을 따로 구현하면 게임과 어긋날 수 있다.
+export function rebuildMode(mode, weights) {
+  return {
+    ...mode,
+    weights,
+    strips: buildStrips(mode.reels, weights, mode.reelWeights, STRIP_SEED + mode.seedOffset),
+  };
+}
+
 export const MODE_KEYS = ['classic', 'lines9', 'bonus'];
 
 export const MODES = {
@@ -286,7 +372,13 @@ export const MODES = {
     wild: true,
     scatter: true,
     jackpot: true,
-    weights: { cherry: 12, lemon: 8, bell: 6, bar: 4, seven: 3, diamond: 2, crown: 1, star: 1 },
+    hold: true,
+    // 코인 3개. 코인은 라인 배당이 없어 연속을 끊으므로, 가중치를 올리면 라인 환수율이
+    // 내려가고 홀드 앤 스핀 트리거가 올라간다. 3에서 라인 62.92% / 트리거 1/242로
+    // 적중률 33%를 지키면서 보너스를 볼 수 있는 빈도가 나왔다.
+    weights: {
+      cherry: 12, lemon: 8, bell: 6, bar: 4, seven: 3, diamond: 2, crown: 1, star: 1, coin: 3,
+    },
     reelWeights: [{ crown: 0 }],
   }),
 };
@@ -358,6 +450,74 @@ PHARAOH.strips = buildStrips(
   STRIP_SEED + PHARAOH.seedOffset,
 );
 
+// ── 복주머니 (5x5 클러스터) ────────────────
+// 줄도 릴 경계도 없다. 상하좌우로 붙은 같은 심볼이 minCluster개 이상 뭉치면 당첨이다.
+// 복주머니(와일드)는 어느 덩어리에도 붙어 두 덩어리를 하나로 이어 준다.
+// 배당은 덩어리 크기 구간별 총 베팅 배수다.
+//
+// 클러스터 판정은 격자 전체 모양에 의존해 전수 열거가 불가능하다(8^25).
+// 그래서 이 게임만 몬테카를로로 재고 표준오차를 함께 기록한다(tools/cluster-sim.mjs).
+export const POUCH = {
+  key: 'pouch',
+  reels: 5,
+  rows: 5,
+  wild: 'pouch',
+  minCluster: 5,
+  // 총 베팅 = BETS[betIdx] × betUnits
+  betUnits: 20,
+  // 덩어리 크기 구간. 5/6/7/8~9/10~11/12~14/15칸 이상
+  sizeBands: [5, 6, 7, 8, 9, 10, 12],
+  // 배당은 총 베팅 배수다. 300만 스핀으로 (심볼, 구간)별 계수를 재고
+  // 목표 92.06%에 맞춰 역산한 값이다(tools/cluster-sim.mjs, README 밸런스 항목).
+  pays: {
+    yeopjeon: { 5: 0.8, 6: 1.5, 7: 2, 8: 3, 9: 4, 10: 6, 12: 12 },
+    maedeup: { 5: 1, 6: 2, 7: 3, 8: 5, 9: 8, 10: 10, 12: 20 },
+    moran: { 5: 1.5, 6: 2.5, 7: 4, 8: 6, 9: 10, 10: 12, 12: 30 },
+    cheongja: { 5: 1.8, 6: 3, 7: 5, 8: 8, 9: 12, 10: 18, 12: 40 },
+    crane: { 5: 3, 6: 5, 7: 8, 8: 12, 9: 15, 10: 25, 12: 60 },
+    toad: { 5: 4, 6: 8, 7: 12, 8: 18, 9: 30, 10: 40, 12: 80 },
+    tiger: { 5: 6, 6: 12, 7: 18, 8: 25, 9: 40, 10: 60, 12: 150 },
+  },
+  // 가중치를 16배로 키워 스트립을 704칸으로 만든다. 44칸으로 두면 세로로 붙는 정도가
+  // 스트립 배열의 우연에 지배되어, 같은 가중치인데도 심볼별 덩어리 빈도가 20배씩 흔들렸다
+  // (시드 +505에서 엽전 20.2% / 매듭 1.7%). 길게 늘리면 스톱이 놓일 자리가 많아져
+  // 평균화되고, 덩어리 빈도가 가중치 순서대로 정렬된다(시드를 바꿔도 안정적이다).
+  weights: {
+    yeopjeon: 144, maedeup: 128, moran: 112, cheongja: 96,
+    crane: 80, toad: 64, tiger: 48, pouch: 32,
+  },
+  reelWeights: [],
+  seedOffset: 404,
+};
+
+POUCH.strips = buildStrips(POUCH.reels, POUCH.weights, POUCH.reelWeights, STRIP_SEED + POUCH.seedOffset);
+POUCH.symbolOrder = SYMBOL_ORDER.filter((key) => (POUCH.weights[key] ?? 0) > 0);
+
+// 복주머니 전용 4단 잭팟. 기존 두 게임의 공유 풀과 별개다.
+//
+// 필수 적중(Must Hit By): 등급마다 "반드시 터지는 금액"이 정해져 있고, 실제 터지는 지점은
+// (시드, 반드시터지는금액] 사이에서 균등하게 뽑힌다. 풀이 그 지점에 닿으면 그 스핀에 터진다.
+// 심볼 조건이 없으므로 릴과 무관하게 적립만으로 터진다.
+//
+// 환수율은 해석적으로 정확히 나온다.
+//   등급 t의 기여 = contribRate × share_t × (시드 + 천장) / (천장 − 시드)
+// 적립분은 전액 되돌아오고, 시드만큼이 공짜로 얹히기 때문이다.
+export const POUCH_TIER_KEYS = ['grand', 'major', 'minor', 'mini'];
+
+export const POUCH_JACKPOT = {
+  contribRate: 0.02,
+  // 용기가 빛나고 흔들리기 시작하는 채움 비율. 보여 주기용 기준일 뿐이고
+  // 실제로 터지는 지점(시드~천장 사이 무작위)과는 아무 관계가 없다.
+  nearFill: 0.72,
+  brimFill: 0.9,
+  tiers: {
+    grand: { key: 'grand', label: 'GRAND', seed: 20000000, mustHitBy: 120000000, contribShare: 0.4 },
+    major: { key: 'major', label: 'MAJOR', seed: 5000000, mustHitBy: 24000000, contribShare: 0.3 },
+    minor: { key: 'minor', label: 'MINOR', seed: 1000000, mustHitBy: 5000000, contribShare: 0.2 },
+    mini: { key: 'mini', label: 'MINI', seed: 200000, mustHitBy: 1000000, contribShare: 0.1 },
+  },
+};
+
 // ── 게임 레지스트리 ───────────────────────
 // 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.
 export const GAMES = {
@@ -383,6 +543,17 @@ export const GAMES = {
     badge: '6릴 4행 · 최대 4096 ways',
     artSymbols: ['mask', 'scarab', 'eye'],
   },
+
+  pouch: {
+    key: 'pouch',
+    label: '복주머니',
+    tagline: '5x5 덩어리 판정. 등급마다 복주머니에 돈이 쌓이고, 천장에 닿으면 팡 터진다.',
+    // 덩어리(클러스터) 판정 엔진을 쓴다.
+    kind: 'cluster',
+    modeKeys: [],
+    badge: '5x5 덩어리 · 반드시 터지는 잭팟',
+    artSymbols: ['pouch', 'tiger', 'toad'],
+  },
 };
 
-export const GAME_KEYS = ['cabinet', 'pharaoh'];
+export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch'];

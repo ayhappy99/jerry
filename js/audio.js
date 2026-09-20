@@ -56,11 +56,39 @@ const PATTERN = {
   stab: [6, 14],
 };
 
+// 프리스핀 전용 진행. 단조 3화음으로 내려가며 긴장을 만든다.
+// 다른 세계에 들어왔다는 신호를 소리로도 준다.
+const FREE_PROGRESSION = [
+  { bass: 110.0, chord: [220.0, 261.63, 311.13] },  // Am
+  { bass: 103.83, chord: [207.65, 246.94, 311.13] }, // G#dim
+  { bass: 98.0, chord: [196.0, 233.08, 293.66] },   // Gm
+  { bass: 92.5, chord: [185.0, 220.0, 277.18] },    // F#m
+];
+
+// 프리스핀은 한 칸 더 촘촘하게 찍어 몰아붙인다.
+const FREE_PATTERN_EXTRA = { kick: [2, 10], stab: [0, 6, 8, 14] };
+
 // 아르페지오 자리는 마디마다 번갈아 쓴다.
 const ARP_PATTERNS = [
   [2, 5, 8, 11],
   [1, 4, 7, 10, 13],
 ];
+
+// ── 홀 생활소음 ───────────────────────────
+// 내 기계 소리만 나면 방에서 혼자 돌리는 느낌이 난다.
+// 웅성거림 베드 한 겹에 먼 기계 소리와 동전 트레이를 간헐적으로 얹는다.
+const AMBIENCE = {
+  busGain: 0.34,
+  bedSeconds: 3.2,
+  bedFreq: 360,
+  bedGain: 0.26,
+  fade: 1.6,
+  // 먼 릴 소리와 동전 트레이가 다시 나올 간격(초). 범위 안에서 무작위로 고른다.
+  reelEvery: [6, 15],
+  coinEvery: [13, 32],
+  // 멀리서 들리는 소리라 고역을 깎는다.
+  farFilter: 1500,
+};
 
 const STEP_SECONDS = 60 / MUSIC.bpm / 4;
 const LOOP_STEPS = PROGRESSION.length * MUSIC.stepsPerBar;
@@ -68,9 +96,14 @@ const LOOP_STEPS = PROGRESSION.length * MUSIC.stepsPerBar;
 let audio = null;
 let enabled = false;
 let musicEnabled = false;
+let ambienceEnabled = false;
 let reelTimer = null;
 let music = null;
+// 프리스핀 동안 다른 코드 진행으로 갈아탄다.
+let musicMode = 'base';
+let ambience = null;
 let noiseBuffer = null;
+let bedBuffer = null;
 
 function createContext() {
   const ctx = new AudioContext();
@@ -84,7 +117,11 @@ function createContext() {
   const musicBus = ctx.createGain();
   musicBus.gain.value = 0.0001;
   musicBus.connect(master);
-  return { ctx, master, sfx, musicBus };
+  // 홀 생활소음은 음악과 따로 켜고 끈다.
+  const ambienceBus = ctx.createGain();
+  ambienceBus.gain.value = 0.0001;
+  ambienceBus.connect(master);
+  return { ctx, master, sfx, musicBus, ambienceBus };
 }
 
 export function setEnabled(on) {
@@ -92,6 +129,7 @@ export function setEnabled(on) {
   if (!on) {
     stopReelLoop();
     stopMusic();
+    stopAmbience();
   }
 }
 
@@ -107,6 +145,7 @@ export function unlock() {
   if (audio === null) audio = createContext();
   if (audio.ctx.state === 'suspended') audio.ctx.resume();
   startMusic();
+  startAmbience();
 }
 
 function ready() {
@@ -302,17 +341,21 @@ function scheduleArp(chord, time, index) {
 }
 
 function scheduleStep(step, time) {
+  const free = musicMode === 'free';
+  const progression = free ? FREE_PROGRESSION : PROGRESSION;
   const bar = Math.floor(step / MUSIC.stepsPerBar);
-  const chord = PROGRESSION[bar % PROGRESSION.length];
+  const chord = progression[bar % progression.length];
   const local = step % MUSIC.stepsPerBar;
   const arp = ARP_PATTERNS[bar % ARP_PATTERNS.length];
+  const hit = (name) =>
+    PATTERN[name].includes(local) || (free && (FREE_PATTERN_EXTRA[name] ?? []).includes(local));
 
-  if (PATTERN.kick.includes(local)) scheduleKick(time);
+  if (hit('kick')) scheduleKick(time);
   if (PATTERN.clap.includes(local)) scheduleClap(time);
   if (PATTERN.hatOpen.includes(local)) scheduleHat(time, true);
   else if (PATTERN.hatClosed.includes(local)) scheduleHat(time, false);
   if (PATTERN.bass.includes(local)) scheduleBass(chord, time);
-  if (PATTERN.stab.includes(local)) scheduleStab(chord, time);
+  if (hit('stab')) scheduleStab(chord, time);
   if (arp.includes(local)) scheduleArp(chord, time, step);
 }
 
@@ -346,6 +389,124 @@ export function stopMusic() {
   clearInterval(music.timer);
   music = null;
   rampMusicBus(0, MUSIC.fadeOut);
+}
+
+// 프리스핀 동안 다른 진행으로 갈아탄다. 루프 위치는 그대로 두고 화음만 바뀐다.
+export function setMusicMode(mode) {
+  musicMode = mode;
+}
+
+// ── 홀 생활소음 ───────────────────────────
+
+// 웅성거림용 저역 노이즈. 0.12초 버퍼를 돌리면 주기가 들리므로 따로 길게 만든다.
+function bedSource() {
+  const { ctx } = audio;
+  if (bedBuffer === null) {
+    const length = Math.floor(ctx.sampleRate * AMBIENCE.bedSeconds);
+    bedBuffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = bedBuffer.getChannelData(0);
+    // 브라운 노이즈. 백색 노이즈를 적분해 저역을 살린다.
+    let last = 0;
+    for (let i = 0; i < length; i += 1) {
+      last = (last + (Math.random() * 2 - 1) * 0.02) * 0.995;
+      data[i] = last;
+    }
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = bedBuffer;
+  source.loop = true;
+  return source;
+}
+
+function between([low, high]) {
+  return (low + Math.random() * (high - low)) * 1000;
+}
+
+// 멀리서 도는 남의 릴. 짧은 틱을 여러 번 찍어 회전음을 만든다.
+function farReel(time) {
+  const count = 8 + Math.floor(Math.random() * 10);
+  for (let i = 0; i < count; i += 1) {
+    playNoise({
+      time: time + i * 0.075,
+      dur: 0.02,
+      gain: 0.1,
+      freq: AMBIENCE.farFilter,
+      q: 0.6,
+      type: 'lowpass',
+      target: audio.ambienceBus,
+    });
+  }
+}
+
+// 멀리서 쏟아지는 남의 동전
+function farCoins(time) {
+  const count = 10 + Math.floor(Math.random() * 14);
+  for (let i = 0; i < count; i += 1) {
+    playVoice({
+      time: time + (i / count) ** 1.6 * 1.1,
+      freq: (1400 + Math.random() * 900) * 0.5,
+      type: 'triangle',
+      dur: 0.06,
+      attack: 0.001,
+      gain: 0.12,
+      target: audio.ambienceBus,
+      filterFreq: AMBIENCE.farFilter,
+    });
+  }
+}
+
+function rampAmbienceBus(value, seconds) {
+  const { ctx, ambienceBus } = audio;
+  const now = ctx.currentTime;
+  ambienceBus.gain.cancelScheduledValues(now);
+  ambienceBus.gain.setValueAtTime(Math.max(ambienceBus.gain.value, 0.0001), now);
+  ambienceBus.gain.exponentialRampToValueAtTime(Math.max(value, 0.0001), now + seconds);
+}
+
+export function startAmbience() {
+  if (!ready() || !ambienceEnabled || ambience !== null) return;
+  const { ctx, ambienceBus } = audio;
+
+  const bed = bedSource();
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = AMBIENCE.bedFreq;
+  const bedGain = ctx.createGain();
+  bedGain.gain.value = AMBIENCE.bedGain;
+  bed.connect(filter);
+  filter.connect(bedGain);
+  bedGain.connect(ambienceBus);
+  bed.start();
+
+  ambience = { bed, timers: [] };
+  rampAmbienceBus(AMBIENCE.busGain, AMBIENCE.fade);
+
+  // 먼 기계 소리와 동전을 무작위 간격으로 다시 예약한다.
+  const loop = (key, play) => {
+    const tick = () => {
+      play(audio.ctx.currentTime);
+      ambience.timers.push(setTimeout(tick, between(AMBIENCE[key])));
+    };
+    ambience.timers.push(setTimeout(tick, between(AMBIENCE[key])));
+  };
+  loop('reelEvery', farReel);
+  loop('coinEvery', farCoins);
+}
+
+export function stopAmbience() {
+  if (ambience === null) return;
+  for (const timer of ambience.timers) clearTimeout(timer);
+  const { bed } = ambience;
+  ambience = null;
+  rampAmbienceBus(0, AMBIENCE.fade * 0.5);
+  // 페이드가 끝난 뒤에 소스를 끊는다.
+  setTimeout(() => bed.stop(), AMBIENCE.fade * 500 + 100);
+}
+
+export function setAmbienceEnabled(on) {
+  ambienceEnabled = on;
+  if (on) startAmbience();
+  else stopAmbience();
 }
 
 // 빅윈·잭팟 연출 동안 배경음만 낮춘다.

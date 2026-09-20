@@ -3,6 +3,7 @@
 import {
   AUTO_SPINS,
   BETS,
+  HOLD,
   CLASSIC_PAYS,
   EFFECTS,
   GAMES,
@@ -17,6 +18,9 @@ import {
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
+  POUCH,
+  POUCH_JACKPOT,
+  POUCH_TIER_KEYS,
   SCATTER,
   SCATTER_MIN,
   PICK_MATCH,
@@ -28,8 +32,10 @@ import {
   WIN_TIERS,
   modePaylines,
 } from './config.js';
+import { pouchFill } from './cluster.js';
 import { cellAt, clearHighlights } from './reels.js';
 import { symbolMarkup } from './symbols.js';
+import { vesselBarMarkup } from './vessel.js';
 
 const MARQUEE_BULBS = 18;
 
@@ -50,6 +56,7 @@ export const el = {
   bulbs: document.querySelector('.marquee__bulbs'),
   seat: document.getElementById('seat-label'),
   jackpotBar: document.getElementById('jackpot-bar'),
+  pouchBar: document.getElementById('pouch-jackpot-bar'),
   jackpotHint: document.getElementById('jackpot-hint'),
   modes: document.getElementById('modes'),
   window: document.querySelector('.cabinet__window'),
@@ -60,6 +67,8 @@ export const el = {
   lines: document.getElementById('lines'),
   freespinBadge: document.getElementById('freespin-badge'),
   chainBadge: document.getElementById('chain-badge'),
+  attract: document.getElementById('attract'),
+  holdBadge: document.getElementById('hold-badge'),
   readout: document.getElementById('reel-readout'),
   credit: document.getElementById('credit-meter'),
   betSub: document.getElementById('bet-sub'),
@@ -224,6 +233,73 @@ export function setJackpotHint(text) {
   el.jackpotHint.textContent = text;
 }
 
+// ── 복주머니 잭팟 바 ──────────────────────
+// 복주머니는 공유 풀을 쓰지 않으므로 이 바는 캐비닛 화면에만 있다.
+
+export function renderPouchVessels() {
+  el.pouchBar.innerHTML = vesselBarMarkup(POUCH_TIER_KEYS, POUCH_JACKPOT.tiers);
+}
+
+// 어느 잭팟 바를 보여줄지는 게임 종류가 정한다.
+export function setJackpotBarKind(kind) {
+  const cluster = kind === 'cluster';
+  el.jackpotBar.hidden = cluster;
+  el.pouchBar.hidden = !cluster;
+}
+
+function vesselOf(key) {
+  return el.pouchBar.querySelector(`.vessel[data-tier="${key}"]`);
+}
+
+// 채움 높이는 pouchFill이 준 값을 그대로 넣는다. 연출이 값을 만들지 않는다.
+function setVesselFill(vessel, key, pool) {
+  const fill = pouchFill(key, pool);
+  vessel.style.setProperty('--fill', String(fill));
+  // 가득 찬 용기가 빛나고 흔들린다. 언제 터지는지 알려주는 게 아니다.
+  // 터질 지점은 시드~천장 사이 무작위이고 이 표시와 무관하다.
+  vessel.classList.toggle('vessel--near', fill >= POUCH_JACKPOT.nearFill && fill < POUCH_JACKPOT.brimFill);
+  vessel.classList.toggle('vessel--brim', fill >= POUCH_JACKPOT.brimFill);
+}
+
+export function setPouchJackpot(pools) {
+  for (const key of POUCH_TIER_KEYS) {
+    const vessel = vesselOf(key);
+    vessel.querySelector(`[data-pouch-value="${key}"]`).textContent = formatCoins(pools[key]);
+    setVesselFill(vessel, key, pools[key]);
+  }
+}
+
+// 적립분만큼 금액을 굴려 올리고 채움 높이도 같이 올린다.
+export function rollPouchJackpot(from, to, duration) {
+  for (const key of POUCH_TIER_KEYS) {
+    const vessel = vesselOf(key);
+    countUp(vessel.querySelector(`[data-pouch-value="${key}"]`), from[key], to[key], duration);
+    setVesselFill(vessel, key, to[key]);
+  }
+}
+
+// 세로 화면에서는 릴을 보는 동안 잭팟 바가 화면 밖에 있다.
+// 터지는 걸 놓치지 않게 먼저 화면 안으로 들인다.
+export function revealJackpotBar(ms) {
+  el.pouchBar.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 팡! 끝나면 클래스를 떼어 다음 적립을 다시 그릴 수 있게 한다.
+export function burstVessel(key, ms) {
+  const vessel = vesselOf(key);
+  vessel.classList.remove('vessel--burst', 'vessel--near', 'vessel--brim');
+  // 연달아 터질 때 애니메이션이 처음부터 다시 돌게 강제로 배치를 다시 계산한다
+  void vessel.offsetWidth;
+  vessel.classList.add('vessel--burst');
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      vessel.classList.remove('vessel--burst');
+      resolve();
+    }, ms);
+  });
+}
+
 export function setMessage(text, muted = false) {
   el.message.textContent = text;
   el.message.classList.toggle('message--muted', muted);
@@ -313,6 +389,29 @@ export function setGameTheme(gameKey) {
 export function setChainBadge(text) {
   el.chainBadge.hidden = text === null;
   if (text !== null) el.chainBadge.textContent = text;
+}
+
+// 어트랙트 모드 표시. 데모라는 사실을 화면에 남긴다.
+export function setAttract(on) {
+  el.attract.hidden = !on;
+  el.cabinet.dataset.attract = String(on);
+  if (on) el.message.textContent = '';
+}
+
+// 프리스핀 전용 화면. 배경과 릴 프레임 색이 바뀐다.
+export function setFreeSpinScreen(on) {
+  el.cabinet.dataset.free = String(on);
+}
+
+// 홀드 앤 스핀 전용 화면과 남은 리스핀 표시
+export function setHoldScreen(on) {
+  el.cabinet.dataset.hold = String(on);
+  if (!on) el.holdBadge.hidden = true;
+}
+
+export function setHoldBadge(text) {
+  el.holdBadge.hidden = text === null;
+  if (text !== null) el.holdBadge.textContent = text;
 }
 
 export function setFreeSpinBadge(remaining) {
@@ -473,6 +572,31 @@ export async function playLineWins(lineWins, scatter, { speed = 1, instant = fal
   }
   showAllWins(lineWins, scatter, options);
   if (lineWins.length > 1) await wait(TIMING.lineHighlightAll / speed);
+}
+
+/**
+ * 덩어리 당첨을 하나씩 보여준 뒤 마지막에 전체를 함께 보여준다.
+ * 줄이 없는 판정이라 선은 그리지 않고 칸만 표시한다.
+ */
+export async function playClusterWins(wins, { speed = 1, instant = false, onWin = () => {} } = {}) {
+  if (wins.length === 0) return;
+  const showAll = () => {
+    clearHighlights(el.reels);
+    for (const win of wins) markCells(win, 'cell--win', false);
+    el.reels.classList.add('reels--focus');
+  };
+  if (instant) {
+    showAll();
+    return;
+  }
+  for (const win of wins) {
+    clearHighlights(el.reels);
+    markCells(win, 'cell--win', true);
+    el.reels.classList.add('reels--focus');
+    onWin(win);
+    if (wins.length > 1) await wait(TIMING.clusterHold / speed);
+  }
+  if (wins.length > 1) showAll();
 }
 
 // ── 순간 연출: 섬광 · 흔들림 · 마퀴 ───────
@@ -883,7 +1007,10 @@ export function setFieldError(input, errorEl, message) {
 
 // ── 설정 ──────────────────────────────────
 
-export function openSettings({ nickname, turbo, sound, music, onNickname, onTurbo, onSound, onMusic, onReset }) {
+export function openSettings({
+  nickname, turbo, sound, music, ambience,
+  onNickname, onTurbo, onSound, onMusic, onAmbience, onReset,
+}) {
   const wrap = openModal({
     title: '설정',
     body:
@@ -903,6 +1030,8 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
       '<span>효과음<span class="switch__desc">첫 조작 시점에 오디오가 준비됩니다. 이걸 끄면 배경음도 함께 꺼집니다.</span></span></label>' +
       `<label class="switch"><input type="checkbox" data-music ${music ? 'checked' : ''}>` +
       '<span>배경음<span class="switch__desc">일렉트로 하우스 128 BPM 루프를 직접 합성해 재생합니다. 음원 파일을 쓰지 않습니다.</span></span></label>' +
+      `<label class="switch"><input type="checkbox" data-ambience ${ambience ? 'checked' : ''}>` +
+      '<span>홀 생활소음<span class="switch__desc">옆 기계의 릴 소리와 동전 소리를 아주 낮게 깔아 카지노 홀에 앉은 느낌을 만듭니다.</span></span></label>' +
       '<h3 class="modal__section">초기화</h3>' +
       '<p class="modal__note">코인·통계·잭팟 기록·닉네임이 모두 지워지고 처음 상태로 돌아갑니다.</p>' +
       '<button class="btn btn--danger btn--wide" type="button" data-reset>전체 초기화</button>',
@@ -917,6 +1046,7 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
     if (message === null) closeModal();
   });
   wrap.querySelector('[data-turbo]').addEventListener('change', (event) => onTurbo(event.target.checked));
+  wrap.querySelector('[data-ambience]').addEventListener('change', (event) => onAmbience(event.target.checked));
   wrap.querySelector('[data-sound]').addEventListener('change', (event) => onSound(event.target.checked));
   wrap.querySelector('[data-music]').addEventListener('change', (event) => onMusic(event.target.checked));
   wrap.querySelector('[data-reset]').addEventListener('click', onReset);
@@ -925,8 +1055,13 @@ export function openSettings({ nickname, turbo, sound, music, onNickname, onTurb
 
 // ── 기록 ──────────────────────────────────
 
+// 기록에 남은 판 이름. 페이라인 게임은 모드 이름, 줄이 없는 게임은 게임 이름이다.
+function recordModeLabel(key) {
+  return MODES[key]?.short ?? GAMES[key]?.label ?? key;
+}
+
 function recordRow(entry, extra = '') {
-  const mode = MODES[entry.mode]?.short ?? entry.mode;
+  const mode = recordModeLabel(entry.mode);
   const tier = entry.tier === undefined ? '' : ` · ${JACKPOT_TIERS[entry.tier]?.label ?? entry.tier}`;
   return (
     '<div class="record">' +
@@ -1025,6 +1160,13 @@ function paytableRows(mode) {
           `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>${cells}</tr>`
         );
       }
+      if (key === HOLD.symbol) {
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}<small> 라인 배당 없음</small></span></div></td>` +
+          `<td colspan="3">${HOLD.trigger}개 이상 나오면 홀드 앤 스핀</td></tr>`
+        );
+      }
       const note = key === WILD ? '<small> 아무 심볼로 변신</small>' : '';
       const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}배</td>`).join('');
       return `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}${note}</span></div></td>${cells}</tr>`;
@@ -1111,9 +1253,62 @@ function openWaysPaytable() {
   });
 }
 
+function clusterPaytableRows() {
+  const bands = POUCH.sizeBands;
+  return POUCH.symbolOrder
+    .map((key) => {
+      if (key === POUCH.wild) {
+        return (
+          `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
+          `<span>${SYMBOLS[key].label}</span></div></td>` +
+          `<td colspan="${bands.length}">아무 심볼로 변신해 떨어진 두 덩어리를 이어 줍니다</td></tr>`
+        );
+      }
+      // 배수라는 건 표 머리와 안내문이 말한다. 칸마다 "배"를 붙이면 열이 넘친다.
+      const cells = bands.map((n) => `<td>${POUCH.pays[key][n]}</td>`).join('');
+      return (
+        `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>${cells}</tr>`
+      );
+    })
+    .join('');
+}
+
+function openClusterPaytable() {
+  const bands = POUCH.sizeBands;
+  const header =
+    '<tr><th>심볼</th>' +
+    bands.map((n, i) => `<th>${n}${i === bands.length - 1 ? '+' : ''}</th>`).join('') +
+    '</tr>';
+  const tierList = POUCH_TIER_KEYS.map((key) => POUCH_JACKPOT.tiers[key].label).join('/');
+  const rules = [
+    `<b>줄이 없습니다.</b> 같은 심볼이 <b>위아래 옆으로 붙어</b> ${POUCH.minCluster}칸 이상 뭉치면 당첨입니다. ` +
+      '대각선은 붙은 것으로 보지 않습니다.',
+    '뭉친 칸이 많을수록 받는 돈이 커집니다. 표의 칸 수가 그 구간입니다.',
+    `<b>${SYMBOLS[POUCH.wild].label}</b>는 아무 심볼로든 변신해서, 떨어져 있던 두 덩어리를 하나로 이어 줍니다. ` +
+      '변신 심볼만으로 뭉친 것은 당첨이 아닙니다.',
+    `아래 복주머니 네 개에는 돌릴 때마다 거는 돈의 <b>${(POUCH_JACKPOT.contribRate * 100).toFixed(0)}%</b>가 쌓입니다. ` +
+      `${tierList} 각각 <b>천장</b>이 있어서, 늦어도 그 금액에 닿기 전에 <b>반드시 터집니다</b>. ` +
+      '터질 지점은 미리 정해져 있고 화면에는 보이지 않습니다.',
+    '복주머니 잭팟은 이 게임만의 돈입니다. 다른 게임의 잭팟과 섞이지 않습니다.',
+  ];
+  openModal({
+    title: `배당표 · ${GAMES.pouch.label}`,
+    body:
+      '<p class="modal__note">가로줄은 심볼, 세로줄은 <b>뭉친 칸 수</b>입니다. ' +
+      '숫자는 <b>한 번에 거는 돈</b>의 배수입니다.</p>' +
+      `<div class="table-scroll"><table class="table table--bands"><thead>${header}</thead>` +
+      `<tbody>${clusterPaytableRows()}</tbody></table></div>` +
+      `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
+  });
+}
+
 export function openPaytable(gameKey, modeKey) {
   if (GAMES[gameKey].kind === 'cascade') {
     openWaysPaytable();
+    return;
+  }
+  if (GAMES[gameKey].kind === 'cluster') {
+    openClusterPaytable();
     return;
   }
   const mode = MODES[modeKey];
@@ -1135,6 +1330,11 @@ export function openPaytable(gameKey, modeKey) {
     mode.jackpot
       ? `한 줄에 <b>다이아가 ${JACKPOT_MATCH}개 이상</b>(왕관이 변신한 것은 빼고) 이어지면 잭팟 뽑기가 열려 ` +
         `${JACKPOT_TIER_KEYS.map((key) => JACKPOT_TIERS[key].label).join('/')} 중 한 등급에 쌓인 돈을 전부 받습니다.`
+      : '',
+    mode.hold
+      ? `<b>골드 코인이 ${HOLD.trigger}개 이상</b> 나오면 그 코인이 자리에 붙고 빈 칸만 ${HOLD.respins}번 더 돕니다. ` +
+        `새 코인이 하나라도 붙으면 횟수가 다시 ${HOLD.respins}번으로 늘어납니다. 끝나면 붙은 코인에 적힌 배수를 ` +
+        '모두 합쳐 받고, <b>15칸을 다 채우면 잭팟 뽑기</b>가 열립니다.'
       : '',
   ].filter((line) => line !== '');
 

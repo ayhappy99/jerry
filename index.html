@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 확대/축소를 막는다. 게임 중 핀치 줌이 들어가면 릴 크기 계산(100dvh)이 흔들리고
+     화면이 밀려 조작을 방해한다. viewport-fit=cover로 노치 영역까지 쓴다. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Lucky Cabinet</title>
 <meta name="description" content="가상 코인으로 돌리는 개인용 슬롯머신. 실제 금전 요소는 없습니다.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,11 +50,12 @@
 
   <section class="lobby__shared">
     <div class="lobby__credit">
-      <span class="meter__label">내 코인 <small>두 게임이 같이 씁니다</small></span>
+      <span class="meter__label">내 코인 <small>세 게임이 같이 씁니다</small></span>
       <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
     </div>
-    <p class="lobby__jplabel">두 게임이 같이 쌓는 잭팟</p>
+    <p class="lobby__jplabel">럭키 캐비닛 · 파라오의 문이 같이 쌓는 잭팟</p>
     <div class="jackpots" id="lobby-jackpots"></div>
+    <p class="lobby__jpnote">복주머니는 자기 잭팟을 따로 쌓습니다</p>
   </section>
 
   <div class="lobby__games" id="lobby-games" role="list"></div>
@@ -81,6 +84,8 @@
   <section class="jackpot" aria-labelledby="jackpot-label">
     <p class="jackpot__label" id="jackpot-label">계속 쌓이는 잭팟 <small>PROGRESSIVE JACKPOT</small></p>
     <div class="jackpots" id="jackpot-bar"></div>
+    <!-- 복주머니 전용. 공유 풀 바와 둘 중 하나만 보인다 -->
+    <div class="vessels" id="pouch-jackpot-bar" hidden></div>
     <p class="jackpot__hint" id="jackpot-hint"></p>
   </section>
 
@@ -95,6 +100,12 @@
         <div class="flash" id="flash" aria-hidden="true"></div>
         <div class="freespin-badge" id="freespin-badge" hidden></div>
         <div class="chain-badge" id="chain-badge" hidden></div>
+        <div class="hold-badge" id="hold-badge" hidden></div>
+        <!-- 어트랙트 모드: 유휴 상태에서 혼자 돌 때만 보인다 -->
+        <div class="attract" id="attract" hidden>
+          <p class="attract__line">터치하여 시작</p>
+          <p class="attract__sub">가상 코인으로만 돌아갑니다</p>
+        </div>
       </div>
     </div>
     <p class="sr-only" id="reel-readout" role="status" aria-live="polite"></p>

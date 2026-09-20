@@ -2,7 +2,7 @@
 // 결과는 스핀 시작 시점에 이미 확정되어 있고, 이 파일은 그 결과를 "보여주는" 일만 한다.
 // 앤티시페이션도 확정된 결과를 읽어 연출을 고르는 것이며 확률에 개입하지 않는다.
 
-import { SCATTER, SCATTER_MIN, TIMING } from './config.js';
+import { HOLD, SCATTER, SCATTER_MIN, TIMING } from './config.js';
 import { symbolHref } from './symbols.js';
 
 // 스트립 맨 위의 여유 셀 1개. 정지 시 오버슈트로 내려갈 때 빈 공간이 보이지 않게 한다.
@@ -253,4 +253,83 @@ export async function playCascade(host, mode, steps, { speed = 1, instant = fals
     dropIn(host, mode, removedPerReel(mode, step.wins.flatMap((win) => win.cells)), TIMING.cascadeDrop / speed);
     await wait(TIMING.cascadeDrop / speed);
   }
+}
+
+// ── 홀드 앤 스핀 연출 ──────────────────────
+// 고정된 코인은 값과 함께 남고, 빈 칸만 다시 돈다.
+
+function holdCellMarkup(coin) {
+  if (coin === undefined) {
+    return '<div class="cell cell--blank"><div class="cell__face"></div></div>';
+  }
+  return (
+    '<div class="cell cell--held" data-symbol="coin">' +
+    '<div class="cell__face">' +
+    `<svg viewBox="0 0 100 100" aria-hidden="true"><use href="${symbolHref(HOLD.symbol)}"/></svg>` +
+    `<span class="cell__value">${coin.mult}배</span>` +
+    '</div></div>'
+  );
+}
+
+// 고정 코인 목록으로 판을 그린다. 여유 셀 한 칸은 다른 렌더와 같은 구조를 유지하려고 둔다.
+export function renderHoldGrid(host, mode, coins) {
+  const placed = new Map(coins.map((coin) => [`${coin.reel}:${coin.row}`, coin]));
+  host.style.setProperty('--rows', String(mode.rows));
+  host.innerHTML = mode.strips
+    .map((_, reel) => {
+      const cells = [holdCellMarkup(undefined)];
+      for (let row = 0; row < mode.rows; row += 1) {
+        cells.push(holdCellMarkup(placed.get(`${reel}:${row}`)));
+      }
+      return (
+        `<div class="reel" data-reel="${reel}">` +
+        `<div class="reel__strip" style="${restStyle()}">${cells.join('')}</div>` +
+        '</div>'
+      );
+    })
+    .join('');
+}
+
+function markRolling(host, mode, coins) {
+  const placed = new Set(coins.map((coin) => `${coin.reel}:${coin.row}`));
+  for (let reel = 0; reel < mode.reels; reel += 1) {
+    for (let row = 0; row < mode.rows; row += 1) {
+      if (placed.has(`${reel}:${row}`)) continue;
+      cellAt(host, reel, row).classList.add('cell--rolling');
+    }
+  }
+}
+
+function markFresh(host, added) {
+  for (const { reel, row } of added) cellAt(host, reel, row).classList.add('cell--fresh');
+}
+
+/**
+ * 홀드 앤 스핀 한 판을 재생한다. 결과는 이미 확정되어 있고 steps를 따라가기만 한다.
+ * @param {{coins: object[], steps: object[], trigger: number}} hold
+ */
+export async function playHold(host, mode, hold, { speed = 1, instant = false, onStep = () => {} } = {}) {
+  const shown = hold.coins.slice(0, hold.trigger);
+  renderHoldGrid(host, mode, shown);
+  onStep({ held: shown.length, respinsLeft: HOLD.respins, added: [], done: false });
+
+  if (instant) {
+    renderHoldGrid(host, mode, hold.coins);
+    onStep({ held: hold.coins.length, respinsLeft: 0, added: [], done: true });
+    return;
+  }
+
+  markFresh(host, shown);
+  await wait(TIMING.holdEnter / speed);
+
+  for (const step of hold.steps) {
+    markRolling(host, mode, shown);
+    await wait(TIMING.holdRoll / speed);
+    shown.push(...step.added);
+    renderHoldGrid(host, mode, shown);
+    markFresh(host, step.added);
+    onStep({ held: shown.length, respinsLeft: step.respinsLeft, added: step.added, done: false });
+    await wait(TIMING.holdReveal / speed);
+  }
+  onStep({ held: shown.length, respinsLeft: 0, added: [], done: true });
 }

@@ -7,10 +7,13 @@ import {
   JACKPOT_TIERS,
   JACKPOT_TIER_KEYS,
   MODE_KEYS,
+  POUCH_JACKPOT,
+  POUCH_TIER_KEYS,
   SCHEMA_VERSION,
   START_COINS,
   STORAGE_KEY,
 } from './config.js';
+import { drawHitPoint, seedPouchHitPoints, seedPouchPools } from './cluster.js';
 
 export function seedPools() {
   return Object.fromEntries(JACKPOT_TIER_KEYS.map((key) => [key, JACKPOT_TIERS[key].seed]));
@@ -41,7 +44,11 @@ export function defaultState() {
     player: { nickname: null, createdAt: null, tourDoneAt: null },
     wallet: { coins: START_COINS, totalRefills: 0 },
     jackpot: { pools: seedPools() },
-    settings: { game: GAME_KEYS[0], sound: true, music: true, turbo: false },
+    // 복주머니는 공유 풀을 쓰지 않는다. 자기 풀과 "터질 지점"을 따로 들고 있다.
+    // 터질 지점을 저장하는 이유: 브라우저를 닫았다 열어도 천장까지의 거리가 유지돼야
+    // 환수율이 계산대로 나온다. 매번 새로 뽑으면 천장이 무한히 멀어질 수 있다.
+    pouchJackpot: { pools: seedPouchPools(), hitPoints: seedPouchHitPoints() },
+    settings: { game: GAME_KEYS[0], sound: true, music: true, ambience: true, turbo: false },
     games: Object.fromEntries(GAME_KEYS.map((key) => [key, defaultGameState()])),
   };
 }
@@ -62,6 +69,23 @@ function mergeJackpot(base, stored) {
   return { pools };
 }
 
+// 복주머니 잭팟. 풀은 시드 아래로 내려갈 수 없고, 터질 지점은 시드~천장 안이어야 한다.
+// 저장된 값이 범위를 벗어나면(손으로 고쳤거나 config의 천장이 바뀐 경우) 새로 뽑는다.
+function mergePouchJackpot(base, stored) {
+  if (stored === undefined || stored === null) return base;
+  const pools = {};
+  const hitPoints = {};
+  for (const key of POUCH_TIER_KEYS) {
+    const tier = POUCH_JACKPOT.tiers[key];
+    const pool = stored.pools?.[key];
+    pools[key] = typeof pool === 'number' && pool >= tier.seed ? pool : tier.seed;
+    const point = stored.hitPoints?.[key];
+    const inRange = typeof point === 'number' && point > tier.seed && point <= tier.mustHitBy;
+    hitPoints[key] = inRange ? point : drawHitPoint(key);
+  }
+  return { pools, hitPoints };
+}
+
 // 전역 설정은 아는 키만 가져온다. v3 이하의 mode/betIdx가 섞여 들어오지 않게 하려는 것이다.
 function mergeGlobalSettings(base, stored) {
   if (stored === undefined || stored === null) return base;
@@ -69,6 +93,7 @@ function mergeGlobalSettings(base, stored) {
     game: GAME_KEYS.includes(stored.game) ? stored.game : base.game,
     sound: stored.sound ?? base.sound,
     music: stored.music ?? base.music,
+    ambience: stored.ambience ?? base.ambience,
     turbo: stored.turbo ?? base.turbo,
   };
 }
@@ -109,6 +134,7 @@ function migrate(stored) {
     player: mergeSection(base.player, stored.player),
     wallet: mergeSection(base.wallet, stored.wallet),
     jackpot: mergeJackpot(base.jackpot, stored.jackpot),
+    pouchJackpot: mergePouchJackpot(base.pouchJackpot, stored.pouchJackpot),
     settings: mergeGlobalSettings(base.settings, stored.settings),
     games,
   };
