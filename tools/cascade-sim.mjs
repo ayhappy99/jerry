@@ -75,7 +75,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const pct = (v) => `${(v * 100).toFixed(2)}%`;
   console.log(`파라오의 문 · ${spins.toLocaleString()} 스핀 / 총 베팅 ${totalBet.toLocaleString()}`);
   console.log(`  기본 RTP     ${pct(r.rtp)}  (표준오차 ±${(r.stderr * 100).toFixed(2)}%p, 95% 신뢰구간 ${pct(r.rtp - 1.96 * r.stderr)} ~ ${pct(r.rtp + 1.96 * r.stderr)})`);
-  console.log(`  잭팟 적립 포함 ${pct(r.rtp + JACKPOT_CONTRIB_RATE)}  (목표 94~96%)`);
+  console.log(`  잭팟 적립 포함 ${pct(r.rtp + JACKPOT_CONTRIB_RATE)}  (목표 105%)`);
   console.log(`  적중률       ${pct(r.hitRate)}`);
   console.log(`  프리스핀 발동 ${pct(r.freeTriggerRate)} (1/${Math.round(1 / r.freeTriggerRate)}), 스핀당 ${r.freeSpinsPerSpin.toFixed(3)}회, 리트리거 ${pct(r.retriggerRate)}`);
   console.log(`  잭팟 트리거(연쇄 ${PHARAOH.jackpotChain}단) ${pct(r.jackpotRate)} (1/${Math.round(1 / r.jackpotRate)})`);
