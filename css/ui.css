@@ -97,7 +97,7 @@
   cursor: pointer;
 }
 
-:is(.btn, .tool, .mode-tab, .icon-btn, .field__input):focus-visible {
+:is(.btn, .tool, .icon-btn, .field__input):focus-visible {
   outline: 3px solid var(--credit);
   outline-offset: 2px;
 }
@@ -288,6 +288,60 @@
 
 @keyframes banner-in { from { opacity: 0; transform: translateY(-18px) scale(0.9); } to { opacity: 1; transform: none; } }
 
+/* ── 족보 이름표 (화투) ────────────────────
+   릴 창 안에 인장처럼 찍힌다. 성립한 족보가 여러 개면 순서대로 하나씩 나온다.
+   .banner와 달리 창 안에 두는 이유: 어느 카드가 그 족보인지 동시에 보여야 한다. */
+.jokbo {
+  /* .cabinet__frame 기준이다. 아래 테두리에 반쯤 걸쳐 놓아 카드를 가리지 않는다. */
+  position: absolute; left: 50%; bottom: -14px;
+  transform: translateX(-50%);
+  z-index: 4;
+  white-space: nowrap;
+  display: flex; align-items: baseline; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 2px solid #fff3d8;
+  border-radius: 4px;
+  background: linear-gradient(160deg, rgba(240, 64, 42, 0.96), rgba(153, 12, 10, 0.97));
+  box-shadow: 0 0 30px rgba(240, 64, 42, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  animation: jokbo-in 0.26s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+
+.jokbo__name {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.1em;
+  color: #fff8ec;
+  text-shadow: 0 2px 6px rgba(60, 4, 3, 0.8);
+}
+
+.jokbo__pay {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  color: #ffe066;
+}
+
+/* 큰 족보(10배 이상)는 더 크게 찍히고 계속 뛴다 */
+.jokbo--big {
+  border-color: #ffe066;
+  box-shadow: 0 0 46px rgba(255, 224, 102, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.jokbo--big .jokbo__name {
+  font-size: var(--fs-xl);
+  animation: jokbo-throb 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes jokbo-in {
+  from { opacity: 0; transform: translate(-50%, -10px) scale(0.72) rotate(-4deg); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
+}
+
+@keyframes jokbo-throb {
+  from { transform: scale(1); }
+  to { transform: scale(1.09); }
+}
+
 .overlay {
   position: fixed; inset: 0;
   z-index: var(--z-overlay);
@@ -380,6 +434,25 @@
   100% { opacity: 0; transform: translate(var(--tx), 34vh) rotate3d(1, 1, 0, 1080deg); }
 }
 
+/* 벚꽃잎 파티클. 화투 화면의 당첨 연출이다. 금화 대신 꽃잎이 흩날린다. */
+.petal {
+  position: absolute;
+  top: -24px; left: var(--x);
+  width: var(--size, 12px); height: calc(var(--size, 12px) * 0.78);
+  /* 한쪽이 파인 꽃잎 모양. 원 두 개를 겹치지 않고 border-radius로 만든다 */
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(140deg, #fff2f7 0%, #ffb7cf 42%, #f07ca6 78%, #c4356a 100%);
+  box-shadow: 0 0 9px rgba(255, 183, 207, 0.6);
+  animation: petal-fall 3.1s cubic-bezier(0.45, 0.1, 0.6, 1) var(--d) forwards;
+}
+
+@keyframes petal-fall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  8% { opacity: 1; }
+  50% { transform: translate(calc(var(--sway) * 0.6), 52vh) rotate(calc(var(--spin) * 0.5)); }
+  100% { opacity: 0; transform: translate(var(--sway), 104vh) rotate(var(--spin)); }
+}
+
 /* 회전하는 광선 */
 .rays {
   position: absolute;
@@ -452,8 +525,13 @@
   .overlay__title,
   .overlay__amount--ticking,
   .banner,
+  .jokbo,
+  .jokbo__name,
+  .gopip--stamp,
+  .gobar--max .gopip--on .gopip__mult,
   .rays,
   .halo { animation: none; }
+  .petal { display: none; }
   .reel--anticipate::after { animation: none; opacity: 0.5; }
   .attract__line { animation: none; opacity: 1; }
   .tour--pass .tour__spot { animation: none; }

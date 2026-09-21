@@ -2,7 +2,6 @@
 // 입력(모드, 그리드, 베팅)만 받아 결과 객체를 반환하므로 콘솔/Node에서 그대로 검증할 수 있다.
 
 import {
-  CLASSIC_PAYS,
   FREE_SPIN_AWARD,
   JACKPOT_MATCH,
   JACKPOT_SYMBOL,
@@ -83,20 +82,6 @@ function evaluateLineMode(mode, grid, lineBet) {
   return wins;
 }
 
-function evaluateClassicMode(mode, grid, lineBet) {
-  const symbols = grid.map((reel) => reel[0]);
-  const first = symbols[0];
-  if (!symbols.every((symbol) => symbol === first)) return [];
-  return [
-    {
-      lineIndex: 0,
-      symbol: first,
-      count: mode.reels,
-      amount: CLASSIC_PAYS[first] * lineBet,
-      cells: symbols.map((_, reel) => ({ reel, row: 0 })),
-    },
-  ];
-}
 
 function countScatters(grid) {
   let count = 0;
@@ -168,10 +153,7 @@ export function evaluateSpin({ modeKey, grid, lineBet, freeSpin = false }) {
   const totalBet = totalBetOf(mode, lineBet);
   const multiplier = freeSpin ? FREE_SPIN_MULTIPLIER : 1;
 
-  const lineWins =
-    mode.payKind === 'classic'
-      ? evaluateClassicMode(mode, grid, lineBet)
-      : evaluateLineMode(mode, grid, lineBet);
+  const lineWins = evaluateLineMode(mode, grid, lineBet);
   const scatter = evaluateScatter(mode, grid, totalBet);
 
   const lineTotal = lineWins.reduce((sum, win) => sum + win.amount, 0);

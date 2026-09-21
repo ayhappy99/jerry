@@ -252,6 +252,110 @@ const SPRITE = `
       <stop offset="100%" stop-color="#3f331b"/>
     </linearGradient>
 
+    <!-- 용문 팔레트. 물빛 계열이라 앞의 두 게임(붉은 단청 · 모래빛 이집트)과 겹치지 않는다 -->
+    <linearGradient id="g-dg-water" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#d4f6ff"/>
+      <stop offset="20%" stop-color="#77d2ea"/>
+      <stop offset="48%" stop-color="#2b93b8"/>
+      <stop offset="76%" stop-color="#155a7c"/>
+      <stop offset="100%" stop-color="#062537"/>
+    </linearGradient>
+    <linearGradient id="g-dg-deep" x1="6%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#5d7f96"/>
+      <stop offset="26%" stop-color="#37596f"/>
+      <stop offset="56%" stop-color="#22404f"/>
+      <stop offset="82%" stop-color="#132632"/>
+      <stop offset="100%" stop-color="#070f16"/>
+    </linearGradient>
+    <!-- 조개 안쪽 자패(紫貝). 크림빛에 분홍이 섞인다 -->
+    <linearGradient id="g-dg-shell" x1="6%" y1="0%" x2="72%" y2="100%">
+      <stop offset="0%" stop-color="#fffaf2"/>
+      <stop offset="22%" stop-color="#ffe6df"/>
+      <stop offset="50%" stop-color="#eebfb4"/>
+      <stop offset="78%" stop-color="#ba8577"/>
+      <stop offset="100%" stop-color="#6b4338"/>
+    </linearGradient>
+    <!-- 잉어의 홍백. 등에서 배로 붉은빛이 빠진다 -->
+    <linearGradient id="g-dg-koi" x1="14%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffd9a8"/>
+      <stop offset="18%" stop-color="#ff9a4d"/>
+      <stop offset="44%" stop-color="#ef5a22"/>
+      <stop offset="70%" stop-color="#b52f0e"/>
+      <stop offset="100%" stop-color="#5c1405"/>
+    </linearGradient>
+    <!-- 가재 껍질. 삶은 듯한 주홍에 갈색이 깔린다 -->
+    <linearGradient id="g-dg-crust" x1="10%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffcfb0"/>
+      <stop offset="20%" stop-color="#f2845c"/>
+      <stop offset="48%" stop-color="#c94a28"/>
+      <stop offset="76%" stop-color="#8a2f16"/>
+      <stop offset="100%" stop-color="#3d1207"/>
+    </linearGradient>
+    <!-- 용의 비늘. 청록에 금이 섞인 채색 -->
+    <linearGradient id="g-dg-scale" x1="8%" y1="0%" x2="30%" y2="100%">
+      <stop offset="0%" stop-color="#e8fff4"/>
+      <stop offset="16%" stop-color="#7fe0c0"/>
+      <stop offset="36%" stop-color="#1f7a68"/>
+      <stop offset="54%" stop-color="#b6f0d8"/>
+      <stop offset="74%" stop-color="#155a52"/>
+      <stop offset="90%" stop-color="#4fb89a"/>
+      <stop offset="100%" stop-color="#062824"/>
+    </linearGradient>
+    <!-- 여의주. 안쪽에서 빛이 나오는 구슬이라 중심이 가장 밝다 -->
+    <radialGradient id="g-dg-pearl" cx="36%" cy="30%" r="76%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="20%" stop-color="#e8fbff"/>
+      <stop offset="46%" stop-color="#9fe4f5"/>
+      <stop offset="72%" stop-color="#4aa8cc"/>
+      <stop offset="100%" stop-color="#12506c"/>
+    </radialGradient>
+    <!-- 여의주를 감싼 서기(瑞氣) -->
+    <radialGradient id="g-dg-aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#bff4ff" stop-opacity="0.85"/>
+      <stop offset="52%" stop-color="#6fd8f2" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#2f9ec4" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- 화투 팔레트. 카드는 두꺼운 플라스틱 테와 아이보리 면으로 읽혀야 한다 -->
+    <linearGradient id="g-hw-rim" x1="10%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#4a4650"/>
+      <stop offset="22%" stop-color="#26232c"/>
+      <stop offset="60%" stop-color="#141218"/>
+      <stop offset="100%" stop-color="#050407"/>
+    </linearGradient>
+    <linearGradient id="g-hw-face" x1="8%" y1="0%" x2="72%" y2="100%">
+      <stop offset="0%" stop-color="#fffdf5"/>
+      <stop offset="26%" stop-color="#f8f0dc"/>
+      <stop offset="62%" stop-color="#ecdfc2"/>
+      <stop offset="100%" stop-color="#cbb894"/>
+    </linearGradient>
+    <linearGradient id="g-hw-red" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#ff8a6a"/>
+      <stop offset="22%" stop-color="#f0402a"/>
+      <stop offset="56%" stop-color="#cc1410"/>
+      <stop offset="100%" stop-color="#6b0706"/>
+    </linearGradient>
+    <linearGradient id="g-hw-blue" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#8fb6ea"/>
+      <stop offset="22%" stop-color="#3f6fc4"/>
+      <stop offset="56%" stop-color="#22417e"/>
+      <stop offset="100%" stop-color="#0d1c3c"/>
+    </linearGradient>
+    <linearGradient id="g-hw-green" x1="10%" y1="0%" x2="84%" y2="100%">
+      <stop offset="0%" stop-color="#b3e08a"/>
+      <stop offset="24%" stop-color="#5fa93c"/>
+      <stop offset="58%" stop-color="#2d6b21"/>
+      <stop offset="100%" stop-color="#123008"/>
+    </linearGradient>
+    <!-- 카드 면에 얹는 가로 유광. 플라스틱 코팅으로 읽히게 한다 -->
+    <linearGradient id="g-hw-gloss" x1="0%" y1="0%" x2="100%" y2="14%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="38%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="52%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
     <!-- 회전 중 세로 방향 모션 블러. CSS의 blur()는 등방성이라 세로만 흐리려면 SVG 필터가 필요하다. -->
     <filter id="blur-spin" x="-25%" y="-60%" width="150%" height="220%">
       <feGaussianBlur stdDeviation="0 7"/>
@@ -288,6 +392,39 @@ const SPRITE = `
     </g>
     <!-- 가면의 네메스 머리쓰개 -->
     <path id="p-nemes" d="M50 5C30 5 18 17 16 35l-4 31 17 6 3 15h36l3-15 17-6-4-31C82 17 70 5 50 5z"/>
+
+    <!-- ── 용문 공용 패스 ── -->
+    <!-- 부채꼴 조개. 아래 경첩에서 부챗살이 퍼진다 -->
+    <path id="p-shell" d="M50 84C22 82 5 59 11 36 17 17 33 8 50 8s33 9 39 28c6 23-11 46-39 48z"/>
+    <!-- 자라 등딱지 -->
+    <ellipse id="p-carapace" cx="50" cy="56" rx="31" ry="27"/>
+    <!-- 잉어 몸통. 오른쪽 위로 뛰어오르는 측면 자세다.
+         정면(눈 두 개)으로 그리면 벌레로 읽힌다. 측면이라 눈이 하나뿐이다. -->
+    <path id="p-koi" d="M84 12C68 10 54 21 43 39 35 52 31 64 28 75 44 74 58 62 70 44 78 27 89 20 84 12z"/>
+    <!-- 용 갈기 한 가닥. 머리 둘레를 따라 회전시켜 쓴다 -->
+    <path id="p-mane-spike" d="M-7-25 0-47 7-25z"/>
+    <!-- 여의주를 감싼 불꽃 한 가닥 -->
+    <path id="p-orb-flame" d="M-8-29C-6-40 0-47 8-51 3-42 5-33 1-27z"/>
+    <!-- 용 머리. 주둥이가 길고 턱이 각졌다 -->
+    <path id="p-dragon-head" d="M50 22C33 22 22 33 21 48c-1 11 4 19 11 25 5 5 10 10 18 10s13-5 18-10c7-6 12-14 11-25C78 33 67 22 50 22z"/>
+    <!-- 용문 기와지붕. 처마 끝이 위로 들린 한식 지붕이다 -->
+    <path id="p-gate-roof" d="M50 6 88 24c4 2 6 5 9 10-6-2-10-2-14 0L50 20 17 34c-4-2-8-2-14 0 3-5 5-8 9-10z"/>
+
+    <!-- ── 화투 공용 패스 ──
+         카드 13종이 같은 테와 같은 면을 쓴다. 그림만 갈린다.
+         읽는 규칙을 그림 문법으로 고정했다: 빨간 「광」 배지 = 광, 동물 = 열끗,
+         가로 띠 = 띠, 아무것도 없음 = 피. 족보는 장수를 세는 게임이므로
+         한 눈에 셀 수 있어야 한다. -->
+    <rect id="p-card" x="20" y="5" width="60" height="90" rx="9"/>
+    <rect id="p-card-face" x="25" y="10" width="50" height="80" rx="5"/>
+    <!-- 광 배지. 다섯 광 카드가 모두 이걸 왼쪽 아래에 달고 있다 -->
+    <g id="p-gwang-badge">
+      <rect x="27" y="70" width="20" height="18" rx="3" fill="url(#g-hw-red)"/>
+      <rect x="27" y="70" width="20" height="18" rx="3" fill="none" stroke="#3d0403" stroke-width="1.4"/>
+      <rect x="28.6" y="71.4" width="16.8" height="2.4" rx="1.2" fill="#fff" opacity="0.5"/>
+      <text x="37" y="84.4" text-anchor="middle" font-family="Black Han Sans, Gothic A1, sans-serif"
+            font-size="14" fill="#fff8ec">광</text>
+    </g>
 
     <!-- ── 복주머니 잭팟 용기 ──
          쌓이는 돈이 보여야 하므로 수정(水晶) 복주머니로 그린다. 천이면 속이 안 보인다.
@@ -1048,6 +1185,710 @@ const SPRITE = `
     <rect x="26" y="88" width="48" height="10" rx="3" fill="url(#g-eg-gold)"/>
     <rect x="26" y="88" width="48" height="10" rx="3" fill="url(#m-occl)" opacity="0.5"/>
     <rect x="29" y="89.6" width="42" height="3" rx="1.5" fill="#fff8dc" opacity="0.6"/>
+  </symbol>
+
+  <!-- ── 용문 11종 중 새로 그린 8종 (저배당 5종은 파라오와 공유) ── -->
+
+  <symbol id="sym-shell" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="90" rx="28" ry="4.2" fill="url(#m-shadow)"/>
+    <use href="#p-shell" fill="url(#g-dg-shell)"/>
+    <use href="#p-shell" fill="url(#m-occl)" opacity="0.62"/>
+    <!-- 부챗살. 경첩에서 퍼져 나가야 조개로 읽힌다 -->
+    <g stroke="#6b4338" stroke-width="2.4" stroke-linecap="round" opacity="0.5" fill="none">
+      <path d="M49 80 13 41"/>
+      <path d="M49 80 24 21"/>
+      <path d="M49 80 38 11"/>
+      <path d="M50 80 51 10"/>
+      <path d="M51 80 63 12"/>
+      <path d="M51 80 77 23"/>
+      <path d="M51 80 88 43"/>
+    </g>
+    <g stroke="#fffaf2" stroke-width="1.1" stroke-linecap="round" opacity="0.42" fill="none">
+      <path d="M47 79 11 40"/>
+      <path d="M47 79 22 20"/>
+      <path d="M47 79 36 10"/>
+      <path d="M48 79 49 9"/>
+    </g>
+    <ellipse cx="34" cy="34" rx="16" ry="11" fill="url(#m-sheen)" opacity="0.7" transform="rotate(-32 34 34)"/>
+    <use href="#p-shell" fill="none" stroke="url(#m-key)" stroke-width="2.6"/>
+    <use href="#p-shell" fill="none" stroke="url(#m-rim)" stroke-width="2"/>
+    <!-- 경첩 -->
+    <path d="M41 79h18l-3 11H44z" fill="url(#g-kr-bronze)"/>
+    <path d="M41 79h18l-0.6 3H41.6z" fill="#fffaf2" opacity="0.55"/>
+  </symbol>
+
+  <symbol id="sym-minnow" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="90" rx="27" ry="4" fill="url(#m-shadow)"/>
+    <!-- 붕어: 머리가 오른쪽인 가로 자세. 세로로 뛰는 잉어와 실루엣이 갈린다 -->
+    <path d="M22 50 6 30c-3 13-3 27 0 40z" fill="url(#g-dg-water)"/>
+    <path d="M22 50 6 30c-3 13-3 27 0 40z" fill="url(#m-occl)" opacity="0.5"/>
+    <path d="M40 34 46 17 62 24l2 12z" fill="url(#g-dg-water)"/>
+    <path d="M40 34 46 17 62 24l2 12z" fill="url(#m-occl)" opacity="0.55"/>
+    <path d="M52 64 48 80 66 74l-2-10z" fill="url(#g-dg-water)"/>
+    <path d="M52 64 48 80 66 74l-2-10z" fill="url(#m-occl)" opacity="0.6"/>
+    <path d="M88 50C81 34 66 26 50 26 35 26 25 34 20 50c5 16 15 24 30 24 16 0 31-8 38-24z"
+          fill="url(#g-kr-white)"/>
+    <path d="M88 50C81 34 66 26 50 26 35 26 25 34 20 50c5 16 15 24 30 24 16 0 31-8 38-24z"
+          fill="url(#g-dg-water)" opacity="0.5"/>
+    <path d="M88 50C81 34 66 26 50 26 35 26 25 34 20 50c5 16 15 24 30 24 16 0 31-8 38-24z"
+          fill="url(#m-occl)" opacity="0.55"/>
+    <!-- 비늘 두 줄 -->
+    <g fill="none" stroke="#5f6a73" stroke-width="1.8" opacity="0.42" stroke-linecap="round">
+      <path d="M38 38c4 4 4 20 0 24"/>
+      <path d="M48 36c4 5 4 24 0 29"/>
+      <path d="M58 36c4 5 4 24 0 29"/>
+      <path d="M68 38c4 4 4 20 0 24"/>
+    </g>
+    <ellipse cx="42" cy="40" rx="12" ry="5" fill="url(#m-sheen)" opacity="0.6" transform="rotate(-14 42 40)"/>
+    <path d="M88 50C81 34 66 26 50 26 35 26 25 34 20 50c5 16 15 24 30 24 16 0 31-8 38-24z"
+          fill="none" stroke="url(#m-key)" stroke-width="2.2"/>
+    <!-- 아가미 -->
+    <path d="M74 31C69 39 69 61 74 69" fill="none" stroke="#5f6a73" stroke-width="2.4" opacity="0.6" stroke-linecap="round"/>
+    <circle cx="80" cy="44" r="5" fill="#101820"/>
+    <circle cx="78.4" cy="42.4" r="1.7" fill="#eaf4fa"/>
+    <path d="M88 52c3 0 5 1 6 3" fill="none" stroke="#101820" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+  </symbol>
+
+  <symbol id="sym-crayfish" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="94" rx="27" ry="4" fill="url(#m-shadow)"/>
+    <!-- 가재: 위에서 본 자세. 집게 두 개가 위로 벌어져 실루엣이 확실하다 -->
+    <g fill="none" stroke="#3d1207" stroke-width="2.2" stroke-linecap="round" opacity="0.8">
+      <path d="M43 32C36 20 26 11 14 7"/>
+      <path d="M57 32C64 20 74 11 86 7"/>
+    </g>
+    <!-- 집게 팔 -->
+    <g stroke="url(#g-dg-crust)" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M38 46 24 36"/>
+      <path d="M62 46 76 36"/>
+    </g>
+    <!-- 집게발: 두 갈래가 벌어져 있다 -->
+    <path d="M24 36c-8-3-16 0-18 7 2 6 9 8 15 5z" fill="url(#g-dg-crust)"/>
+    <path d="M24 36c-6-7-14-9-19-5 0 6 5 11 12 12z" fill="url(#g-dg-crust)"/>
+    <path d="M76 36c8-3 16 0 18 7-2 6-9 8-15 5z" fill="url(#g-dg-crust)"/>
+    <path d="M76 36c6-7 14-9 19-5 0 6-5 11-12 12z" fill="url(#g-dg-crust)"/>
+    <g fill="url(#m-occl)" opacity="0.5">
+      <path d="M24 36c-8-3-16 0-18 7 2 6 9 8 15 5z"/>
+      <path d="M76 36c8-3 16 0 18 7-2 6-9 8-15 5z"/>
+    </g>
+    <!-- 다리 세 쌍 -->
+    <g stroke="url(#g-dg-crust)" stroke-width="4" stroke-linecap="round" fill="none">
+      <path d="M36 58 20 62"/><path d="M64 58 80 62"/>
+      <path d="M37 68 22 76"/><path d="M63 68 78 76"/>
+      <path d="M39 76 28 87"/><path d="M61 76 72 87"/>
+    </g>
+    <!-- 머리가슴 -->
+    <path d="M50 26c-11 0-17 8-17 19l3 13h28l3-13c0-11-6-19-17-19z" fill="url(#g-dg-crust)"/>
+    <path d="M50 26c-11 0-17 8-17 19l3 13h28l3-13c0-11-6-19-17-19z" fill="url(#m-occl)" opacity="0.55"/>
+    <path d="M50 26c-11 0-17 8-17 19l3 13h28l3-13c0-11-6-19-17-19z" fill="none" stroke="url(#m-key)" stroke-width="2.2"/>
+    <!-- 배 마디 -->
+    <g fill="url(#g-dg-crust)" stroke="#3d1207" stroke-width="1.4">
+      <path d="M37 58h26l-1.4 8H38.4z"/>
+      <path d="M38.4 66h23.2l-1.4 8H39.8z"/>
+      <path d="M39.8 74h20.4l-1.4 8H41.2z"/>
+    </g>
+    <!-- 꼬리 부채 -->
+    <path d="M41 82h18l10 15c-8 3-12-1-19-1s-11 4-19 1z" fill="url(#g-dg-crust)"/>
+    <path d="M41 82h18l10 15c-8 3-12-1-19-1s-11 4-19 1z" fill="url(#m-occl)" opacity="0.5"/>
+    <g stroke="#3d1207" stroke-width="1.4" opacity="0.6" fill="none">
+      <path d="M46 84 42 96"/><path d="M50 84v13"/><path d="M54 84 58 96"/>
+    </g>
+    <ellipse cx="42" cy="38" rx="7" ry="5" fill="url(#m-sheen)" opacity="0.65" transform="rotate(-24 42 38)"/>
+    <circle cx="43" cy="33" r="3.6" fill="#1a0704"/>
+    <circle cx="57" cy="33" r="3.6" fill="#1a0704"/>
+    <circle cx="42" cy="32" r="1.3" fill="#ffd7c2"/>
+    <circle cx="56" cy="32" r="1.3" fill="#ffd7c2"/>
+  </symbol>
+
+  <symbol id="sym-turtle" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="92" rx="29" ry="4.2" fill="url(#m-shadow)"/>
+    <!-- 자라: 위에서 본 자세. 네 발과 꼬리가 등딱지 밖으로 나온다 -->
+    <g fill="url(#g-kr-green)">
+      <ellipse cx="24" cy="36" rx="10" ry="7" transform="rotate(-38 24 36)"/>
+      <ellipse cx="76" cy="36" rx="10" ry="7" transform="rotate(38 76 36)"/>
+      <ellipse cx="25" cy="74" rx="10" ry="7" transform="rotate(34 25 74)"/>
+      <ellipse cx="75" cy="74" rx="10" ry="7" transform="rotate(-34 75 74)"/>
+      <path d="M50 78c3 0 5 6 3 12-2 3-4 3-6 0-2-6 0-12 3-12z"/>
+    </g>
+    <g fill="url(#m-occl)" opacity="0.55">
+      <ellipse cx="24" cy="36" rx="10" ry="7" transform="rotate(-38 24 36)"/>
+      <ellipse cx="76" cy="36" rx="10" ry="7" transform="rotate(38 76 36)"/>
+      <ellipse cx="25" cy="74" rx="10" ry="7" transform="rotate(34 25 74)"/>
+      <ellipse cx="75" cy="74" rx="10" ry="7" transform="rotate(-34 75 74)"/>
+    </g>
+    <!-- 목과 머리 -->
+    <path d="M44 32h12v10H44z" fill="url(#g-kr-green)"/>
+    <ellipse cx="50" cy="20" rx="11" ry="10" fill="url(#g-kr-green)"/>
+    <ellipse cx="50" cy="20" rx="11" ry="10" fill="url(#m-occl)" opacity="0.45"/>
+    <ellipse cx="50" cy="20" rx="11" ry="10" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <circle cx="45" cy="18" r="2.6" fill="#0d1a10"/>
+    <circle cx="55" cy="18" r="2.6" fill="#0d1a10"/>
+    <path d="M45 26c3 2 7 2 10 0" fill="none" stroke="#0d1a10" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+    <!-- 등딱지 -->
+    <use href="#p-carapace" fill="url(#g-kr-jade)"/>
+    <use href="#p-carapace" fill="url(#m-occl)" opacity="0.6"/>
+    <!-- 육각 무늬. 가운데 한 칸과 둘레 여섯 칸 -->
+    <g fill="none" stroke="#1d3830" stroke-width="2.2" opacity="0.55">
+      <path d="M50 44 60 50v12L50 68 40 62V50z"/>
+      <path d="M50 44 44 36h12z"/>
+      <path d="M60 50 70 44l2 10z"/>
+      <path d="M60 62 72 66l-8 8z"/>
+      <path d="M50 68 56 76H44z"/>
+      <path d="M40 62 28 66l8 8z"/>
+      <path d="M40 50 30 44l-2 10z"/>
+    </g>
+    <use href="#p-carapace" fill="none" stroke="url(#g-kr-bronze)" stroke-width="3.4"/>
+    <use href="#p-carapace" fill="none" stroke="url(#m-key)" stroke-width="2.2"/>
+    <ellipse cx="36" cy="44" rx="14" ry="8" fill="url(#m-sheen)" opacity="0.55" transform="rotate(-24 36 44)"/>
+  </symbol>
+
+  <symbol id="sym-carp" viewBox="0 0 100 100">
+    <ellipse cx="46" cy="95" rx="26" ry="3.6" fill="url(#m-shadow)"/>
+    <!-- 잉어: 용문을 뛰어오르는 측면 자세 (어변성룡) -->
+    <!-- 꼬리지느러미 두 갈래 -->
+    <path d="M31 73C25 81 19 91 17 99c9-2 16-9 20-18z" fill="url(#g-dg-koi)"/>
+    <path d="M29 71C20 73 9 78 3 84c8 4 19 2 27-5z" fill="url(#g-dg-koi)"/>
+    <g fill="url(#m-occl)" opacity="0.5">
+      <path d="M31 73C25 81 19 91 17 99c9-2 16-9 20-18z"/>
+      <path d="M29 71C20 73 9 78 3 84c8 4 19 2 27-5z"/>
+    </g>
+    <g stroke="#5c1405" stroke-width="1.5" opacity="0.5" fill="none">
+      <path d="M30 76 24 92"/><path d="M34 78 32 95"/>
+      <path d="M26 74 12 80"/><path d="M27 78 16 83"/>
+    </g>
+    <!-- 등지느러미 -->
+    <path d="M56 21C51 11 44 5 35 3c0 10 5 20 14 28z" fill="url(#g-dg-koi)"/>
+    <path d="M56 21C51 11 44 5 35 3c0 10 5 20 14 28z" fill="url(#m-occl)" opacity="0.55"/>
+    <!-- 배지느러미 -->
+    <path d="M60 46c5 10 5 20 1 29-7-6-10-16-8-25z" fill="url(#g-dg-koi)"/>
+    <path d="M60 46c5 10 5 20 1 29-7-6-10-16-8-25z" fill="url(#m-occl)" opacity="0.6"/>
+    <!-- 몸통 -->
+    <use href="#p-koi" fill="url(#g-dg-koi)"/>
+    <use href="#p-koi" fill="url(#m-occl)" opacity="0.45"/>
+    <!-- 배는 흰 홍백무늬다 -->
+    <path d="M78 18C64 20 54 30 46 44 39 55 34 65 31 74c10-4 21-14 31-28 9-13 15-22 16-28z"
+          fill="#fff6ea" opacity="0.42"/>
+    <!-- 비늘 -->
+    <g fill="none" stroke="#7d2408" stroke-width="1.8" opacity="0.4" stroke-linecap="round">
+      <path d="M66 20c-2 8-8 16-16 22"/>
+      <path d="M56 30c-2 8-8 16-16 22"/>
+      <path d="M47 42c-2 7-7 14-13 19"/>
+      <path d="M40 55c-1 6-5 11-9 15"/>
+    </g>
+    <ellipse cx="60" cy="30" rx="16" ry="6" fill="url(#m-sheen)" opacity="0.55" transform="rotate(-48 60 30)"/>
+    <use href="#p-koi" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <use href="#p-koi" fill="none" stroke="url(#m-rim)" stroke-width="1.8"/>
+    <!-- 아가미 -->
+    <path d="M74 19C68 24 66 32 68 38" fill="none" stroke="#7d2408" stroke-width="2.2" opacity="0.6" stroke-linecap="round"/>
+    <!-- 수염. 잉어와 붕어를 가르는 표시다 -->
+    <g fill="none" stroke="#7d2408" stroke-width="2.2" stroke-linecap="round">
+      <path d="M85 17C90 22 94 24 99 24"/>
+      <path d="M83 20C86 27 87 32 86 38"/>
+    </g>
+    <!-- 측면이라 눈은 하나다 -->
+    <circle cx="78" cy="22" r="4.6" fill="#1c0a03"/>
+    <circle cx="76.4" cy="20.4" r="1.7" fill="#ffe9d4"/>
+    <path d="M86 14c3 1 5 3 6 6" fill="none" stroke="#5c1405" stroke-width="2.4" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="sym-dragon" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="94" rx="30" ry="4.4" fill="url(#m-shadow)"/>
+    <!-- 용: 기와 용면(龍面)처럼 정면을 본다. 갈기 고리 · 뿔 · 수염 · 송곳니가 다 보인다 -->
+    <!-- 갈기 고리. 아래(턱 쪽)만 비워 둔다 -->
+    <g transform="translate(50 52)" fill="url(#g-kr-bronze)">
+      <use href="#p-mane-spike" transform="rotate(-150)"/>
+      <use href="#p-mane-spike" transform="rotate(-120)"/>
+      <use href="#p-mane-spike" transform="rotate(-90)"/>
+      <use href="#p-mane-spike" transform="rotate(-60)"/>
+      <use href="#p-mane-spike" transform="rotate(60)"/>
+      <use href="#p-mane-spike" transform="rotate(90)"/>
+      <use href="#p-mane-spike" transform="rotate(120)"/>
+      <use href="#p-mane-spike" transform="rotate(150)"/>
+    </g>
+    <g transform="translate(50 52)" fill="url(#m-occl)" opacity="0.5">
+      <use href="#p-mane-spike" transform="rotate(60)"/>
+      <use href="#p-mane-spike" transform="rotate(90)"/>
+      <use href="#p-mane-spike" transform="rotate(120)"/>
+      <use href="#p-mane-spike" transform="rotate(150)"/>
+    </g>
+    <!-- 뿔. 사슴뿔처럼 가지가 갈라진다 -->
+    <path d="M37 26C30 18 27 10 28 2c5 3 9 8 11 14 2-4 2-8 1-12 4 4 6 10 6 18z" fill="url(#g-kr-bronze)"/>
+    <path d="M63 26C70 18 73 10 72 2c-5 3-9 8-11 14-2-4-2-8-1-12-4 4-6 10-6 18z" fill="url(#g-kr-bronze)"/>
+    <path d="M37 26C30 18 27 10 28 2c5 3 9 8 11 14 2-4 2-8 1-12 4 4 6 10 6 18z" fill="url(#m-occl)" opacity="0.45"/>
+    <path d="M63 26C70 18 73 10 72 2c-5 3-9 8-11 14-2-4-2-8-1-12-4 4-6 10-6 18z" fill="url(#m-occl)"/>
+    <path d="M37 26C30 18 27 10 28 2c5 3 9 8 11 14 2-4 2-8 1-12 4 4 6 10 6 18z"
+          fill="none" stroke="#3d2a08" stroke-width="1.8"/>
+    <path d="M63 26C70 18 73 10 72 2c-5 3-9 8-11 14-2-4-2-8-1-12-4 4-6 10-6 18z"
+          fill="none" stroke="#3d2a08" stroke-width="1.8"/>
+    <!-- 머리 -->
+    <use href="#p-dragon-head" fill="url(#g-dg-scale)"/>
+    <use href="#p-dragon-head" fill="url(#m-occl)" opacity="0.6"/>
+    <!-- 이마 비늘 -->
+    <g fill="none" stroke="#062824" stroke-width="1.8" opacity="0.45">
+      <path d="M34 33c5-4 11-4 16 0 5-4 11-4 16 0"/>
+      <path d="M32 41c6-4 12-4 18 0 6-4 12-4 18 0"/>
+    </g>
+    <ellipse cx="38" cy="35" rx="11" ry="7" fill="url(#m-sheen)" opacity="0.6" transform="rotate(-24 38 35)"/>
+    <use href="#p-dragon-head" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <!-- 눈: 금테 안에 붉은 눈동자 -->
+    <path d="M27 51c4-7 13-7 17 0-4 7-13 7-17 0z" fill="#fff6d8"/>
+    <path d="M73 51c-4-7-13-7-17 0 4 7 13 7 17 0z" fill="#fff6d8"/>
+    <ellipse cx="35.5" cy="51" rx="4" ry="5" fill="#ef5a22"/>
+    <ellipse cx="64.5" cy="51" rx="4" ry="5" fill="#ef5a22"/>
+    <path d="M35.5 46v10" stroke="#1c0a03" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M64.5 46v10" stroke="#1c0a03" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M26 50c5-8 14-8 19 0" fill="none" stroke="url(#g-kr-bronze)" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M74 50c-5-8-14-8-19 0" fill="none" stroke="url(#g-kr-bronze)" stroke-width="3.4" stroke-linecap="round"/>
+    <!-- 주둥이 -->
+    <path d="M34 62h32c0 7-3 12-8 14H42c-5-2-8-7-8-14z" fill="#e8fff4" opacity="0.55"/>
+    <path d="M42 60c0-3 2-5 4-4 2-1 4 1 4 4z" fill="#062824" opacity="0.7"/>
+    <path d="M50 60c0-3 2-5 4-4 2-1 4 1 4 4z" fill="#062824" opacity="0.7"/>
+    <!-- 벌린 입. 안이 어두워야 송곳니가 읽힌다 -->
+    <path d="M36 70h28c-2 8-8 13-14 13s-12-5-14-13z" fill="#1a0f06"/>
+    <g fill="#fff6d8">
+      <path d="M37 70h5.4l-2.4 8z"/>
+      <path d="M57.6 70H63l-3 8z"/>
+      <path d="M46 70h8l-1 10h-6z"/>
+      <path d="M40 83h4.6l-1 -5h-2.6z"/>
+      <path d="M55.4 83H60l-1.6-5h-2.6z"/>
+    </g>
+    <!-- 수염 -->
+    <g fill="none" stroke="#fff6d8" stroke-width="2.6" stroke-linecap="round" opacity="0.9">
+      <path d="M34 72C25 82 15 88 5 90"/>
+      <path d="M66 72C75 82 85 88 95 90"/>
+    </g>
+  </symbol>
+
+  <symbol id="sym-orb" viewBox="0 0 100 100">
+    <!-- 여의주(와일드): 서기(瑞氣)와 불꽃이 감싼 구슬 -->
+    <circle cx="50" cy="50" r="48" fill="url(#g-dg-aura)"/>
+    <!-- 불꽃 고리. 한 가닥을 돌려 여덟 방향에 둔다 -->
+    <g transform="translate(50 51)" fill="url(#g-dg-koi)" opacity="0.92">
+      <use href="#p-orb-flame"/>
+      <use href="#p-orb-flame" transform="rotate(45)"/>
+      <use href="#p-orb-flame" transform="rotate(90)"/>
+      <use href="#p-orb-flame" transform="rotate(135)"/>
+      <use href="#p-orb-flame" transform="rotate(180)"/>
+      <use href="#p-orb-flame" transform="rotate(225)"/>
+      <use href="#p-orb-flame" transform="rotate(270)"/>
+      <use href="#p-orb-flame" transform="rotate(315)"/>
+    </g>
+    <g transform="translate(50 51)" fill="#ffe9c0" opacity="0.5">
+      <use href="#p-orb-flame" transform="scale(0.72)"/>
+      <use href="#p-orb-flame" transform="rotate(90) scale(0.72)"/>
+      <use href="#p-orb-flame" transform="rotate(180) scale(0.72)"/>
+      <use href="#p-orb-flame" transform="rotate(270) scale(0.72)"/>
+    </g>
+    <circle cx="50" cy="51" r="30" fill="url(#g-dg-pearl)"/>
+    <circle cx="50" cy="51" r="30" fill="url(#m-occl)" opacity="0.26"/>
+    <!-- 아래쪽에서 올라오는 반사. 구슬이 비어 보이지 않게 한다 -->
+    <path d="M26 62c10 8 28 10 46 2-4 11-14 17-25 17-10 0-18-7-21-19z" fill="#dff8ff" opacity="0.3"/>
+    <circle cx="50" cy="51" r="30" fill="none" stroke="url(#g-kr-bronze)" stroke-width="3.4"/>
+    <circle cx="50" cy="51" r="30" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <ellipse cx="39" cy="39" rx="13" ry="8.6" fill="url(#m-sheen)" transform="rotate(-30 39 39)"/>
+    <circle cx="62" cy="64" r="5.4" fill="url(#m-sheen)" opacity="0.55"/>
+  </symbol>
+
+  <symbol id="sym-gate" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="34" ry="4" fill="url(#m-shadow)"/>
+    <!-- 용문(스캐터): 돌기둥 둘과 기와지붕, 그 사이로 물이 쏟아진다 -->
+    <path d="M28 34h44v58H28z" fill="url(#v-inner)"/>
+    <!-- 쏟아지는 물. 기둥보다 훨씬 밝아야 문으로 읽힌다 -->
+    <path d="M33 34h34c0 20-4 38-6 58H39c-2-20-6-38-6-58z" fill="#eafbff" opacity="0.92"/>
+    <path d="M33 34h34c0 20-4 38-6 58H39c-2-20-6-38-6-58z" fill="url(#g-dg-water)" opacity="0.4"/>
+    <g fill="none" stroke="#2b93b8" stroke-width="1.6" stroke-linecap="round" opacity="0.5">
+      <path d="M41 40c-1 16 0 33 1 50"/>
+      <path d="M50 40v50"/>
+      <path d="M59 40c1 16 0 33-1 50"/>
+    </g>
+    <!-- 물살의 가로 거품 -->
+    <g fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.75">
+      <path d="M36 52c5 3 10 3 14 0 4 3 9 3 14 0"/>
+      <path d="M37 68c5 3 9 3 13 0 4 3 8 3 13 0"/>
+    </g>
+    <!-- 돌기둥. 물보다 어둡고 돌 줄눈이 보인다 -->
+    <path d="M13 32h15l3 60H11z" fill="url(#g-dg-deep)"/>
+    <path d="M87 32H72l-3 60h19z" fill="url(#g-dg-deep)"/>
+    <path d="M22 32h6l3 60h-7z" fill="#070f16" opacity="0.4"/>
+    <path d="M78 32h6l-3 60h-7z" fill="#070f16" opacity="0.22"/>
+    <g stroke="#070f16" stroke-width="1.8" opacity="0.5">
+      <path d="M12 47h17"/><path d="M12 62h18"/><path d="M13 77h18"/>
+      <path d="M71 47h17"/><path d="M70 62h18"/><path d="M69 77h18"/>
+      <path d="M20 32v15"/><path d="M25 47v15"/><path d="M19 62v15"/><path d="M25 77v15"/>
+      <path d="M80 32v15"/><path d="M75 47v15"/><path d="M81 62v15"/><path d="M75 77v15"/>
+    </g>
+    <g stroke="#5d7f96" stroke-width="1" opacity="0.4">
+      <path d="M12 45.4h17"/><path d="M12 60.4h18"/><path d="M13 75.4h18"/>
+      <path d="M71 45.4h17"/><path d="M70 60.4h18"/><path d="M69 75.4h18"/>
+    </g>
+    <!-- 창방. 기둥 둘을 가로로 잇는 보 -->
+    <path d="M9 30h82l-1.4 9H10.4z" fill="url(#g-kr-red)"/>
+    <path d="M9 30h82l-1.4 9H10.4z" fill="url(#m-occl)" opacity="0.5"/>
+    <path d="M10 31.4h80l-0.4 2.4H10.4z" fill="#ffb3a8" opacity="0.5"/>
+    <!-- 지붕 -->
+    <use href="#p-gate-roof" fill="url(#g-kr-red)"/>
+    <use href="#p-gate-roof" fill="url(#m-occl)" opacity="0.55"/>
+    <g stroke="#4a0a0a" stroke-width="1.6" opacity="0.5">
+      <path d="M50 20V8"/><path d="M40 24 43 11"/><path d="M60 24 57 11"/>
+      <path d="M30 28 34 15"/><path d="M70 28 66 15"/><path d="M20 32 25 20"/><path d="M80 32 75 20"/>
+    </g>
+    <use href="#p-gate-roof" fill="none" stroke="url(#m-key)" stroke-width="2.4"/>
+    <!-- 용마루 구슬 -->
+    <circle cx="50" cy="7" r="5.2" fill="url(#g-dg-pearl)"/>
+    <circle cx="50" cy="7" r="5.2" fill="none" stroke="url(#g-kr-bronze)" stroke-width="1.8"/>
+    <!-- 문 아래 물보라 -->
+    <g fill="#eafbff" opacity="0.7">
+      <ellipse cx="34" cy="90" rx="8" ry="3.6"/>
+      <ellipse cx="50" cy="93" rx="10" ry="3.8"/>
+      <ellipse cx="66" cy="90" rx="8" ry="3.6"/>
+    </g>
+  </symbol>
+
+  <!-- ── 화투 13종 ──
+       광 5 · 열끗 4 · 띠 3 · 피 1. 상표를 쓰지 않으려고 그림을 모두 새로 그렸다. -->
+
+  <symbol id="sym-songhak" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 송학: 붉은 해, 학, 솔잎 -->
+    <circle cx="61" cy="26" r="13" fill="url(#g-hw-red)"/>
+    <circle cx="61" cy="26" r="13" fill="none" stroke="#6b0706" stroke-width="1.2"/>
+    <circle cx="57" cy="22" r="4.4" fill="#ffd3c2" opacity="0.6"/>
+    <g fill="none" stroke="#2d6b21" stroke-width="2.2" stroke-linecap="round">
+      <path d="M27 22c5 3 9 8 11 14"/>
+      <path d="M27 30c5 1 9 4 12 8"/>
+      <path d="M31 16c3 4 5 9 6 14"/>
+    </g>
+    <!-- 학: 검은 목, 흰 몸 -->
+    <ellipse cx="47" cy="60" rx="15" ry="10" fill="#fffdf5" transform="rotate(-8 47 60)"/>
+    <ellipse cx="47" cy="60" rx="15" ry="10" fill="none" stroke="#6b5c3c" stroke-width="1.2" transform="rotate(-8 47 60)"/>
+    <path d="M56 54c6-5 8-11 8-16" fill="none" stroke="#141218" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="65" cy="37" r="4.6" fill="#fffdf5"/>
+    <circle cx="65" cy="37" r="4.6" fill="none" stroke="#6b5c3c" stroke-width="1"/>
+    <path d="M62 34c2-2 5-2 6 0-2 1-4 1-6 0z" fill="url(#g-hw-red)"/>
+    <circle cx="66.4" cy="36.4" r="1.2" fill="#141218"/>
+    <path d="M69 37l6 1-6 1.4z" fill="#141218"/>
+    <g fill="none" stroke="#5a4a2a" stroke-width="2" stroke-linecap="round">
+      <path d="M44 70v6"/><path d="M52 70v6"/>
+    </g>
+    <use href="#p-gwang-badge"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-byeotggot" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 벚꽃: 붉은 만막(커튼)과 분홍 꽃잎 -->
+    <path d="M25 14h50v10l-6 5 6 5v6H25v-6l6-5-6-5z" fill="url(#g-hw-red)"/>
+    <path d="M25 14h50v3H25z" fill="#fff" opacity="0.4"/>
+    <g fill="#ffb7cf" stroke="#c4356a" stroke-width="1.2">
+      <circle cx="40" cy="52" r="8"/>
+      <circle cx="58" cy="46" r="7"/>
+      <circle cx="61" cy="62" r="6.4"/>
+      <circle cx="44" cy="68" r="6"/>
+    </g>
+    <g fill="#c4356a">
+      <circle cx="40" cy="52" r="2.2"/><circle cx="58" cy="46" r="2"/>
+      <circle cx="61" cy="62" r="1.8"/><circle cx="44" cy="68" r="1.6"/>
+    </g>
+    <path d="M32 78c8-3 22-3 36 0" fill="none" stroke="#2d6b21" stroke-width="2.2" stroke-linecap="round"/>
+    <use href="#p-gwang-badge"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-gongsan" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 공산: 흰 보름달과 검은 산 -->
+    <circle cx="50" cy="32" r="14" fill="#fffdf5"/>
+    <circle cx="50" cy="32" r="14" fill="none" stroke="#8d7c5c" stroke-width="1.4"/>
+    <circle cx="45" cy="27" r="5" fill="#ecdfc2" opacity="0.8"/>
+    <path d="M25 74c6-14 12-22 17-22 5 0 8 6 12 11 3-5 6-8 9-8 5 0 9 8 12 19z" fill="#26232c"/>
+    <path d="M25 74c6-14 12-22 17-22 3 0 5 2 7 5-6 3-11 9-15 17z" fill="#4a4650"/>
+    <path d="M25 74h50v6H25z" fill="#141218"/>
+    <use href="#p-gwang-badge"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-odong" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 오동: 금빛 봉황. 정면으로 그리면 얼굴 덩어리로 읽혀 측면으로 세웠다 -->
+    <path d="M28 22c10-3 19 0 24 7-8 2-17 1-24-2z" fill="#2d6b21"/>
+    <path d="M72 18c-8-1-15 3-18 10 8 1 14-2 18-7z" fill="#2d6b21"/>
+    <!-- 긴 깃 꼬리. 이게 봉황으로 읽히게 하는 핵심이다 -->
+    <g fill="none" stroke="url(#g-kr-bronze)" stroke-width="3" stroke-linecap="round">
+      <path d="M42 56C34 62 28 72 27 84"/>
+      <path d="M44 58C38 66 35 76 36 86"/>
+      <path d="M46 60c-2 9-1 18 3 26"/>
+    </g>
+    <!-- 몸통과 날개 -->
+    <path d="M62 44c-10-2-19 2-22 10-2 6 2 11 8 12 8 1 15-4 18-11 2-5 1-9-4-11z" fill="url(#g-kr-bronze)"/>
+    <path d="M62 44c-10-2-19 2-22 10-2 6 2 11 8 12 8 1 15-4 18-11 2-5 1-9-4-11z" fill="url(#m-occl)" opacity="0.4"/>
+    <path d="M52 48c6 1 10 5 11 11-6 1-11-3-13-8z" fill="#fff6d0" opacity="0.4"/>
+    <!-- 머리와 부리 -->
+    <circle cx="66" cy="38" r="7" fill="url(#g-kr-bronze)"/>
+    <circle cx="66" cy="38" r="7" fill="url(#m-occl)" opacity="0.3"/>
+    <circle cx="68" cy="36.4" r="2" fill="#141218"/>
+    <path d="M72 38 82 41 72 43z" fill="#f0402a"/>
+    <!-- 볏 -->
+    <path d="M63 31c-1-6 1-10 4-12 2 4 2 8 1 12z" fill="#f0402a"/>
+    <!-- 다리 -->
+    <g fill="none" stroke="#8a5c12" stroke-width="2.2" stroke-linecap="round">
+      <path d="M52 66v7l-4 4"/><path d="M58 66v7l4 4"/>
+    </g>
+    <use href="#p-gwang-badge"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-bigwang" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 비광: 우산과 빗줄기, 늘어진 버들 -->
+    <g stroke="#3f6fc4" stroke-width="2" stroke-linecap="round" opacity="0.7">
+      <path d="M30 16 26 30"/><path d="M40 14 36 30"/><path d="M60 14 56 30"/><path d="M70 16 66 30"/>
+    </g>
+    <path d="M28 46c0-12 10-21 22-21s22 9 22 21z" fill="url(#g-hw-red)"/>
+    <path d="M28 46c0-12 10-21 22-21s22 9 22 21z" fill="url(#m-occl)" opacity="0.35"/>
+    <g fill="none" stroke="#3d0403" stroke-width="1.4" opacity="0.6">
+      <path d="M39 46c0-12 4-21 11-21"/>
+      <path d="M61 46c0-12-4-21-11-21"/>
+    </g>
+    <path d="M28 46c0-12 10-21 22-21s22 9 22 21z" fill="none" stroke="#3d0403" stroke-width="1.6"/>
+    <path d="M50 25v44c0 4-3 6-6 5" fill="none" stroke="#5a4a2a" stroke-width="2.6" stroke-linecap="round"/>
+    <g fill="none" stroke="#2d6b21" stroke-width="2" stroke-linecap="round" opacity="0.85">
+      <path d="M68 52c2 10 0 20-5 28"/>
+      <path d="M72 54c1 9-1 18-5 26"/>
+    </g>
+    <use href="#p-gwang-badge"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-maejo" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 매조: 붉은 매화와 휘파람새. 머리와 몸이 같은 색이면 덩어리로 읽혀 배를 밝혔다 -->
+    <path d="M30 82c4-14 10-26 18-34" fill="none" stroke="#6b5c3c" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#ff8fb0" stroke="#c4356a" stroke-width="1.2">
+      <circle cx="34" cy="32" r="6.4"/><circle cx="49" cy="24" r="5.6"/><circle cx="62" cy="34" r="5"/>
+    </g>
+    <g fill="#c4356a">
+      <circle cx="34" cy="32" r="1.8"/><circle cx="49" cy="24" r="1.6"/><circle cx="62" cy="34" r="1.4"/>
+    </g>
+    <!-- 꼬리 -->
+    <path d="M40 70c-8 2-13 6-15 12 7 1 13-2 17-7z" fill="url(#g-hw-green)"/>
+    <path d="M40 70c-8 2-13 6-15 12 7 1 13-2 17-7z" fill="url(#m-occl)" opacity="0.4"/>
+    <!-- 몸통 -->
+    <path d="M62 50c-10-2-20 3-23 12-2 6 2 11 9 11 9 0 16-6 18-14 1-5-1-8-4-9z" fill="url(#g-hw-green)"/>
+    <path d="M44 66c2-6 8-10 15-10 1 5-3 11-9 13-3 1-5 0-6-3z" fill="#fff6e4" opacity="0.62"/>
+    <path d="M62 50c-10-2-20 3-23 12-2 6 2 11 9 11 9 0 16-6 18-14 1-5-1-8-4-9z"
+          fill="none" stroke="#123008" stroke-width="1.4"/>
+    <!-- 머리. 몸과 겹치지 않게 위로 올렸다 -->
+    <circle cx="65" cy="44" r="7" fill="url(#g-hw-green)"/>
+    <circle cx="65" cy="44" r="7" fill="none" stroke="#123008" stroke-width="1.4"/>
+    <circle cx="67" cy="42.4" r="2.2" fill="#141218"/>
+    <circle cx="66.2" cy="41.6" r="0.8" fill="#fffdf5"/>
+    <path d="M71 44 82 46.6 71 48.6z" fill="#e8ae2c"/>
+    <path d="M71 44 82 46.6 71 48.6z" fill="none" stroke="#8a5c12" stroke-width="0.8"/>
+    <g fill="none" stroke="#8a5c12" stroke-width="2" stroke-linecap="round">
+      <path d="M50 73v6"/><path d="M57 72v7"/>
+    </g>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-girogi" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 기러기: 밤하늘에 세 마리. V자가 커야 44px에서 새로 읽힌다 -->
+    <rect x="25" y="10" width="50" height="48" rx="5" fill="url(#g-hw-blue)"/>
+    <rect x="25" y="10" width="50" height="48" rx="5" fill="url(#m-occl)" opacity="0.3"/>
+    <g fill="none" stroke="#fffdf5" stroke-width="3.4" stroke-linecap="round">
+      <path d="M31 25c4-5 7-5 9-1 2-4 5-4 9 1"/>
+      <path d="M52 40c4-5 7-5 9-1 2-4 5-4 9 1"/>
+      <path d="M32 50c4-5 7-5 9-1 2-4 5-4 9 1"/>
+    </g>
+    <g fill="#fffdf5">
+      <ellipse cx="40" cy="25.6" rx="3.4" ry="2.4"/>
+      <ellipse cx="61" cy="40.6" rx="3.4" ry="2.4"/>
+      <ellipse cx="41" cy="50.6" rx="3.4" ry="2.4"/>
+    </g>
+    <g fill="#e8ae2c">
+      <path d="M43.2 25.2 47 25.9l-3.8 0.8z"/>
+      <path d="M64.2 40.2 68 40.9l-3.8 0.8z"/>
+      <path d="M44.2 50.2 48 50.9l-3.8 0.8z"/>
+    </g>
+    <g fill="none" stroke="#2d6b21" stroke-width="2.4" stroke-linecap="round">
+      <path d="M30 86c6-10 12-16 20-18"/>
+      <path d="M70 86c-6-10-12-16-20-18"/>
+    </g>
+    <path d="M44 66c4-3 8-3 12 0-4 3-8 3-12 0z" fill="#5fa93c"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-sasum" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 사슴: 단풍과 사슴 머리 -->
+    <g fill="url(#g-hw-red)" stroke="#6b0706" stroke-width="1">
+      <path d="M32 22 37 14l5 8 5-3-4 10H35l-4-10z"/>
+      <path d="M60 18 65 10l5 8 5-3-4 10H63l-4-10z"/>
+    </g>
+    <!-- 뿔 -->
+    <g fill="none" stroke="#8a5c12" stroke-width="2.6" stroke-linecap="round">
+      <path d="M42 44C38 36 34 32 30 30"/>
+      <path d="M38 38c-4 0-7-1-9-3"/>
+      <path d="M58 44c4-8 8-12 12-14"/>
+      <path d="M62 38c4 0 7-1 9-3"/>
+    </g>
+    <!-- 머리 -->
+    <path d="M50 42c-9 0-14 5-14 13 0 8 6 16 14 21 8-5 14-13 14-21 0-8-5-13-14-13z" fill="#c98a45"/>
+    <path d="M50 42c-9 0-14 5-14 13 0 8 6 16 14 21 8-5 14-13 14-21 0-8-5-13-14-13z" fill="url(#m-occl)" opacity="0.4"/>
+    <g fill="#fff6e4" opacity="0.7">
+      <circle cx="43" cy="62" r="2"/><circle cx="57" cy="62" r="2"/><circle cx="50" cy="56" r="2"/>
+    </g>
+    <circle cx="44" cy="52" r="2.6" fill="#141218"/>
+    <circle cx="56" cy="52" r="2.6" fill="#141218"/>
+    <ellipse cx="50" cy="70" rx="5" ry="4" fill="#5a3a18"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-yeoltkkeut" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 열끗: 모란과 나비 두 마리. 광도 띠도 없는 열끗의 대표다 -->
+    <g fill="#ff8fb0" stroke="#c4356a" stroke-width="1.2">
+      <circle cx="42" cy="66" r="9"/><circle cx="58" cy="72" r="7"/>
+    </g>
+    <circle cx="42" cy="66" r="3" fill="#c4356a"/>
+    <circle cx="58" cy="72" r="2.4" fill="#c4356a"/>
+    <path d="M30 80c8-3 22-4 40-2" fill="none" stroke="#2d6b21" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- 나비 -->
+    <g fill="url(#g-kr-bronze)" stroke="#5a3a08" stroke-width="1">
+      <path d="M44 32c-8-8-16-9-18-3-2 5 4 10 12 11z"/>
+      <path d="M46 32c8-8 16-9 18-3 2 5-4 10-12 11z"/>
+      <path d="M44 36c-6 4-10 10-7 14 3 3 8 0 11-6z"/>
+      <path d="M46 36c6 4 10 10 7 14-3 3-8 0-11-6z"/>
+    </g>
+    <path d="M44.4 28h1.6v22h-1.6z" fill="#141218"/>
+    <g fill="none" stroke="#141218" stroke-width="1.4" stroke-linecap="round">
+      <path d="M44 28c-2-4-5-6-8-6"/><path d="M46 28c2-4 5-6 8-6"/>
+    </g>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-hongdan" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 홍단: 붉은 띠에 흰 글씨, 아래 매화 -->
+    <g fill="#ff8fb0" stroke="#c4356a" stroke-width="1.2">
+      <circle cx="40" cy="70" r="7"/><circle cx="58" cy="76" r="5.6"/>
+    </g>
+    <circle cx="40" cy="70" r="2.4" fill="#c4356a"/>
+    <path d="M28 84c8-3 20-4 36-2" fill="none" stroke="#2d6b21" stroke-width="2" stroke-linecap="round"/>
+    <rect x="25" y="24" width="50" height="26" fill="url(#g-hw-red)"/>
+    <rect x="25" y="24" width="50" height="4" fill="#fff" opacity="0.38"/>
+    <rect x="25" y="46" width="50" height="4" fill="#3d0403" opacity="0.4"/>
+    <!-- 띠 위의 붓글씨. 글꼴에 기대지 않으려고 획으로 그린다 -->
+    <g fill="#fff8ec">
+      <rect x="41" y="29" width="18" height="2.6" rx="1.3"/>
+      <rect x="48.4" y="29" width="3.2" height="16" rx="1.4"/>
+      <rect x="38" y="35" width="24" height="2.6" rx="1.3"/>
+      <rect x="41" y="41.4" width="18" height="2.6" rx="1.3"/>
+    </g>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-cheongdan" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 청단: 푸른 띠에 흰 글씨, 아래 모란 -->
+    <g fill="#c6a8e8" stroke="#6b4a9c" stroke-width="1.2">
+      <circle cx="40" cy="70" r="7"/><circle cx="58" cy="76" r="5.6"/>
+    </g>
+    <circle cx="40" cy="70" r="2.4" fill="#6b4a9c"/>
+    <path d="M28 84c8-3 20-4 36-2" fill="none" stroke="#2d6b21" stroke-width="2" stroke-linecap="round"/>
+    <rect x="25" y="24" width="50" height="26" fill="url(#g-hw-blue)"/>
+    <rect x="25" y="24" width="50" height="4" fill="#fff" opacity="0.38"/>
+    <rect x="25" y="46" width="50" height="4" fill="#0d1c3c" opacity="0.45"/>
+    <g fill="#fff8ec">
+      <rect x="38" y="29" width="24" height="2.6" rx="1.3"/>
+      <rect x="41" y="34" width="3.2" height="11" rx="1.4"/>
+      <rect x="55.8" y="34" width="3.2" height="11" rx="1.4"/>
+      <rect x="41" y="37.4" width="18" height="2.6" rx="1.3"/>
+      <rect x="41" y="42.4" width="18" height="2.6" rx="1.3"/>
+    </g>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-chodan" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 초단: 글씨 없는 민 붉은 띠. 홍단과 가르는 표시다 -->
+    <g fill="none" stroke="#2d6b21" stroke-width="2.4" stroke-linecap="round">
+      <path d="M33 86c2-12 6-20 12-24"/>
+      <path d="M50 86c0-12 2-21 6-26"/>
+      <path d="M67 86c-2-12-5-19-9-23"/>
+    </g>
+    <rect x="25" y="24" width="50" height="26" fill="url(#g-hw-red)"/>
+    <rect x="25" y="24" width="50" height="4" fill="#fff" opacity="0.38"/>
+    <rect x="25" y="46" width="50" height="4" fill="#3d0403" opacity="0.4"/>
+    <rect x="30" y="33" width="40" height="8" rx="4" fill="#fff" opacity="0.14"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
+  </symbol>
+
+  <symbol id="sym-pi" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="96" rx="27" ry="3.4" fill="url(#m-shadow)"/>
+    <use href="#p-card" fill="url(#g-hw-rim)"/>
+    <use href="#p-card" fill="none" stroke="url(#m-key)" stroke-width="2"/>
+    <use href="#p-card-face" fill="url(#g-hw-face)"/>
+    <!-- 피: 광도 동물도 띠도 없다. 풀잎만 있다 -->
+    <g fill="url(#g-hw-green)" stroke="#123008" stroke-width="1">
+      <path d="M50 22c-12 8-18 20-16 32 10-4 17-16 16-32z"/>
+      <path d="M50 22c12 8 18 20 16 32-10-4-17-16-16-32z"/>
+      <path d="M36 58c-8 6-12 15-10 24 8-3 13-12 10-24z"/>
+      <path d="M64 58c8 6 12 15 10 24-8-3-13-12-10-24z"/>
+    </g>
+    <g fill="none" stroke="#123008" stroke-width="1.2" opacity="0.5">
+      <path d="M50 24v28"/><path d="M37 60c-3 7-4 14-2 20"/><path d="M63 60c3 7 4 14 2 20"/>
+    </g>
+    <path d="M28 88c10-4 34-4 44 0" fill="none" stroke="#6b5c3c" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    <use href="#p-card-face" fill="url(#g-hw-gloss)"/>
+    <use href="#p-card-face" fill="none" stroke="#8d7c5c" stroke-width="1.2" opacity="0.6"/>
   </symbol>
 
   <!-- 저배당 석판 타일. 같은 판에 색과 글자만 바꾼다 -->

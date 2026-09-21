@@ -2,6 +2,7 @@
 
 import {
   BETS,
+  EFFECTS,
   JACKPOT_CONTRIB_RATE,
   JACKPOT_MATCH,
   JACKPOT_ROLL_MS,
@@ -9,6 +10,8 @@ import {
   JACKPOT_TIER_KEYS,
   GAMES,
   GAME_KEYS,
+  GATE,
+  HWATU,
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
@@ -24,10 +27,13 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
+import { drawHeights, spinGate } from './gate.js';
+import { spinHwatu } from './hwatu.js';
+import { drawBeads } from './bead.js';
 import { contributePouch, countPouches, pouchFeed, spinCluster } from './cluster.js';
 import { spinHold, triggered } from './hold.js';
 import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
-import { clearHighlights, playCascade, playHold, renderReels, spinReels } from './reels.js';
+import { clearBeads, clearHighlights, markBeads, playCascade, playHold, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
@@ -41,6 +47,10 @@ const game = {
   mode: null,
   lineBet: 0,
   freeSpinsLeft: 0,
+  // 용문의 이번 판 릴 높이. 스핀마다 다시 뽑고, 화면에 그려진 높이와 항상 같아야 한다.
+  gateHeights: null,
+  // 직전 스핀의 ways. 늘었을 때만 ways 표시가 튀어오른다.
+  gateWays: 0,
   busy: false,
   // 진행 중인 스핀 루프. 체험형 안내가 스핀 종료를 기다릴 때 쓴다.
   loopPromise: Promise.resolve(),
@@ -83,7 +93,14 @@ function countUpDuration(payout, result) {
 function spec() {
   if (game.kind === 'cascade') return PHARAOH;
   if (game.kind === 'cluster') return POUCH;
+  if (game.kind === 'gate') return GATE;
+  if (game.kind === 'hwatu') return HWATU;
   return game.mode;
+}
+
+// 이번에 그려야 할 릴 높이. 가변 릴 게임이 아니면 null이고 모든 릴이 spec().rows다.
+function heights() {
+  return game.kind === 'gate' ? game.gateHeights : null;
 }
 
 // 줄이 없는 게임은 기본 금액을 정해진 칸 수에 한꺼번에 건다.
@@ -130,7 +147,6 @@ function syncMeters() {
 function selectMode(modeKey) {
   game.mode = MODES[modeKey];
   section().settings.mode = modeKey;
-  ui.renderModeTabs(modeKey);
   renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
   syncMeters();
   storage.save(game.state);
@@ -146,6 +162,7 @@ function changeBet(nextIdx) {
 // 캐스케이딩 게임은 모드가 없다. 릴만 그려 두고 탭 줄을 숨긴다.
 function setupCascade() {
   renderReels(ui.reelsHost(), PHARAOH, drawStops(PHARAOH.strips));
+  ui.setCharge(section().charge);
   syncMeters();
   storage.save(game.state);
 }
@@ -153,6 +170,31 @@ function setupCascade() {
 // 덩어리 게임도 모드가 없다.
 function setupCluster() {
   renderReels(ui.reelsHost(), POUCH, drawStops(POUCH.strips));
+  syncMeters();
+  storage.save(game.state);
+}
+
+// 가변 릴 게임. 첫 화면에도 높이를 뽑아 둬야 릴이 빈 채로 남지 않는다.
+function setupGate() {
+  game.gateHeights = drawHeights();
+  game.gateWays = 0;
+  renderReels(ui.reelsHost(), GATE, drawStops(GATE.strips), game.gateHeights);
+  showGateWays();
+  syncMeters();
+  storage.save(game.state);
+}
+
+// 이번 판에 열린 경로 수를 띄운다. 직전보다 늘었으면 한 번 튀어오른다.
+function showGateWays() {
+  const ways = game.gateHeights.reduce((product, rows) => product * rows, 1);
+  ui.setWays(ways, game.gateWays);
+  game.gateWays = ways;
+}
+
+// 족보 게임. 고 단계는 스핀을 넘겨 이어지므로 들어올 때 저장값을 그대로 띄운다.
+function setupHwatu() {
+  renderReels(ui.reelsHost(), HWATU, drawStops(HWATU.strips));
+  ui.setGo(section().go);
   syncMeters();
   storage.save(game.state);
 }
@@ -273,12 +315,25 @@ function readoutText(result, payout) {
   if (result.cluster !== undefined) {
     if (payout.totalWin === 0) return '당첨 없음';
     const parts = result.cluster.wins.map((win) => `${SYMBOLS[win.symbol].label} ${win.size}칸`);
-    return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
+    const bead = result.cluster.beadMult > 1 ? ` 금구슬 ${result.cluster.beadMult}배.` : '';
+    return `${parts.join(', ')}.${bead} ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
   }
   if (result.cascade !== undefined) {
     if (payout.totalWin === 0) return '당첨 없음';
     const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
     return `연속 당첨 ${result.cascade.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
+  }
+  if (result.gate !== undefined) {
+    const ways = `경로 ${result.gate.ways.toLocaleString('ko-KR')}가지.`;
+    if (payout.totalWin === 0) return `${ways} 당첨 없음`;
+    const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
+    return `${ways} 연속 당첨 ${result.gate.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
+  }
+  if (result.hwatu !== undefined) {
+    if (payout.totalWin === 0) return `당첨 없음. 고 단계가 0으로 돌아갑니다.`;
+    const names = result.hwatu.hands.map((hand) => `${hand.label} ${hand.pay}배`).join(', ');
+    const go = result.hwatu.go > 0 ? ` ${result.hwatu.go}고로 ${result.hwatu.goMultiple}배.` : '';
+    return `${names}.${go} ${ui.formatCoins(payout.totalWin)} 코인 획득. 다음 판은 ${result.hwatu.nextGo}고입니다.`;
   }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 ${win.lineIndex + 1}번 줄`,
@@ -292,21 +347,36 @@ function readoutText(result, payout) {
   return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
 }
 
+// 프리스핀을 준 심볼이 몇 개였나. 게임마다 그 수를 담는 자리가 다르다.
+function scatterCountOf(result) {
+  if (result.cascade !== undefined) return result.cascade.scatters;
+  if (result.gate !== undefined) return result.gate.scatters;
+  return result.scatter.count;
+}
+
 function resultMessage(result, payout) {
   if (payout.jackpot !== null) {
     const label = payout.jackpot.hits.map((hit) => jackpotTierLabel(hit.tier)).join(' + ');
     return `${label} 잭팟! ${ui.formatCoins(payout.jackpot.amount)} 획득`;
   }
   if (result.freeSpinsAwarded > 0) {
-    const count = result.cascade === undefined ? result.scatter.count : result.cascade.scatters;
+    const count = scatterCountOf(result);
     return `흩어진 심볼 ${count}개! 공짜 스핀 ${result.freeSpinsAwarded}번`;
   }
   if (payout.totalWin === 0) return '';
   if (result.cluster !== undefined) {
-    return `${result.cluster.wins.length}덩어리 당첨 · ${ui.formatCoins(payout.totalWin)}`;
+    const bead = result.cluster.beadMult > 1 ? ` · 금구슬 ×${result.cluster.beadMult}` : '';
+    return `${result.cluster.wins.length}덩어리 당첨${bead} · ${ui.formatCoins(payout.totalWin)}`;
   }
   if (result.cascade !== undefined) {
     return `연속 당첨 ${result.cascade.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  if (result.gate !== undefined) {
+    return `${result.gate.ways.toLocaleString('ko-KR')}경로 · 연속 ${result.gate.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  if (result.hwatu !== undefined) {
+    const go = result.hwatu.go > 0 ? ` · ${result.hwatu.go}고 ×${result.hwatu.goMultiple}` : '';
+    return `${result.hwatu.hands.map((hand) => hand.label).join(' + ')}${go} · ${ui.formatCoins(payout.totalWin)}`;
   }
   if (result.hold != null) {
     return `골드 코인 ${result.hold.coins.length}개 · ${ui.formatCoins(payout.totalWin)}`;
@@ -330,7 +400,24 @@ async function presentWin(result, payout, coinsBeforeWin) {
 
   // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
   if (tier === 'win') audio.playWin();
-  if (result.cluster === undefined) {
+  if (result.hwatu !== undefined) {
+    // 화투는 금화 대신 꽃잎이 흩날린다
+    if (effects) ui.spawnPetals(EFFECTS.petals[tier] ?? 0, TIMING.petalLife);
+    await ui.playHwatuHands(result.hwatu.hands, {
+      speed,
+      instant: reducedMotion.matches,
+      onHand: () => audio.playLineTick(),
+    });
+    // 고 배수가 붙었으면 그 사실을 한 번 크게 보여 준다
+    if (result.hwatu.goMultiple > 1) {
+      audio.playGo();
+      ui.showBigWin(`${result.hwatu.go}고 · ${result.hwatu.goMultiple}배!`, {
+        speed, tier: 'big', effects, coins: false,
+      });
+      if (effects) ui.spawnPetals(EFFECTS.petals.big, TIMING.petalLife);
+      if (effects) await delay(TIMING.goStamp / speed);
+    }
+  } else if (result.cluster === undefined) {
     await ui.playLineWins(result.lineWins, result.scatter, {
       speed,
       instant: reducedMotion.matches,
@@ -342,6 +429,12 @@ async function presentWin(result, payout, coinsBeforeWin) {
       instant: reducedMotion.matches,
       onWin: () => audio.playLineTick(),
     });
+    // 구슬이 붙었으면 배수를 한 번 크게 보여 준다. 없으면 이 줄을 건너뛴다.
+    if (result.cluster.beadMult > 1) {
+      audio.playBeadHit();
+      ui.showBigWin(`금구슬 ×${result.cluster.beadMult}!`, { speed, tier: 'big', effects });
+      if (effects) await delay(TIMING.beadHold / speed);
+    }
   }
 
   if (result.freeSpinsAwarded > 0) {
@@ -402,13 +495,14 @@ async function presentWin(result, payout, coinsBeforeWin) {
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
 async function revealSpin(spin) {
   if (reducedMotion.matches) {
-    renderReels(ui.reelsHost(), spec(), spin.stops);
+    renderReels(ui.reelsHost(), spec(), spin.stops, heights());
     return;
   }
   const lastReel = spec().reels - 1;
   audio.startReelLoop();
   await spinReels(ui.reelsHost(), spec(), spin, {
     turbo: game.state.settings.turbo,
+    heights: heights(),
     onAnticipate: () => audio.playAnticipation(),
     onReelStop: (reel) => {
       if (reel === lastReel) audio.stopReelLoop();
@@ -475,7 +569,8 @@ async function playHoldBonus(result) {
 // 여기서 확정된다. 적립은 격자에 달려 있으므로 격자를 먼저 뽑아야 한다.
 function drawClusterSpin(totalBet) {
   const stops = drawStops(POUCH.strips);
-  const result = spinCluster({ stops, totalBet });
+  const beads = drawBeads({ reels: POUCH.reels, rows: POUCH.rows });
+  const result = spinCluster({ stops, totalBet, beads });
   return { stops, result, feed: pouchFeed(countPouches(result.grid)) };
 }
 
@@ -500,7 +595,8 @@ function clusterResult(spin, totalBet, pouchHits) {
 // 캐스케이딩 게임 한 스핀. 연쇄 전체가 여기서 확정된다.
 function drawCascade(isFree, totalBet) {
   const stops = drawStops(PHARAOH.strips);
-  const result = spinCascade({ stops, totalBet, freeSpin: isFree });
+  // 부적 게이지는 스핀을 넘겨 이어진다. 들어온 값으로 시작해 나온 값을 다시 저장한다.
+  const result = spinCascade({ stops, totalBet, freeSpin: isFree, charge: section().charge });
   return {
     modeKey: PHARAOH.key,
     totalBet,
@@ -515,6 +611,70 @@ function drawCascade(isFree, totalBet) {
   };
 }
 
+// 가변 릴 게임 한 스핀. 릴 높이와 연쇄 전체가 여기서 확정된다.
+function drawGate(isFree, totalBet) {
+  const stops = drawStops(GATE.strips);
+  const result = spinGate({ stops, heights: game.gateHeights, totalBet, freeSpin: isFree });
+  return {
+    modeKey: GATE.key,
+    totalBet,
+    freeSpin: isFree,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: result.freeSpinsAwarded,
+    totalWin: result.totalWin,
+    jackpot: { hit: false },
+    gate: result,
+    spin: { stops, grid: result.initialGrid },
+  };
+}
+
+// 연쇄를 단계별로 재생한다. 파라오와 같은 구조지만 릴 높이를 함께 넘긴다.
+async function playGateSteps(result) {
+  const speed = presentationSpeed();
+  await playCascade(ui.reelsHost(), GATE, result.gate.steps, {
+    speed,
+    instant: reducedMotion.matches,
+    heights: result.gate.heights,
+    onStep: (step) => {
+      const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
+      ui.setChainBadge(`연속 ${step.chain}번째 · ${step.chainMultiplier}배 · ${ways}경로`);
+      audio.playLineTick();
+    },
+  });
+}
+
+// 족보 게임 한 스핀. 고 단계를 물려 돌린다 — 들어온 값으로 곱하고 나온 값을 저장한다.
+function drawHwatu(totalBet) {
+  const stops = drawStops(HWATU.strips);
+  const result = spinHwatu({ stops, totalBet, go: section().go });
+  return {
+    modeKey: HWATU.key,
+    totalBet,
+    freeSpin: false,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: 0,
+    totalWin: result.totalWin,
+    jackpot: { hit: false },
+    hwatu: result,
+    spin: { stops, grid: result.grid },
+  };
+}
+
+// 고 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
+function syncGo(result) {
+  const before = result.hwatu.go;
+  section().go = result.hwatu.nextGo;
+  ui.setGo(result.hwatu.nextGo, before);
+}
+
+// 게이지 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
+function syncCharge(result) {
+  section().charge = result.cascade.charge;
+  ui.setCharge(result.cascade.charge);
+}
+
 // 연쇄를 단계별로 재생한다. 각 단계의 ways와 배수를 배지에 띄운다.
 async function playCascadeSteps(result) {
   const speed = presentationSpeed();
@@ -522,6 +682,13 @@ async function playCascadeSteps(result) {
     speed,
     instant: reducedMotion.matches,
     onStep: (step) => {
+      if (step.charge !== undefined) {
+        ui.setChainBadge('부적 발동 · 호루스의 눈 강림');
+        ui.flashCharge(TIMING.chargeDrop);
+        ui.setCharge(0);
+        audio.playCharge();
+        return;
+      }
       const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
       ui.setChainBadge(`연속 ${step.chain}번째 · ${step.chainMultiplier}배 · ${ways}경로`);
       audio.playLineTick();
@@ -539,6 +706,7 @@ async function runSpin() {
   }
 
   clearHighlights(ui.reelsHost());
+  clearBeads(ui.reelsHost());
   ui.clearLines();
   ui.setWin(0);
   ui.setMessage(isFree ? `공짜 스핀 ${game.freeSpinsLeft}번 남음 · 당첨금 2배` : '', true);
@@ -547,13 +715,20 @@ async function runSpin() {
   // 화면에 나온 복주머니 심볼 개수로 정해지므로 격자를 먼저 뽑는다.
   const clusterSpin = game.kind === 'cluster' ? drawClusterSpin(totalBet) : null;
 
+  // 릴 높이는 스핀마다 새로 뽑는다. 릴이 돌기 시작하는 프레임에 이미 정해져 있어야
+  // 연출이 결과를 바꾸는 일이 없다.
+  if (game.kind === 'gate') {
+    game.gateHeights = drawHeights();
+    showGateWays();
+  }
+
   let pouchHits = [];
   if (isFree) {
     setFreeSpins(game.freeSpinsLeft - 1);
   } else {
     game.state.wallet.coins -= totalBet;
-    // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 모드도 적립하지 않는다.
-    // (클래식·9라인에서 적립하면 맞출 수 없는 돈을 내는 셈이 되어 환수율이 1%p 낮아진다)
+    // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 게임도 적립하지 않는다.
+    // (맞출 수 없는 돈을 내는 셈이 되어 그 게임의 환수율이 1%p 낮아진다)
     if (canWinJackpot()) contributeJackpot(totalBet);
     if (clusterSpin !== null) pouchHits = contributePouchPool(totalBet, clusterSpin.feed);
   }
@@ -564,6 +739,8 @@ async function runSpin() {
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
   const result =
     game.kind === 'cascade' ? drawCascade(isFree, totalBet)
+    : game.kind === 'gate' ? drawGate(isFree, totalBet)
+    : game.kind === 'hwatu' ? drawHwatu(totalBet)
     : clusterSpin !== null ? clusterResult(clusterSpin, totalBet, pouchHits)
     : drawLines(isFree);
   // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
@@ -572,7 +749,17 @@ async function runSpin() {
   const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
   await revealSpin(result.spin);
+  if (result.cascade !== undefined) syncCharge(result);
+  // 고 단계는 릴이 멈춘 뒤에 올린다. 배수는 이미 적용된 값이고 여기서 보여 주는 것은
+  // "다음 판의 단계"다. 스핀 전에 올리면 이번 판에 쓴 배수와 화면이 어긋난다.
+  if (result.hwatu !== undefined) syncGo(result);
+  // 금구슬은 릴이 멈춘 뒤 격자 위에 얹는다. 결과는 이미 확정돼 있고 보여 주기만 한다.
+  if (result.cluster !== undefined && result.cluster.beads.length > 0) {
+    markBeads(ui.reelsHost(), result.cluster.beads);
+    audio.playBead();
+  }
   if (result.cascade !== undefined) await playCascadeSteps(result);
+  if (result.gate !== undefined) await playGateSteps(result);
   if (result.hold != null) await playHoldBonus(result);
 
   const coinsBeforeWin = game.state.wallet.coins;
@@ -876,6 +1063,10 @@ const TOUR_RULE = {
     '당첨된 칸은 네모로 표시되고, 그 심볼이 사라지면서 새 심볼이 떨어져 또 당첨될 수 있습니다.',
   cluster: '줄이 없습니다. 같은 심볼이 <b>위아래 옆으로 붙어 5칸 이상</b> 뭉치면 당첨입니다. ' +
     '대각선은 붙은 것으로 보지 않아요. 뭉친 칸이 많을수록 받는 돈이 커집니다.',
+  gate: '맨 왼쪽 칸부터 옆으로 같은 심볼이 <b>3칸 이상</b> 이어지면 당첨입니다. 위아래 위치는 상관없어요. ' +
+    '이 게임은 <b>릴마다 칸 수가 매번 달라집니다</b>. 칸이 많이 열릴수록 당첨 경로가 폭발적으로 늘어나요.',
+  hwatu: '줄도 위치도 보지 않습니다. 깔린 <b>열 장을 한 손으로</b> 보고 족보를 셉니다. ' +
+    '성립한 족보는 모두 한 번에 받아요. 카드가 어디 있든 상관없습니다.',
 };
 
 const TOUR_JACKPOT = {
@@ -888,6 +1079,17 @@ const TOUR_JACKPOT = {
     target: '#jackpot-bar',
     text: '<b>쌓이는 상금</b>입니다. 돌릴 때마다 조금씩 쌓이고, 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
       '럭키 캐비닛과 파라오의 문이 같은 상금을 함께 쌓습니다.',
+  },
+  hwatu: {
+    target: '#go',
+    text: '<b>고(GO)</b>입니다. 이긴 판 다음에 한 단씩 올라가고, 배수가 1 → 2 → 3 → 5 → <b>10배</b>로 커집니다. ' +
+      '못 딴 판이 나오면 0으로 돌아가요. 작은 족보도 고를 이어 가는 밑돌입니다. ' +
+      '이 게임에는 쌓이는 상금이 없고, 고가 그 자리를 대신합니다.',
+  },
+  gate: {
+    target: '#ways',
+    text: '이번 판에 열린 <b>당첨 경로 수</b>입니다. 릴 여섯 개가 모두 높게 열리면 ' +
+      '117,649가지까지 나옵니다. 이 게임에는 쌓이는 상금이 없고, 대신 경로 수와 연속 당첨이 배수를 키웁니다.',
   },
   cluster: {
     target: '#pouch-jackpot-bar',
@@ -998,25 +1200,6 @@ function openPanel(name) {
 }
 
 function wireControls() {
-  ui.el.modes.addEventListener('click', (event) => {
-    const tab = event.target.closest('.mode-tab');
-    if (tab === null || tab.disabled) return;
-    selectMode(tab.dataset.mode);
-  });
-
-  // 탭 위젯 표준 키보드 조작: 좌우 화살표로 모드를 옮긴다.
-  ui.el.modes.addEventListener('keydown', (event) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
-    if (step === undefined || game.kind !== 'lines') return;
-    const tabs = ui.modeTabs();
-    if (tabs.some((tab) => tab.disabled)) return;
-    event.preventDefault();
-    const current = MODE_KEYS.indexOf(game.mode.key);
-    const next = (current + step + MODE_KEYS.length) % MODE_KEYS.length;
-    selectMode(MODE_KEYS[next]);
-    ui.modeTabs()[next].focus();
-  });
-
   ui.el.betDown.addEventListener('click', () => changeBet(section().settings.betIdx - 1));
   ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(affordableBetIdx()));
@@ -1114,8 +1297,10 @@ function enterGame(gameKey) {
 
   ui.setSeat(game.state.player.nickname, GAMES[gameKey].label);
   ui.setGameTheme(gameKey);
-  ui.setModesVisible(game.kind === 'lines');
   ui.setJackpotBarKind(game.kind);
+  ui.setChargeVisible(game.kind === 'cascade');
+  ui.setWaysVisible(game.kind === 'gate');
+  ui.setGoVisible(game.kind === 'hwatu');
   ui.showScreen('cabinet');
   ui.setChainBadge(null);
 
@@ -1123,8 +1308,12 @@ function enterGame(gameKey) {
     setupCascade();
   } else if (game.kind === 'cluster') {
     setupCluster();
+  } else if (game.kind === 'gate') {
+    setupGate();
+  } else if (game.kind === 'hwatu') {
+    setupHwatu();
   } else {
-    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
+    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[0];
     selectMode(modeKey);
   }
 
@@ -1146,6 +1335,9 @@ function boot() {
   ui.renderJackpotBar(ui.el.jackpotBar);
   ui.renderJackpotBar(ui.el.lobbyJackpots);
   ui.renderPouchVessels();
+  ui.mountLobbyCreditNote();
+  ui.mountGoLadder();
+  ui.mountCharge();
 
   game.state = storage.load();
   game.key = GAME_KEYS.includes(game.state.settings.game) ? game.state.settings.game : GAME_KEYS[0];

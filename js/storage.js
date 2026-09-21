@@ -4,9 +4,11 @@
 import {
   GAME_KEYS,
   HISTORY_LIMITS,
+  HWATU,
   JACKPOT_TIERS,
   JACKPOT_TIER_KEYS,
   MODE_KEYS,
+  PHARAOH,
   POUCH_JACKPOT,
   POUCH_TIER_KEYS,
   SCHEMA_VERSION,
@@ -22,7 +24,7 @@ export function seedPools() {
 // 게임 하나가 따로 쌓는 것들. 코인과 잭팟 풀은 여기 들어가지 않는다(공유).
 export function defaultGameState() {
   return {
-    settings: { mode: MODE_KEYS[1], betIdx: 2 },
+    settings: { mode: MODE_KEYS[0], betIdx: 2 },
     stats: {
       spins: 0,
       totalWagered: 0,
@@ -35,6 +37,10 @@ export function defaultGameState() {
     },
     jackpotHistory: [],
     bigWins: [],
+    // 부적 게이지(파라오). 스핀을 넘겨 이어지므로 저장한다.
+    charge: 0,
+    // 고 단계(화투). 이것도 스핀을 넘겨 이어진다.
+    go: 0,
   };
 }
 
@@ -98,12 +104,26 @@ function mergeGlobalSettings(base, stored) {
   };
 }
 
+// 지워진 모드(클래식 3릴 · 5릴 9라인)가 저장돼 있으면 남은 모드로 옮긴다.
+// 여기서 걸러 내지 않으면 지워진 키가 저장 파일에 계속 남는다.
+function mergeModeSettings(base, stored) {
+  const merged = mergeSection(base, stored);
+  return MODE_KEYS.includes(merged.mode) ? merged : { ...merged, mode: base.mode };
+}
+
 function mergeGameSection(base, stored) {
+  const charge = stored?.charge;
+  const go = stored?.go;
   return {
-    settings: mergeSection(base.settings, stored?.settings),
+    settings: mergeModeSettings(base.settings, stored?.settings),
     stats: mergeSection(base.stats, stored?.stats),
     jackpotHistory: mergeList(base.jackpotHistory, stored?.jackpotHistory),
     bigWins: mergeList(base.bigWins, stored?.bigWins),
+    // 손으로 고친 값이나 용량이 줄어든 경우를 걸러 낸다
+    charge: Number.isInteger(charge) && charge >= 0 && charge < PHARAOH.charge.capacity
+      ? charge
+      : base.charge,
+    go: Number.isInteger(go) && go >= 0 && go < HWATU.go.multipliers.length ? go : base.go,
   };
 }
 

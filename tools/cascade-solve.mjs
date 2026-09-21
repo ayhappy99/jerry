@@ -4,7 +4,7 @@
 //
 //   node tools/cascade-solve.mjs <목표 RTP> <스핀>
 import { JACKPOT_CONTRIB_RATE, JACKPOT_TIERS, JACKPOT_TIER_KEYS, PHARAOH } from '../js/config.js';
-import { evaluateWays, cascadeOnce, countScatters } from '../js/cascade.js';
+import { evaluateWays, cascadeOnce, countScatters, dropWilds } from '../js/cascade.js';
 import { buildGrid, drawStops } from '../js/rng.js';
 
 const TARGET = Number(process.argv[2] ?? 1.05);
@@ -18,6 +18,10 @@ const SC = {};
 let freePlayed = 0;
 let freeTriggers = 0;
 let jackpotTriggers = 0;
+// 부적 게이지는 스핀을 넘겨 이어진다. 게이지가 만든 당첨도 계수에 들어가므로
+// 선형 모형은 그대로 성립한다(계수만 커진다).
+let charge = 0;
+let chargeFired = 0;
 
 function ladder(chain) {
   return PHARAOH.multipliers[Math.min(chain, PHARAOH.multipliers.length) - 1];
@@ -37,6 +41,7 @@ function play(freeSpin) {
   // spinCascade와 같은 순서로 돈다. 배당값만 쓰지 않고 계수를 센다.
   let chain = 0;
   let cursors = [...stops];
+  let fired = 0;
   while (chain < PHARAOH.maxChain) {
     const wins = evaluateWays(grid);
     if (wins.length === 0) break;
@@ -49,6 +54,13 @@ function play(freeSpin) {
     const next = cascadeOnce(grid, wins.flatMap((win) => win.cells), cursors);
     grid = next.grid;
     cursors = next.cursors;
+
+    charge += 1;
+    if (charge < PHARAOH.charge.capacity || fired > 0) continue;
+    charge = 0;
+    fired += 1;
+    chargeFired += 1;
+    grid = dropWilds(grid, PHARAOH.charge.wilds).grid;
   }
   if (chain >= PHARAOH.jackpotChain) jackpotTriggers += 1;
   // 프리스핀 중에도 스캐터가 다시 나오면 리트리거된다(spinCascade가 freeSpin을 보지 않는다).
@@ -85,15 +97,18 @@ const payTarget = TARGET - accrual - seedEffect;
 const pct = (v) => `${(v * 100).toFixed(2)}%`;
 console.log(`${SPINS.toLocaleString()} 스핀 (프리스핀 ${freePlayed.toLocaleString()}회 포함)`);
 console.log(`연쇄 ${PHARAOH.jackpotChain}단 트리거 1/${Math.round(1 / jpRate).toLocaleString()} · 평균 시드 ${Math.round(AVG_SEED).toLocaleString()} → 시드 효과 ${pct(seedEffect)}`);
+console.log(`부적 게이지 발동 1/${(SPINS / chargeFired).toFixed(1)}스핀 (와일드 ${PHARAOH.charge.wilds}개 · 용량 ${PHARAOH.charge.capacity})`);
 console.log(`적립 ${pct(accrual)} · 배당으로 채울 몫 ${pct(payTarget)}`);
 console.log(`현재 배당의 RTP ${pct(rtpOf(PHARAOH.pays))} → 배율 ${(payTarget / rtpOf(PHARAOH.pays)).toFixed(4)}\n`);
 
-const NICE = [];
+let NICE = [];
 // 파라오 저배당은 0.015까지 내려간다. 격자가 0.1에서 끊기면 사다리가 뭉개진다.
+// toFixed(2)로 자르면 0.001이 0으로 뭉개져 배당 0이 나온다. 소수 4자리로 남긴다.
 for (const mag of [0.001, 0.01, 0.1, 1, 10]) {
-  for (const step of [1, 1.2, 1.5, 1.8, 2, 2.5, 3, 4, 5, 6, 8]) NICE.push(+(mag * step).toFixed(2));
+  for (const step of [1, 1.2, 1.5, 1.8, 2, 2.5, 3, 4, 5, 6, 8]) NICE.push(+(mag * step).toFixed(4));
 }
-NICE.sort((a, b) => a - b);
+// 배당 0은 허용하지 않는다. 0이면 그 심볼이 연속을 끊는 벽이 되어 규칙이 달라진다.
+NICE = [...new Set(NICE.filter((n) => n > 0))].sort((a, b) => a - b);
 const snap = (v) => NICE.reduce((best, n) => (Math.abs(n - v) < Math.abs(best - v) ? n : best), NICE[0]);
 
 const scale = payTarget / rtpOf(PHARAOH.pays);

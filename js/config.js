@@ -1,6 +1,8 @@
 // 이 파일은 게임의 모든 밸런스 수치를 담는다.
 // 배당·가중치·베팅·연출 시간은 여기서만 정의하고, 다른 파일에는 숫자를 하드코딩하지 않는다.
 
+// 앱 이름은 "주서니 슬롯머신"으로 바뀌었지만 이 키는 그대로 둔다.
+// 키를 바꾸면 이미 저장된 코인·통계·기록을 전부 못 찾는다.
 export const STORAGE_KEY = 'lucky-cabinet:v1';
 // 스키마 이력. 버전이 올라가도 기존 데이터는 지우지 않고 누락 필드만 채운다.
 //   1: 최초
@@ -10,7 +12,11 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   5: player.tourDoneAt(게임 방법 안내를 본 시각) 추가
 //   6: settings.ambience(홀 생활소음) 추가
 //   7: pouchJackpot(복주머니 전용 풀 + 터질 지점) 추가. 공유 풀과 별개다
-export const SCHEMA_VERSION = 7;
+//   8: games[게임키].charge(부적 게이지) 추가. 스핀을 넘겨 이어진다
+//   9: 게임 4종째(용문) 추가. games.gate 섹션이 기본값으로 생긴다
+//  10: 게임 5종째(화투) 추가 + games[게임키].go(고 단계). 스핀을 넘겨 이어진다
+//  11: 캐비닛의 클래식 3릴·5릴 9라인 모드 삭제. 저장된 mode가 그 둘이면 bonus로 옮긴다
+export const SCHEMA_VERSION = 11;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -47,6 +53,30 @@ export const SYMBOLS = {
   mask: { key: 'mask', label: '황금 가면', kind: 'normal' },
   eye: { key: 'eye', label: '호루스의 눈', kind: 'wild' },
   obelisk: { key: 'obelisk', label: '오벨리스크', kind: 'scatter' },
+  // 용문 (가변 릴)
+  shell: { key: 'shell', label: '조개', kind: 'normal' },
+  minnow: { key: 'minnow', label: '붕어', kind: 'normal' },
+  crayfish: { key: 'crayfish', label: '가재', kind: 'normal' },
+  turtle: { key: 'turtle', label: '자라', kind: 'normal' },
+  carp: { key: 'carp', label: '잉어', kind: 'normal' },
+  dragon: { key: 'dragon', label: '용', kind: 'normal' },
+  orb: { key: 'orb', label: '여의주', kind: 'wild' },
+  gate: { key: 'gate', label: '용문', kind: 'scatter' },
+  // 화투 13종. 광 5 · 열끗 4 · 띠 3 · 피 1. 상표를 쓰지 않으려고 그림은 모두 새로 그렸다.
+  songhak: { key: 'songhak', label: '송학', kind: 'normal' },
+  byeotggot: { key: 'byeotggot', label: '벚꽃', kind: 'normal' },
+  gongsan: { key: 'gongsan', label: '공산', kind: 'normal' },
+  odong: { key: 'odong', label: '오동', kind: 'normal' },
+  bigwang: { key: 'bigwang', label: '비광', kind: 'normal' },
+  maejo: { key: 'maejo', label: '매조', kind: 'normal' },
+  girogi: { key: 'girogi', label: '기러기', kind: 'normal' },
+  sasum: { key: 'sasum', label: '사슴', kind: 'normal' },
+  yeoltkkeut: { key: 'yeoltkkeut', label: '열끗', kind: 'normal' },
+  hongdan: { key: 'hongdan', label: '홍단', kind: 'normal' },
+  cheongdan: { key: 'cheongdan', label: '청단', kind: 'normal' },
+  chodan: { key: 'chodan', label: '초단', kind: 'normal' },
+  pi: { key: 'pi', label: '피', kind: 'normal' },
+
   rank10: { key: 'rank10', label: '10', kind: 'normal' },
   rankj: { key: 'rankj', label: 'J', kind: 'normal' },
   rankq: { key: 'rankq', label: 'Q', kind: 'normal' },
@@ -61,6 +91,10 @@ export const SYMBOL_ORDER = [
   'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
   'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
   'yeopjeon', 'maedeup', 'moran', 'cheongja', 'crane', 'toad', 'tiger', 'pouch',
+  'shell', 'minnow', 'crayfish', 'turtle', 'carp', 'dragon', 'orb', 'gate',
+  'songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang',
+  'maejo', 'girogi', 'sasum', 'yeoltkkeut',
+  'hongdan', 'cheongdan', 'chodan', 'pi',
 ];
 
 // 5릴 라인 배당 (라인 베팅 배수)
@@ -72,17 +106,6 @@ export const LINE_PAYS = {
   seven: { 3: 30, 4: 120, 5: 400 },
   diamond: { 3: 60, 4: 300, 5: 1200 },
   crown: { 3: 120, 4: 600, 5: 2000 },
-};
-
-// 클래식 3릴 배당 (라인 베팅 배수, 3개 일치)
-// 레몬만 지시서 초기값 15에서 12로 낮췄다. 이유는 README의 밸런스 항목 참고.
-export const CLASSIC_PAYS = {
-  cherry: 12,
-  lemon: 15,
-  bell: 30,
-  bar: 60,
-  seven: 150,
-  diamond: 500,
 };
 
 // 스캐터 배당 (총 베팅 배수)
@@ -191,6 +214,8 @@ export const EFFECTS = {
   // 파동이 겹쳐 노드가 쌓이지 않게 한다.
   coinWaveMs: 2200,
   coinLifeMs: 2400,
+  // 화투는 금화 대신 꽃잎이 흩날린다. 등급별 개수다.
+  petals: { win: 14, big: 30, mega: 44, jackpot: 52 },
 };
 
 export const HISTORY_LIMITS = { jackpotHistory: 20, bigWins: 10 };
@@ -228,9 +253,16 @@ export const TIMING = {
 
   clusterHold: 640,       // 덩어리 당첨을 보여주는 시간
   clusterGap: 220,        // 다음 덩어리로 넘어가는 간격
+  chargeDrop: 1200,       // 호루스의 눈이 내려앉는 시간
+  beadHold: 1100,         // 금구슬 배수를 보여 주는 시간
   vesselFeed: 900,        // 채워진 주머니를 밝히는 시간
   pouchReveal: 420,       // 잭팟 바를 화면 안으로 들이는 시간
   pouchBurst: 1100,       // 복주머니가 팡 하고 터지는 시간
+
+  jokboHold: 900,         // 족보 이름표를 띄워 두는 시간
+  jokboGap: 200,          // 다음 족보로 넘어가는 간격
+  goStamp: 720,           // 고 도장이 찍히는 시간
+  petalLife: 3200,        // 꽃잎이 화면을 지나가는 시간
 
   // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
   attractIdle: 30000,
@@ -313,40 +345,9 @@ export function rebuildMode(mode, weights) {
   };
 }
 
-export const MODE_KEYS = ['classic', 'lines9', 'bonus'];
+export const MODE_KEYS = ['bonus'];
 
 export const MODES = {
-  classic: defineMode({
-    key: 'classic',
-    label: '클래식 3릴',
-    seedOffset: 0,
-    short: '클래식',
-    reels: 3,
-    rows: 1,
-    lines: 1,
-    payKind: 'classic',
-    wild: false,
-    scatter: false,
-    jackpot: false,
-    weights: { cherry: 6, lemon: 5, bell: 4, bar: 3, seven: 2, diamond: 1 },
-    reelWeights: [],
-  }),
-  lines9: defineMode({
-    key: 'lines9',
-    label: '5릴 9라인',
-    seedOffset: 101,
-    short: '9라인',
-    reels: 5,
-    rows: 3,
-    lines: 9,
-    payKind: 'lines',
-    wild: true,
-    scatter: false,
-    jackpot: false,
-    weights: { cherry: 16, lemon: 11, bell: 9, bar: 7, seven: 4, diamond: 3, crown: 2 },
-    // 1번 릴에는 와일드를 넣지 않는다.
-    reelWeights: [{ crown: 0 }],
-  }),
   bonus: defineMode({
     key: 'bonus',
     label: '프리스핀·잭팟',
@@ -355,7 +356,6 @@ export const MODES = {
     reels: 5,
     rows: 3,
     lines: 9,
-    payKind: 'lines',
     wild: true,
     scatter: true,
     jackpot: true,
@@ -369,6 +369,10 @@ export const MODES = {
     reelWeights: [{ crown: 0 }],
   }),
 };
+
+// 지워진 모드의 이름표. 옛 기록에 이 키가 남아 있어서 이름만 유지한다.
+// 게임으로는 더 이상 존재하지 않으므로 MODES에는 없다.
+export const RETIRED_MODE_LABELS = { classic: '클래식', lines9: '9라인' };
 
 export function modePaylines(mode) {
   return PAYLINES.slice(0, mode.lines);
@@ -391,20 +395,21 @@ export const PHARAOH = {
     'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
     'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
   ],
-  // ways당 총 베팅 배수. 실측 계수로 맞춘 확정값은 README의 밸런스 항목 참고.
+  // ways당 총 베팅 배수. 부적 게이지 몫 +9.3%p를 반영해 다시 푼 값이다.
+  // 실측 계수로 맞춘 과정은 README의 밸런스 항목 참고.
   pays: {
-    rank10: { 3: 0.01, 4: 0.06, 5: 0.25, 6: 1 },
-    rankj: { 3: 0.02, 4: 0.08, 5: 0.3, 6: 1.2 },
-    rankq: { 3: 0.03, 4: 0.1, 5: 0.3, 6: 1.2 },
-    rankk: { 3: 0.03, 4: 0.12, 5: 0.4, 6: 1.5 },
-    ranka: { 3: 0.05, 4: 0.15, 5: 0.5, 6: 1.8 },
-    ankh: { 3: 0.06, 4: 0.18, 5: 0.6, 6: 3 },
-    lotus: { 3: 0.06, 4: 0.25, 5: 0.6, 6: 3 },
-    papyrus: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
-    cobra: { 3: 0.1, 4: 0.3, 5: 1.5, 6: 6 },
-    falcon: { 3: 0.15, 4: 0.5, 5: 2, 6: 10 },
-    scarab: { 3: 0.25, 4: 0.8, 5: 3, 6: 15 },
-    mask: { 3: 0.5, 4: 2, 5: 6, 6: 40 },
+    rank10: { 3: 0.008, 4: 0.05, 5: 0.25, 6: 1 },
+    rankj: { 3: 0.015, 4: 0.08, 5: 0.25, 6: 1 },
+    rankq: { 3: 0.025, 4: 0.1, 5: 0.25, 6: 1 },
+    rankk: { 3: 0.025, 4: 0.1, 5: 0.4, 6: 1.5 },
+    ranka: { 3: 0.05, 4: 0.15, 5: 0.5, 6: 1.5 },
+    ankh: { 3: 0.05, 4: 0.15, 5: 0.5, 6: 2.5 },
+    lotus: { 3: 0.05, 4: 0.25, 5: 0.5, 6: 2.5 },
+    papyrus: { 3: 0.05, 4: 0.25, 5: 1, 6: 4 },
+    cobra: { 3: 0.1, 4: 0.25, 5: 1.5, 6: 5 },
+    falcon: { 3: 0.15, 4: 0.5, 5: 1.8, 6: 10 },
+    scarab: { 3: 0.25, 4: 0.8, 5: 2.5, 6: 15 },
+    mask: { 3: 0.5, 4: 1.8, 5: 5, 6: 40 },
   },
   // 스캐터는 위치 무관, 개수로만 판정 (총 베팅 배수).
   // 가중치가 2라 한 릴에 2개까지 보일 수 있어 최대 12개다. 그 이상 키는 없다.
@@ -420,6 +425,17 @@ export const PHARAOH = {
   jackpotChain: 5,
   // 연쇄 상한. 게임 규칙이며 여기서 연쇄를 멈춘다. 실측에서 이 값에 닿는 경우는 없었다.
   maxChain: 30,
+  // 부적 게이지: 연쇄 한 단계마다 1칸 찬다. 게이지는 스핀을 넘겨 계속 쌓이고,
+  // 꽉 차면 호루스의 눈(와일드)이 격자에 내려앉아 연쇄가 이어진다.
+  //
+  // 스핀당 평균 연쇄 단계가 0.69이므로 용량 12면 약 16스핀마다 한 번 터진다.
+  // 게이지가 스핀을 넘어가기 때문에 못 딴 스핀도 헛되지 않다는 감각이 생긴다.
+  //
+  // 와일드 1개로 정한 이유: 6릴 ways에서 와일드는 모든 심볼의 당첨을 동시에 열고,
+  // 그 당첨이 연쇄 배수 사다리를 타고 오른다. 실측 게이지 몫은
+  //   1개 +9.3%p / 2개 +31%p / 3개 +76%p / 4개 +198%p (용량 12 기준)
+  // 로 폭발한다. 1개여도 판이 죽었을 때 살려 주므로 체감이 크다.
+  charge: { capacity: 12, wilds: 1 },
   weights: {
     rank10: 7, rankj: 7, rankq: 6, rankk: 6, ranka: 6,
     ankh: 5, lotus: 5, papyrus: 4, cobra: 4, falcon: 3, scarab: 3, mask: 2,
@@ -437,6 +453,72 @@ PHARAOH.strips = buildStrips(
   STRIP_SEED + PHARAOH.seedOffset,
 );
 
+// ── 용문 (가변 릴) ────────────────────────
+// 릴마다 보이는 칸 수가 매 스핀 다르게 정해진다(2~7칸). ways는 릴 높이의 곱이라
+// 최대 7^6 = 117,649가지가 된다. 판정은 파라오와 같은 올웨이즈다 —
+// evaluateWays가 이미 릴별 개수의 곱을 쓰므로 판정 코드를 그대로 쓴다.
+//
+// 저배당 5종(10·J·Q·K·A)은 파라오와 공유한다. 일반 슬롯도 카드 숫자를 저배당으로
+// 돌려 쓴다. 고배당과 와일드·스캐터만 새로 그렸다.
+//
+// heights: 릴 높이를 뽑는 가중치. 낮은 높이가 흔해야 큰 ways가 드물게 나온다.
+export const GATE = {
+  key: 'gate',
+  reels: 6,
+  // 릴 높이가 변하므로 rows는 상한이다. 화면 높이 계산과 렌더 버퍼가 이 값을 쓴다.
+  rows: 7,
+  minRows: 2,
+  wild: 'orb',
+  scatter: 'gate',
+  minMatch: 3,
+  betUnits: 20,
+  heights: [
+    { rows: 2, weight: 22 },
+    { rows: 3, weight: 26 },
+    { rows: 4, weight: 22 },
+    { rows: 5, weight: 15 },
+    { rows: 6, weight: 10 },
+    { rows: 7, weight: 5 },
+  ],
+  symbolOrder: [
+    'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+    'shell', 'minnow', 'crayfish', 'turtle', 'carp', 'dragon', 'orb', 'gate',
+  ],
+  // ways당 총 베팅 배수. 계수 역산으로 맞춘 값이다.
+  pays: {
+    rank10: { 3: 0.01, 4: 0.05, 5: 0.2, 6: 0.8 },
+    rankj: { 3: 0.012, 4: 0.06, 5: 0.25, 6: 1 },
+    rankq: { 3: 0.015, 4: 0.08, 5: 0.3, 6: 1.2 },
+    rankk: { 3: 0.018, 4: 0.1, 5: 0.4, 6: 1.2 },
+    ranka: { 3: 0.025, 4: 0.12, 5: 0.4, 6: 1.5 },
+    shell: { 3: 0.04, 4: 0.12, 5: 0.5, 6: 2 },
+    minnow: { 3: 0.05, 4: 0.15, 5: 0.6, 6: 2.5 },
+    crayfish: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
+    turtle: { 3: 0.1, 4: 0.4, 5: 1.5, 6: 6 },
+    carp: { 3: 0.18, 4: 0.8, 5: 3, 6: 12 },
+    dragon: { 3: 0.5, 4: 1.8, 5: 10, 6: 40 },
+  },
+  scatterMin: 4,
+  scatterPays: { 4: 2, 5: 5, 6: 15, 7: 40, 8: 100, 9: 200, 10: 400, 11: 800, 12: 2000 },
+  freeSpins: 10,
+  freeMultiplier: 2,
+  // 프리스핀에서는 연쇄마다 배수가 1씩 오르고 상한이 없다. Megaways류의 핵심 장치다.
+  freeChainStep: 1,
+  // 유료 스핀의 연쇄 배수 사다리
+  multipliers: [1, 2, 3, 5, 8, 12],
+  maxChain: 30,
+  weights: {
+    rank10: 8, rankj: 8, rankq: 7, rankk: 7, ranka: 6,
+    shell: 5, minnow: 5, crayfish: 4, turtle: 3, carp: 2, dragon: 1,
+    orb: 2, gate: 2,
+  },
+  // 1번 릴에는 와일드를 넣지 않는다. 6릴 ways에서 1번 릴 와일드는 모든 심볼의 당첨을 연다.
+  reelWeights: [{ orb: 0 }],
+  seedOffset: 505,
+};
+
+GATE.strips = buildStrips(GATE.reels, GATE.weights, GATE.reelWeights, STRIP_SEED + GATE.seedOffset);
+
 // ── 복주머니 (5x5 클러스터) ────────────────
 // 줄도 릴 경계도 없다. 상하좌우로 붙은 같은 심볼이 minCluster개 이상 뭉치면 당첨이다.
 // 복주머니(와일드)는 어느 덩어리에도 붙어 두 덩어리를 하나로 이어 준다.
@@ -444,6 +526,31 @@ PHARAOH.strips = buildStrips(
 //
 // 클러스터 판정은 격자 전체 모양에 의존해 전수 열거가 불가능하다(8^25).
 // 그래서 이 게임만 몬테카를로로 재고 표준오차를 함께 기록한다(tools/cluster-sim.mjs).
+// 금구슬: 복주머니 격자 위에 떨어져 그 스핀의 당첨 합에 배수를 곱한다.
+// 릴 심볼이 아니라 격자 위에 얹는 층이다. 심볼로 넣으면 스트립 구성이 바뀌어
+// 덩어리가 생기는 확률까지 흔들린다. 층으로 두면 덩어리 확률은 그대로이고
+// 배당만 배수 기대값으로 나누면 환수율이 정확히 유지된다.
+//
+// 배수 기대값 = Σ P(개수) × (개수 × 평균 배수), 개수 0이면 1.
+// 평균 배수 4.415, 기대값 1.353. 덩어리 배당을 이 값으로 나눠 맞췄다.
+// 구슬이 실제로 당첨에 곱해지는 건 스핀의 9% × 적중률 33.7% = 3%뿐이다.
+// 드물게 터져야 큰 배수가 의미를 갖는다.
+export const BEADS = {
+  counts: [
+    { count: 0, weight: 91 },
+    { count: 1, weight: 8 },
+    { count: 2, weight: 1 },
+  ],
+  values: [
+    { mult: 2, weight: 45 },
+    { mult: 3, weight: 28 },
+    { mult: 5, weight: 17 },
+    { mult: 10, weight: 7 },
+    { mult: 25, weight: 2.5 },
+    { mult: 100, weight: 0.5 },
+  ],
+};
+
 export const POUCH = {
   key: 'pouch',
   reels: 5,
@@ -456,17 +563,18 @@ export const POUCH = {
   sizeBands: [5, 6, 7, 8, 9, 10, 12],
   // 배당은 총 베팅 배수다. 300만 스핀으로 (심볼, 구간)별 계수를 재고
   // 목표 92.06%에 맞춰 역산한 값이다(tools/cluster-sim.mjs, README 밸런스 항목).
-  // 잭팟 몫 6.00%를 빼고 남는 99.00%를 덩어리가 채운다.
-  // 배당표 전체에 배율을 걸고 보기 좋은 값으로 스냅한 뒤, 개별 배당을 한 칸씩
-  // 움직이는 그리디로 맞췄다. 사다리 단조성은 세로(개수)·가로(심볼) 둘 다 검사한다.
+  // 잭팟 몫 6.0%를 빼고 남는 99.0%를 덩어리가 채운다.
+  // 금구슬 배수 기대값 1.3515를 이미 반영한 값이다. 배당표에 배율을 걸고 보기 좋은
+  // 값으로 스냅한 뒤 개별 배당을 한 칸씩 움직이는 그리디로 맞췄다.
+  // 사다리 단조성은 세로(개수)·가로(심볼) 둘 다 검사한다.
   pays: {
-    yeopjeon: { 5: 0.8, 6: 1.5, 7: 2.5, 8: 2.5, 9: 4, 10: 6, 12: 15 },
-    maedeup: { 5: 1.2, 6: 2, 7: 3, 8: 6, 9: 8, 10: 12, 12: 30 },
-    moran: { 5: 1.8, 6: 3, 7: 4, 8: 6, 9: 12, 10: 12, 12: 30 },
-    cheongja: { 5: 2, 6: 3, 7: 6, 8: 8, 9: 12, 10: 20, 12: 40 },
-    crane: { 5: 3, 6: 6, 7: 8, 8: 12, 9: 18, 10: 30, 12: 60 },
-    toad: { 5: 4, 6: 8, 7: 12, 8: 20, 9: 30, 10: 60, 12: 80 },
-    tiger: { 5: 6, 6: 12, 7: 20, 8: 30, 9: 40, 10: 60, 12: 180 },
+    yeopjeon: { 5: 0.8, 6: 1.5, 7: 1.8, 8: 2, 9: 4, 10: 5, 12: 12 },
+    maedeup: { 5: 0.8, 6: 1.5, 7: 2, 8: 4, 9: 6, 10: 8, 12: 20 },
+    moran: { 5: 1.2, 6: 2, 7: 3, 8: 4, 9: 8, 10: 8, 12: 20 },
+    cheongja: { 5: 1.5, 6: 2, 7: 4, 8: 6, 9: 8, 10: 15, 12: 30 },
+    crane: { 5: 2, 6: 4, 7: 6, 8: 8, 9: 12, 10: 20, 12: 30 },
+    toad: { 5: 3, 6: 6, 7: 8, 8: 15, 9: 20, 10: 40, 12: 100 },
+    tiger: { 5: 4, 6: 8, 7: 15, 8: 20, 9: 30, 10: 40, 12: 120 },
   },
   // 가중치를 16배로 키워 스트립을 704칸으로 만든다. 44칸으로 두면 세로로 붙는 정도가
   // 스트립 배열의 우연에 지배되어, 같은 가중치인데도 심볼별 덩어리 빈도가 20배씩 흔들렸다
@@ -524,17 +632,88 @@ export const POUCH_JACKPOT = {
   },
 };
 
+// ── 화투 (5릴 2행 족보 판정) ───────────────
+// 줄도 덩어리도 없다. 화면에 깔린 카드 10장을 한 손으로 보고 족보를 센다.
+// 성립한 족보는 모두 동시에 지급한다(고스톱의 점수 계산과 같다).
+//
+// 판정이 심볼의 "개수"에만 의존하므로 환수율을 해석적으로 정확히 계산할 수 있다.
+// 릴별 2칸 창의 분포를 개수 벡터로 접어 5릴을 합성하면(도달 상태 ≤ 646,646)
+// 모든 족보의 확률이 오차 없이 나온다. 이 게임이 프로젝트에서 가장 정확하게 잡힌 게임이다.
+export const HWATU = {
+  key: 'hwatu',
+  reels: 5,
+  rows: 2,
+  betUnits: 15,
+  symbolOrder: [
+    'songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang',
+    'maejo', 'girogi', 'sasum', 'yeoltkkeut',
+    'hongdan', 'cheongdan', 'chodan', 'pi',
+  ],
+  // 족보 판정이 세는 심볼 묶음. 규칙은 hwatu.js가, 묶음과 배당은 여기가 정한다.
+  groups: {
+    gwang: ['songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang'],
+    // 비광이 섞이면 같은 장수라도 한 단계 낮은 족보가 된다(비삼광·비사광·비오광).
+    rain: 'bigwang',
+    godori: ['maejo', 'girogi', 'sasum'],
+    // 고도리 석 장도 열끗이다. 고스톱과 같다.
+    yeol: ['yeoltkkeut', 'maejo', 'girogi', 'sasum'],
+    tti: ['hongdan', 'cheongdan', 'chodan'],
+    pi: ['pi'],
+  },
+  // 족보. 한 번에 거는 돈의 배수다. 성립한 족보를 모두 더해 지급한다.
+  // 광과 장수 구간은 서로 배타적이라 각 묶음에서 하나씩만 걸린다.
+  hands: [
+    { key: 'gwang5', label: '오광', pay: 600 },
+    { key: 'bi5', label: '비오광', pay: 150 },
+    { key: 'gwang4', label: '사광', pay: 50 },
+    { key: 'bi4', label: '비사광', pay: 15 },
+    { key: 'gwang3', label: '삼광', pay: 6 },
+    { key: 'bi3', label: '비삼광', pay: 2 },
+    { key: 'godori', label: '고도리', pay: 2.5 },
+    { key: 'hongdan', label: '홍단', pay: 0.4 },
+    { key: 'cheongdan', label: '청단', pay: 0.4 },
+    { key: 'chodan', label: '초단', pay: 0.4 },
+    { key: 'yeol7', label: '열끗 7장', pay: 1 },
+    { key: 'yeol6', label: '열끗 6장', pay: 0.4 },
+    { key: 'yeol5', label: '열끗 5장', pay: 0.2 },
+    { key: 'tti7', label: '띠 7장', pay: 1 },
+    { key: 'tti6', label: '띠 6장', pay: 0.3 },
+    { key: 'tti5', label: '띠 5장', pay: 0.2 },
+    { key: 'pi8', label: '피 8장', pay: 0.6 },
+    { key: 'pi7', label: '피 7장', pay: 0.25 },
+    { key: 'pi6', label: '피 6장', pay: 0.2 },
+  ],
+  // 고(GO): 당첨된 스핀 다음에 배수가 한 단계 오른다. 꽝이 나오면 0으로 돌아간다.
+  // 이 배수는 스핀에 "들어갈 때"의 단계로 곱한다. 그래서 마르코프 정상분포로
+  // 기대 배수를 정확히 계산할 수 있고, 배당을 그 값으로 나누면 환수율이 유지된다.
+  go: { multipliers: [1, 2, 3, 5, 10] },
+  // 비율은 1:1:1:1:2 · 3:3:3:12 · 8:8:8 · 30이고, 전체를 8배로 키웠다.
+  // 8배로 키운 이유: 81칸 스트립에서는 가중치가 같은 홍단·청단·초단의 족보 확률이
+  // 15.4%나 벌어졌다. 2칸 창으로 보기 때문에 같은 심볼이 우연히 이웃하는지가
+  // 족보 성립을 좌우한다. 648칸으로 늘리자 그 편차가 1.8%로 줄었다.
+  weights: {
+    songhak: 8, byeotggot: 8, gongsan: 8, odong: 8, bigwang: 16,
+    maejo: 24, girogi: 24, sasum: 24, yeoltkkeut: 96,
+    hongdan: 64, cheongdan: 64, chodan: 64,
+    pi: 240,
+  },
+  reelWeights: [],
+  seedOffset: 606,
+};
+
+HWATU.strips = buildStrips(HWATU.reels, HWATU.weights, HWATU.reelWeights, STRIP_SEED + HWATU.seedOffset);
+
 // ── 게임 레지스트리 ───────────────────────
 // 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.
 export const GAMES = {
   cabinet: {
     key: 'cabinet',
     label: '럭키 캐비닛',
-    tagline: '어두운 옻칠 목재와 황동 프레임. 클래식 3릴부터 프리스핀·잭팟까지 모드 3종.',
+    tagline: '5릴 9라인. 왕관이 변신하고 별 3개면 공짜 스핀, 다이아 3개면 잭팟 뽑기가 열린다. 골드 코인 홀드 앤 스핀도 있다.',
     // 페이라인 판정 엔진을 쓴다.
     kind: 'lines',
     modeKeys: MODE_KEYS,
-    badge: '3~5릴 · 모드 3종',
+    badge: '5릴 9라인 · 프리스핀·잭팟',
     // 로비 카드에 띄울 대표 심볼
     artSymbols: ['seven', 'diamond', 'crown'],
   },
@@ -560,6 +739,28 @@ export const GAMES = {
     badge: '5x5 덩어리 · 반드시 터지는 잭팟',
     artSymbols: ['pouch', 'tiger', 'toad'],
   },
+
+  hwatu: {
+    key: 'hwatu',
+    label: '화투',
+    tagline: '5릴 2행에 깔린 열 장을 한 손으로 본다. 성립한 족보는 모두 동시에 지급하고, 이긴 판마다 고가 한 단 오른다.',
+    // 족보(개수) 판정 엔진을 쓴다.
+    kind: 'hwatu',
+    modeKeys: [],
+    badge: '열 장 족보 · 고 4단 10배',
+    artSymbols: ['songhak', 'sasum', 'hongdan'],
+  },
+
+  gate: {
+    key: 'gate',
+    label: '용문',
+    tagline: '릴 높이가 매 스핀 바뀐다. 여섯 릴이 모두 높으면 117,649가지 경로가 한 번에 열린다.',
+    // 가변 릴 + 올웨이즈 + 캐스케이딩 엔진을 쓴다.
+    kind: 'gate',
+    modeKeys: [],
+    badge: '6릴 가변 · 최대 117,649 ways',
+    artSymbols: ['dragon', 'carp', 'orb'],
+  },
 };
 
-export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch'];
+export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch', 'gate', 'hwatu'];

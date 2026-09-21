@@ -613,6 +613,48 @@ export function playReelStop() {
   noiseBurst({ dur: 0.02, gain: 0.18, freq: 700, q: 1.2 });
 }
 
+// 금구슬이 격자에 떨어질 때: 유리구슬 부딪는 짧은 고음
+export function playBead() {
+  if (!ready()) return;
+  tone({ freq: 1180, type: 'sine', dur: 0.16, gain: 0.3 });
+  tone({ freq: 1760, type: 'sine', dur: 0.1, gain: 0.16 });
+  noiseBurst({ dur: 0.03, gain: 0.1, freq: 4200, q: 2 });
+}
+
+// 금구슬 배수가 적용될 때: 올라가는 종소리 세 번
+export function playBeadHit() {
+  if (!ready()) return;
+  const base = [880, 1174.7, 1568];
+  base.forEach((freq, i) => {
+    tone({ freq, type: 'triangle', dur: 0.3, gain: 0.34, at: i * 0.11 });
+    tone({ freq: freq * 2, type: 'sine', dur: 0.22, gain: 0.14, at: i * 0.11 });
+  });
+}
+
+// 부적 게이지 발동: 낮은 곳에서 솟구치는 금관 화음
+export function playCharge() {
+  if (!ready()) return;
+  tone({ freq: 196, endFreq: 784, type: 'sawtooth', dur: 0.7, gain: 0.26 });
+  [392, 523.3, 659.3].forEach((freq, i) => {
+    tone({ freq, type: 'triangle', dur: 0.55, gain: 0.3, at: 0.34 + i * 0.05 });
+  });
+  noiseBurst({ dur: 0.5, gain: 0.12, freq: 2600, q: 0.8 });
+}
+
+// 고(GO) 도장이 찍힐 때: 나무 판에 인장을 누르는 둔탁한 타격 + 장구 가락 두 번.
+// 화투의 "탁" 하고 패를 때리는 소리를 노린다.
+export function playGo() {
+  if (!ready()) return;
+  // 인장이 눌리는 타격: 낮은 임펄스 + 나무 울림
+  tone({ freq: 150, endFreq: 62, type: 'sine', dur: 0.16, gain: 0.5 });
+  noiseBurst({ dur: 0.05, gain: 0.26, freq: 900, q: 1.2 });
+  // 장구 가락 두 번 (덩 - 덕)
+  tone({ freq: 220, endFreq: 150, type: 'triangle', dur: 0.2, gain: 0.3, at: 0.2 });
+  noiseBurst({ dur: 0.04, gain: 0.16, freq: 1800, q: 2, at: 0.2 });
+  tone({ freq: 330, endFreq: 240, type: 'triangle', dur: 0.14, gain: 0.24, at: 0.36 });
+  noiseBurst({ dur: 0.03, gain: 0.12, freq: 2600, q: 2, at: 0.36 });
+}
+
 // 앤티시페이션: 상승 글리산도
 export function playAnticipation() {
   if (!ready()) return;
