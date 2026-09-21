@@ -9,7 +9,6 @@
 // 판정은 engine.js의 함수를 그대로 호출하므로 게임과 계산기가 어긋날 수 없다.
 
 import {
-  CLASSIC_PAYS,
   FREE_SPIN_AWARD,
   JACKPOT_MATCH,
   FREE_SPIN_MULTIPLIER,
@@ -50,17 +49,6 @@ function expectedLinePay(mode) {
   return expected;
 }
 
-// 클래식은 3개 일치만 본다.
-function expectedClassicPay(mode) {
-  const perReel = mode.strips.map(reelProbs);
-  let expected = 0;
-  for (const { symbol, p } of perReel[0]) {
-    const p1 = perReel[1].find((e) => e.symbol === symbol)?.p ?? 0;
-    const p2 = perReel[2].find((e) => e.symbol === symbol)?.p ?? 0;
-    expected += p * p1 * p2 * CLASSIC_PAYS[symbol];
-  }
-  return expected;
-}
 
 // 릴 하나의 3행 윈도우에 스타가 몇 개 보이는지의 정확한 분포
 function reelScatterDist(strip, rows) {
@@ -106,7 +94,7 @@ function jackpotOdds(mode) {
 
 export function modeRtp(mode) {
   // 총 베팅 기준으로 환산. 라인 1개 기대값 / 라인 수 × 라인 수 = 라인 1개 기대값.
-  const lineRtp = mode.payKind === 'classic' ? expectedClassicPay(mode) : expectedLinePay(mode);
+  const lineRtp = expectedLinePay(mode);
 
   let scatterRtp = 0;
   let triggerRate = 0;

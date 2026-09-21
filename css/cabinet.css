@@ -393,36 +393,8 @@ body {
   .vessel__art { animation: none; }
 }
 
-/* ── 모드 탭 ────────────────────────────── */
-.modes {
-  display: flex; gap: var(--sp-2);
-  margin: var(--sp-3) 0;
-}
-
-.mode-tab {
-  flex: 1 1 0;
-  padding: var(--sp-3) var(--sp-1);
-  border: 1px solid var(--brass-dark);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, #33170f 0%, #1c0c08 100%);
-  color: var(--cream);
-  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.12s ease, background 0.18s ease, color 0.18s ease;
-}
-
-.mode-tab__sub { display: block; font-size: var(--fs-xs); font-weight: 400; opacity: 0.75; }
-
-.mode-tab[aria-selected="true"] {
-  background: var(--brass-frame);
-  color: #2a1608;
-  box-shadow: 0 0 18px rgba(201, 150, 47, 0.4);
-}
-.mode-tab[aria-selected="true"] .mode-tab__sub { opacity: 0.75; }
-.mode-tab:disabled { opacity: 0.45; cursor: not-allowed; }
-
 /* ── 릴 윈도우 ──────────────────────────── */
-/* 프레임은 릴 개수에 맞춰 줄어든다. 3릴 모드에서 빈 유리면이 남지 않게 하려는 것이다. */
+/* 프레임은 릴 개수에 맞춰 줄어든다. 게임마다 릴 수가 달라도 빈 유리면이 남지 않는다. */
 .cabinet__frame {
   position: relative;
   width: fit-content;
@@ -1434,7 +1406,6 @@ body {
 }
 
 /* 모드가 없는 게임에서는 탭을 숨긴다 */
-.modes[hidden] { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .cell--pop .cell__face { animation: none; opacity: 0; }
@@ -1455,7 +1426,7 @@ body {
     grid-template-areas:
       'head head'
       'jack dock'
-      'mode dock'
+      'go   dock'
       'reel dock';
     grid-template-rows: auto auto auto 1fr;
     align-items: start;
@@ -1494,9 +1465,12 @@ body {
   .vessel__value, .vessel--grand .vessel__value { margin-top: 0; font-size: var(--fs-sm); }
   .vessel__name { display: none; }
 
-  .modes { grid-area: mode; margin: 0; }
-  .mode-tab { padding: var(--sp-1) var(--sp-1); font-size: var(--fs-xs); }
-  .mode-tab__sub { display: none; }
+  /* 고 사다리는 잭팟 바와 같은 자리를 쓴다. 둘 다 한 게임에만 보인다. */
+  .gobar { grid-area: go; margin: 0; padding: var(--sp-1) var(--sp-2); }
+  .gobar__label { display: none; }
+  .gopip { padding: 1px 2px; }
+  .gopip__step { font-size: var(--fs-sm); }
+  .gopip__mult { font-size: 0.6rem; }
 
   .cabinet { grid-area: reel; }
   /* 황동 테두리를 얇게 줄여 릴에 16px을 더 준다 */

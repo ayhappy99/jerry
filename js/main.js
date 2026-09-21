@@ -147,7 +147,6 @@ function syncMeters() {
 function selectMode(modeKey) {
   game.mode = MODES[modeKey];
   section().settings.mode = modeKey;
-  ui.renderModeTabs(modeKey);
   renderReels(ui.reelsHost(), game.mode, drawStops(game.mode.strips));
   syncMeters();
   storage.save(game.state);
@@ -728,8 +727,8 @@ async function runSpin() {
     setFreeSpins(game.freeSpinsLeft - 1);
   } else {
     game.state.wallet.coins -= totalBet;
-    // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 모드도 적립하지 않는다.
-    // (클래식·9라인에서 적립하면 맞출 수 없는 돈을 내는 셈이 되어 환수율이 1%p 낮아진다)
+    // 프리스핀은 적립하지 않는다. 잭팟이 터질 수 없는 게임도 적립하지 않는다.
+    // (맞출 수 없는 돈을 내는 셈이 되어 그 게임의 환수율이 1%p 낮아진다)
     if (canWinJackpot()) contributeJackpot(totalBet);
     if (clusterSpin !== null) pouchHits = contributePouchPool(totalBet, clusterSpin.feed);
   }
@@ -1201,25 +1200,6 @@ function openPanel(name) {
 }
 
 function wireControls() {
-  ui.el.modes.addEventListener('click', (event) => {
-    const tab = event.target.closest('.mode-tab');
-    if (tab === null || tab.disabled) return;
-    selectMode(tab.dataset.mode);
-  });
-
-  // 탭 위젯 표준 키보드 조작: 좌우 화살표로 모드를 옮긴다.
-  ui.el.modes.addEventListener('keydown', (event) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
-    if (step === undefined || game.kind !== 'lines') return;
-    const tabs = ui.modeTabs();
-    if (tabs.some((tab) => tab.disabled)) return;
-    event.preventDefault();
-    const current = MODE_KEYS.indexOf(game.mode.key);
-    const next = (current + step + MODE_KEYS.length) % MODE_KEYS.length;
-    selectMode(MODE_KEYS[next]);
-    ui.modeTabs()[next].focus();
-  });
-
   ui.el.betDown.addEventListener('click', () => changeBet(section().settings.betIdx - 1));
   ui.el.betUp.addEventListener('click', () => changeBet(section().settings.betIdx + 1));
   ui.el.betMax.addEventListener('click', () => changeBet(affordableBetIdx()));
@@ -1317,7 +1297,6 @@ function enterGame(gameKey) {
 
   ui.setSeat(game.state.player.nickname, GAMES[gameKey].label);
   ui.setGameTheme(gameKey);
-  ui.setModesVisible(game.kind === 'lines');
   ui.setJackpotBarKind(game.kind);
   ui.setChargeVisible(game.kind === 'cascade');
   ui.setWaysVisible(game.kind === 'gate');
@@ -1334,7 +1313,7 @@ function enterGame(gameKey) {
   } else if (game.kind === 'hwatu') {
     setupHwatu();
   } else {
-    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
+    const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[0];
     selectMode(modeKey);
   }
 

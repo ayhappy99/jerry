@@ -24,7 +24,7 @@ export function seedPools() {
 // 게임 하나가 따로 쌓는 것들. 코인과 잭팟 풀은 여기 들어가지 않는다(공유).
 export function defaultGameState() {
   return {
-    settings: { mode: MODE_KEYS[1], betIdx: 2 },
+    settings: { mode: MODE_KEYS[0], betIdx: 2 },
     stats: {
       spins: 0,
       totalWagered: 0,
@@ -104,11 +104,18 @@ function mergeGlobalSettings(base, stored) {
   };
 }
 
+// 지워진 모드(클래식 3릴 · 5릴 9라인)가 저장돼 있으면 남은 모드로 옮긴다.
+// 여기서 걸러 내지 않으면 지워진 키가 저장 파일에 계속 남는다.
+function mergeModeSettings(base, stored) {
+  const merged = mergeSection(base, stored);
+  return MODE_KEYS.includes(merged.mode) ? merged : { ...merged, mode: base.mode };
+}
+
 function mergeGameSection(base, stored) {
   const charge = stored?.charge;
   const go = stored?.go;
   return {
-    settings: mergeSection(base.settings, stored?.settings),
+    settings: mergeModeSettings(base.settings, stored?.settings),
     stats: mergeSection(base.stats, stored?.stats),
     jackpotHistory: mergeList(base.jackpotHistory, stored?.jackpotHistory),
     bigWins: mergeList(base.bigWins, stored?.bigWins),

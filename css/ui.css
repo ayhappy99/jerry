@@ -97,7 +97,7 @@
   cursor: pointer;
 }
 
-:is(.btn, .tool, .mode-tab, .icon-btn, .field__input):focus-visible {
+:is(.btn, .tool, .icon-btn, .field__input):focus-visible {
   outline: 3px solid var(--credit);
   outline-offset: 2px;
 }

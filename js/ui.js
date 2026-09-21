@@ -4,7 +4,6 @@ import {
   AUTO_SPINS,
   BETS,
   HOLD,
-  CLASSIC_PAYS,
   EFFECTS,
   GAMES,
   GAME_KEYS,
@@ -18,11 +17,11 @@ import {
   LINE_PAYS,
   MIN_MATCH,
   MODES,
-  MODE_KEYS,
   NICKNAME_RULES,
   POUCH,
   POUCH_JACKPOT,
   POUCH_TIER_KEYS,
+  RETIRED_MODE_LABELS,
   SCATTER,
   SCATTER_MIN,
   PICK_MATCH,
@@ -60,7 +59,6 @@ export const el = {
   jackpotSection: document.querySelector('.jackpot'),
   jackpotBar: document.getElementById('jackpot-bar'),
   pouchBar: document.getElementById('pouch-jackpot-bar'),
-  modes: document.getElementById('modes'),
   window: document.querySelector('.cabinet__window'),
   frame: document.querySelector('.cabinet__frame'),
   marquee: document.querySelector('.marquee'),
@@ -128,25 +126,6 @@ export function mountBulbs() {
     { length: MARQUEE_BULBS },
     (_, i) => `<span class="bulb" style="animation-delay: ${(i * 0.09).toFixed(2)}s"></span>`,
   ).join('');
-}
-
-export function renderModeTabs(activeKey) {
-  el.modes.innerHTML = MODE_KEYS.map((key) => {
-    const mode = MODES[key];
-    const sub = `${mode.reels}릴 · ${mode.lines}라인`;
-    const selected = key === activeKey;
-    // 선택된 탭만 탭 순서에 남기고(탭 위젯 표준), 패널의 이름표 역할도 맡는다.
-    return (
-      `<button class="mode-tab" type="button" role="tab" data-mode="${key}" ` +
-      `aria-controls="reels-panel" aria-selected="${selected}" tabindex="${selected ? 0 : -1}"` +
-      `${selected ? ' id="mode-tab-selected"' : ''}>` +
-      `${mode.label}<span class="mode-tab__sub">${sub}</span></button>`
-    );
-  }).join('');
-}
-
-export function modeTabs() {
-  return [...el.modes.querySelectorAll('.mode-tab')];
 }
 
 export function setSeat(nickname, gameLabel = null) {
@@ -327,7 +306,6 @@ export function setBusy(busy, autoRunning) {
   el.betUp.disabled = busy;
   el.betMax.disabled = busy;
   el.refill.disabled = busy;
-  for (const tab of el.modes.querySelectorAll('.mode-tab')) tab.disabled = busy || autoRunning;
 }
 
 // 자동 스핀 중에는 STOP과 남은 횟수를 같은 버튼에 보여준다. null은 무한이다.
@@ -379,10 +357,6 @@ export function autoPickOpen() {
 }
 
 // 모드가 없는 게임에서는 탭 줄을 숨긴다.
-export function setModesVisible(visible) {
-  el.modes.hidden = !visible;
-}
-
 export function setGameTheme(gameKey) {
   el.cabinet.dataset.game = gameKey;
 }
@@ -1235,8 +1209,9 @@ export function openSettings({
 // ── 기록 ──────────────────────────────────
 
 // 기록에 남은 판 이름. 페이라인 게임은 모드 이름, 줄이 없는 게임은 게임 이름이다.
+// 지워진 모드(클래식·9라인)로 남은 옛 기록도 제 이름으로 읽히게 한다.
 function recordModeLabel(key) {
-  return MODES[key]?.short ?? GAMES[key]?.label ?? key;
+  return MODES[key]?.short ?? GAMES[key]?.label ?? RETIRED_MODE_LABELS[key] ?? key;
 }
 
 function recordRow(entry, extra = '') {
@@ -1283,21 +1258,11 @@ export function openHistory({ jackpotHistory, bigWins }) {
 
 function paytableRows(mode) {
   const keys = SYMBOL_ORDER.filter((key) => (mode.weights[key] ?? 0) > 0);
-  if (mode.payKind === 'classic') {
-    return keys
-      .map(
-        (key) =>
-          `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>` +
-          `<td>${formatCoins(CLASSIC_PAYS[key])}배</td></tr>`,
-      )
-      .join('');
-  }
   return keys
     .map((key) => {
       if (key === SCATTER) {
-        const cells = [3, 4, 5]
-          .map((n) => `<td>${SCATTER_PAYS[n]}배<small> 거는 돈</small></td>`)
-          .join('');
+        // 별만 "한 번에 거는 돈" 기준이다. 칸에 적으면 세 줄로 접히므로 규칙 문장에서 밝힌다.
+        const cells = [3, 4, 5].map((n) => `<td>${SCATTER_PAYS[n]}</td>`).join('');
         return (
           `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>${cells}</tr>`
         );
@@ -1310,7 +1275,7 @@ function paytableRows(mode) {
         );
       }
       const note = key === WILD ? '<small> 아무 심볼로 변신</small>' : '';
-      const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}배</td>`).join('');
+      const cells = [3, 4, 5].map((n) => `<td>${formatCoins(LINE_PAYS[key][n])}</td>`).join('');
       return `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}${note}</span></div></td>${cells}</tr>`;
     })
     .join('');
@@ -1568,10 +1533,7 @@ export function openPaytable(gameKey, modeKey) {
     return;
   }
   const mode = MODES[modeKey];
-  const header =
-    mode.payKind === 'classic'
-      ? '<tr><th>심볼</th><th>3개</th></tr>'
-      : '<tr><th>심볼</th><th>3개</th><th>4개</th><th>5개</th></tr>';
+  const header = '<tr><th>심볼</th><th>3개</th><th>4개</th><th>5개</th></tr>';
   const rules = [
     `아래 그림의 <b>당첨 줄</b> 위에서, 맨 왼쪽부터 옆으로 같은 심볼이 ${MIN_MATCH}개 이상 이어지면 당첨입니다. ` +
       '중간에 다른 심볼이 끼면 거기서 끝납니다.',
@@ -1582,6 +1544,10 @@ export function openPaytable(gameKey, modeKey) {
     mode.scatter
       ? `<b>별</b>은 줄과 상관없이 화면에 ${SCATTER_MIN}개만 있으면 됩니다. 나오면 <b>공짜로 10번</b> 더 돌리고, ` +
         '그동안 당첨금이 2배가 됩니다.'
+      : '',
+    mode.scatter
+      ? `표의 숫자는 <b>한 줄에 거는 돈</b>의 배수인데, <b>별만 「한 번에 거는 돈」</b> 기준입니다` +
+        `(${SCATTER_MIN}개 ${SCATTER_PAYS[3]}배 · 4개 ${SCATTER_PAYS[4]}배 · 5개 ${SCATTER_PAYS[5]}배).`
       : '',
     mode.jackpot
       ? `한 줄에 <b>다이아가 ${JACKPOT_MATCH}개 이상</b>(왕관이 변신한 것은 빼고) 이어지면 잭팟 뽑기가 열려 ` +
@@ -1595,10 +1561,12 @@ export function openPaytable(gameKey, modeKey) {
   ].filter((line) => line !== '');
 
   openModal({
-    title: `배당표 · ${mode.label}`,
+    // 모드가 하나뿐이므로 제목은 게임 이름을 쓴다. 다른 게임들과 같은 형식이다.
+    title: `배당표 · ${GAMES[gameKey].label}`,
     body:
       `<p class="modal__note"><b>한 줄에 거는 돈</b>의 몇 배를 받는지 적은 표입니다.</p>` +
-      `<table class="table"><thead>${header}</thead><tbody>${paytableRows(mode)}</tbody></table>` +
+      '<div class="table-scroll"><table class="table table--bands">' +
+      `<thead>${header}</thead><tbody>${paytableRows(mode)}</tbody></table></div>` +
       `<h3 class="modal__title" style="margin:var(--sp-5) 0 var(--sp-2)">당첨 줄 ${mode.lines}개</h3>` +
       `<div class="lines-grid">${paylineGrid(mode)}</div>` +
       `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,

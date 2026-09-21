@@ -13,7 +13,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   8: games[게임키].charge(부적 게이지) 추가. 스핀을 넘겨 이어진다
 //   9: 게임 4종째(용문) 추가. games.gate 섹션이 기본값으로 생긴다
 //  10: 게임 5종째(화투) 추가 + games[게임키].go(고 단계). 스핀을 넘겨 이어진다
-export const SCHEMA_VERSION = 10;
+//  11: 캐비닛의 클래식 3릴·5릴 9라인 모드 삭제. 저장된 mode가 그 둘이면 bonus로 옮긴다
+export const SCHEMA_VERSION = 11;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -103,17 +104,6 @@ export const LINE_PAYS = {
   seven: { 3: 30, 4: 120, 5: 400 },
   diamond: { 3: 60, 4: 300, 5: 1200 },
   crown: { 3: 120, 4: 600, 5: 2000 },
-};
-
-// 클래식 3릴 배당 (라인 베팅 배수, 3개 일치)
-// 레몬만 지시서 초기값 15에서 12로 낮췄다. 이유는 README의 밸런스 항목 참고.
-export const CLASSIC_PAYS = {
-  cherry: 12,
-  lemon: 15,
-  bell: 30,
-  bar: 60,
-  seven: 150,
-  diamond: 500,
 };
 
 // 스캐터 배당 (총 베팅 배수)
@@ -353,40 +343,9 @@ export function rebuildMode(mode, weights) {
   };
 }
 
-export const MODE_KEYS = ['classic', 'lines9', 'bonus'];
+export const MODE_KEYS = ['bonus'];
 
 export const MODES = {
-  classic: defineMode({
-    key: 'classic',
-    label: '클래식 3릴',
-    seedOffset: 0,
-    short: '클래식',
-    reels: 3,
-    rows: 1,
-    lines: 1,
-    payKind: 'classic',
-    wild: false,
-    scatter: false,
-    jackpot: false,
-    weights: { cherry: 6, lemon: 5, bell: 4, bar: 3, seven: 2, diamond: 1 },
-    reelWeights: [],
-  }),
-  lines9: defineMode({
-    key: 'lines9',
-    label: '5릴 9라인',
-    seedOffset: 101,
-    short: '9라인',
-    reels: 5,
-    rows: 3,
-    lines: 9,
-    payKind: 'lines',
-    wild: true,
-    scatter: false,
-    jackpot: false,
-    weights: { cherry: 16, lemon: 11, bell: 9, bar: 7, seven: 4, diamond: 3, crown: 2 },
-    // 1번 릴에는 와일드를 넣지 않는다.
-    reelWeights: [{ crown: 0 }],
-  }),
   bonus: defineMode({
     key: 'bonus',
     label: '프리스핀·잭팟',
@@ -395,7 +354,6 @@ export const MODES = {
     reels: 5,
     rows: 3,
     lines: 9,
-    payKind: 'lines',
     wild: true,
     scatter: true,
     jackpot: true,
@@ -409,6 +367,10 @@ export const MODES = {
     reelWeights: [{ crown: 0 }],
   }),
 };
+
+// 지워진 모드의 이름표. 옛 기록에 이 키가 남아 있어서 이름만 유지한다.
+// 게임으로는 더 이상 존재하지 않으므로 MODES에는 없다.
+export const RETIRED_MODE_LABELS = { classic: '클래식', lines9: '9라인' };
 
 export function modePaylines(mode) {
   return PAYLINES.slice(0, mode.lines);
@@ -745,11 +707,11 @@ export const GAMES = {
   cabinet: {
     key: 'cabinet',
     label: '럭키 캐비닛',
-    tagline: '어두운 옻칠 목재와 황동 프레임. 클래식 3릴부터 프리스핀·잭팟까지 모드 3종.',
+    tagline: '5릴 9라인. 왕관이 변신하고 별 3개면 공짜 스핀, 다이아 3개면 잭팟 뽑기가 열린다. 골드 코인 홀드 앤 스핀도 있다.',
     // 페이라인 판정 엔진을 쓴다.
     kind: 'lines',
     modeKeys: MODE_KEYS,
-    badge: '3~5릴 · 모드 3종',
+    badge: '5릴 9라인 · 프리스핀·잭팟',
     // 로비 카드에 띄울 대표 심볼
     artSymbols: ['seven', 'diamond', 'crown'],
   },
