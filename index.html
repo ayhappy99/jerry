@@ -50,7 +50,8 @@
 
   <section class="lobby__shared">
     <div class="lobby__credit">
-      <span class="meter__label">내 코인 <small>세 게임이 같이 씁니다</small></span>
+      <!-- "N개 게임" 숫자는 GAME_KEYS 길이에서 채운다. 게임이 늘 때 문구를 놓치지 않으려는 것이다 -->
+      <span class="meter__label">내 코인 <small id="lobby-credit-note"></small></span>
       <output class="meter__value meter__value--credit" id="lobby-credit">0</output>
     </div>
     <p class="lobby__jplabel">럭키 캐비닛 · 파라오의 문이 같이 쌓는 잭팟</p>
@@ -102,6 +103,11 @@
         <div class="charge" id="charge" hidden>
           <span class="charge__label">부적</span>
           <span class="charge__pips" id="charge-pips"></span>
+        </div>
+        <!-- ways 표시(용문). 이번 스핀에 열린 당첨 경로 수다 -->
+        <div class="ways" id="ways" hidden>
+          <span class="ways__value" id="ways-value">0</span>
+          <span class="ways__label">WAYS</span>
         </div>
         <div class="hold-badge" id="hold-badge" hidden></div>
         <!-- 어트랙트 모드: 유휴 상태에서 혼자 돌 때만 보인다 -->

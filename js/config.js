@@ -11,7 +11,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   6: settings.ambience(홀 생활소음) 추가
 //   7: pouchJackpot(복주머니 전용 풀 + 터질 지점) 추가. 공유 풀과 별개다
 //   8: games[게임키].charge(부적 게이지) 추가. 스핀을 넘겨 이어진다
-export const SCHEMA_VERSION = 8;
+//   9: 게임 4종째(용문) 추가. games.gate 섹션이 기본값으로 생긴다
+export const SCHEMA_VERSION = 9;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -48,6 +49,15 @@ export const SYMBOLS = {
   mask: { key: 'mask', label: '황금 가면', kind: 'normal' },
   eye: { key: 'eye', label: '호루스의 눈', kind: 'wild' },
   obelisk: { key: 'obelisk', label: '오벨리스크', kind: 'scatter' },
+  // 용문 (가변 릴)
+  shell: { key: 'shell', label: '조개', kind: 'normal' },
+  minnow: { key: 'minnow', label: '붕어', kind: 'normal' },
+  crayfish: { key: 'crayfish', label: '가재', kind: 'normal' },
+  turtle: { key: 'turtle', label: '자라', kind: 'normal' },
+  carp: { key: 'carp', label: '잉어', kind: 'normal' },
+  dragon: { key: 'dragon', label: '용', kind: 'normal' },
+  orb: { key: 'orb', label: '여의주', kind: 'wild' },
+  gate: { key: 'gate', label: '용문', kind: 'scatter' },
   rank10: { key: 'rank10', label: '10', kind: 'normal' },
   rankj: { key: 'rankj', label: 'J', kind: 'normal' },
   rankq: { key: 'rankq', label: 'Q', kind: 'normal' },
@@ -62,6 +72,7 @@ export const SYMBOL_ORDER = [
   'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
   'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
   'yeopjeon', 'maedeup', 'moran', 'cheongja', 'crane', 'toad', 'tiger', 'pouch',
+  'shell', 'minnow', 'crayfish', 'turtle', 'carp', 'dragon', 'orb', 'gate',
 ];
 
 // 5릴 라인 배당 (라인 베팅 배수)
@@ -452,6 +463,72 @@ PHARAOH.strips = buildStrips(
   STRIP_SEED + PHARAOH.seedOffset,
 );
 
+// ── 용문 (가변 릴) ────────────────────────
+// 릴마다 보이는 칸 수가 매 스핀 다르게 정해진다(2~7칸). ways는 릴 높이의 곱이라
+// 최대 7^6 = 117,649가지가 된다. 판정은 파라오와 같은 올웨이즈다 —
+// evaluateWays가 이미 릴별 개수의 곱을 쓰므로 판정 코드를 그대로 쓴다.
+//
+// 저배당 5종(10·J·Q·K·A)은 파라오와 공유한다. 일반 슬롯도 카드 숫자를 저배당으로
+// 돌려 쓴다. 고배당과 와일드·스캐터만 새로 그렸다.
+//
+// heights: 릴 높이를 뽑는 가중치. 낮은 높이가 흔해야 큰 ways가 드물게 나온다.
+export const GATE = {
+  key: 'gate',
+  reels: 6,
+  // 릴 높이가 변하므로 rows는 상한이다. 화면 높이 계산과 렌더 버퍼가 이 값을 쓴다.
+  rows: 7,
+  minRows: 2,
+  wild: 'orb',
+  scatter: 'gate',
+  minMatch: 3,
+  betUnits: 20,
+  heights: [
+    { rows: 2, weight: 22 },
+    { rows: 3, weight: 26 },
+    { rows: 4, weight: 22 },
+    { rows: 5, weight: 15 },
+    { rows: 6, weight: 10 },
+    { rows: 7, weight: 5 },
+  ],
+  symbolOrder: [
+    'rank10', 'rankj', 'rankq', 'rankk', 'ranka',
+    'shell', 'minnow', 'crayfish', 'turtle', 'carp', 'dragon', 'orb', 'gate',
+  ],
+  // ways당 총 베팅 배수. 계수 역산으로 맞춘 값이다.
+  pays: {
+    rank10: { 3: 0.01, 4: 0.05, 5: 0.2, 6: 0.8 },
+    rankj: { 3: 0.012, 4: 0.06, 5: 0.25, 6: 1 },
+    rankq: { 3: 0.015, 4: 0.08, 5: 0.3, 6: 1.2 },
+    rankk: { 3: 0.018, 4: 0.1, 5: 0.4, 6: 1.2 },
+    ranka: { 3: 0.025, 4: 0.12, 5: 0.4, 6: 1.5 },
+    shell: { 3: 0.04, 4: 0.12, 5: 0.5, 6: 2 },
+    minnow: { 3: 0.05, 4: 0.15, 5: 0.6, 6: 2.5 },
+    crayfish: { 3: 0.06, 4: 0.25, 5: 1, 6: 4 },
+    turtle: { 3: 0.1, 4: 0.4, 5: 1.5, 6: 6 },
+    carp: { 3: 0.18, 4: 0.8, 5: 3, 6: 12 },
+    dragon: { 3: 0.5, 4: 1.8, 5: 10, 6: 40 },
+  },
+  scatterMin: 4,
+  scatterPays: { 4: 2, 5: 5, 6: 15, 7: 40, 8: 100, 9: 200, 10: 400, 11: 800, 12: 2000 },
+  freeSpins: 10,
+  freeMultiplier: 2,
+  // 프리스핀에서는 연쇄마다 배수가 1씩 오르고 상한이 없다. Megaways류의 핵심 장치다.
+  freeChainStep: 1,
+  // 유료 스핀의 연쇄 배수 사다리
+  multipliers: [1, 2, 3, 5, 8, 12],
+  maxChain: 30,
+  weights: {
+    rank10: 8, rankj: 8, rankq: 7, rankk: 7, ranka: 6,
+    shell: 5, minnow: 5, crayfish: 4, turtle: 3, carp: 2, dragon: 1,
+    orb: 2, gate: 2,
+  },
+  // 1번 릴에는 와일드를 넣지 않는다. 6릴 ways에서 1번 릴 와일드는 모든 심볼의 당첨을 연다.
+  reelWeights: [{ orb: 0 }],
+  seedOffset: 505,
+};
+
+GATE.strips = buildStrips(GATE.reels, GATE.weights, GATE.reelWeights, STRIP_SEED + GATE.seedOffset);
+
 // ── 복주머니 (5x5 클러스터) ────────────────
 // 줄도 릴 경계도 없다. 상하좌우로 붙은 같은 심볼이 minCluster개 이상 뭉치면 당첨이다.
 // 복주머니(와일드)는 어느 덩어리에도 붙어 두 덩어리를 하나로 이어 준다.
@@ -601,6 +678,17 @@ export const GAMES = {
     badge: '5x5 덩어리 · 반드시 터지는 잭팟',
     artSymbols: ['pouch', 'tiger', 'toad'],
   },
+
+  gate: {
+    key: 'gate',
+    label: '용문',
+    tagline: '릴 높이가 매 스핀 바뀐다. 여섯 릴이 모두 높으면 117,649가지 경로가 한 번에 열린다.',
+    // 가변 릴 + 올웨이즈 + 캐스케이딩 엔진을 쓴다.
+    kind: 'gate',
+    modeKeys: [],
+    badge: '6릴 가변 · 최대 117,649 ways',
+    artSymbols: ['dragon', 'carp', 'orb'],
+  },
 };
 
-export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch'];
+export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch', 'gate'];

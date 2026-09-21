@@ -8,6 +8,7 @@ import {
   EFFECTS,
   GAMES,
   GAME_KEYS,
+  GATE,
   PHARAOH,
   HISTORY_LIMITS,
   JACKPOT_MATCH,
@@ -46,6 +47,7 @@ export const el = {
   cabinet: document.getElementById('screen-cabinet'),
   lobbySeat: document.getElementById('lobby-seat'),
   lobbyCredit: document.getElementById('lobby-credit'),
+  lobbyCreditNote: document.getElementById('lobby-credit-note'),
   lobbyJackpots: document.getElementById('lobby-jackpots'),
   lobbyGames: document.getElementById('lobby-games'),
   toLobby: document.getElementById('to-lobby'),
@@ -54,6 +56,7 @@ export const el = {
   nicknameError: document.getElementById('nickname-error'),
   bulbs: document.querySelector('.marquee__bulbs'),
   seat: document.getElementById('seat-label'),
+  jackpotSection: document.querySelector('.jackpot'),
   jackpotBar: document.getElementById('jackpot-bar'),
   pouchBar: document.getElementById('pouch-jackpot-bar'),
   modes: document.getElementById('modes'),
@@ -67,6 +70,8 @@ export const el = {
   chainBadge: document.getElementById('chain-badge'),
   charge: document.getElementById('charge'),
   chargePips: document.getElementById('charge-pips'),
+  ways: document.getElementById('ways'),
+  waysValue: document.getElementById('ways-value'),
   attract: document.getElementById('attract'),
   holdBadge: document.getElementById('hold-badge'),
   readout: document.getElementById('reel-readout'),
@@ -223,15 +228,23 @@ export function flashJackpotTier(key, ms) {
 // ── 복주머니 잭팟 바 ──────────────────────
 // 복주머니는 공유 풀을 쓰지 않으므로 이 바는 캐비닛 화면에만 있다.
 
+// 코인은 모든 게임이 공유한다. 게임 수가 늘면 이 문구도 같이 늘어야 한다.
+export function mountLobbyCreditNote() {
+  el.lobbyCreditNote.textContent = `${GAME_KEYS.length}개 게임이 같이 씁니다`;
+}
+
 export function renderPouchVessels() {
   el.pouchBar.innerHTML = vesselBarMarkup(POUCH_TIER_KEYS, POUCH_JACKPOT.tiers);
 }
 
 // 어느 잭팟 바를 보여줄지는 게임 종류가 정한다.
+// 용문은 쌓이는 상금이 없으므로 둘 다 감춘다. 적립도 적중도 없는 바를 띄우면
+// 돈이 저절로 오르는 것처럼 보인다.
 export function setJackpotBarKind(kind) {
-  const cluster = kind === 'cluster';
-  el.jackpotBar.hidden = cluster;
-  el.pouchBar.hidden = !cluster;
+  el.jackpotBar.hidden = kind !== 'lines' && kind !== 'cascade';
+  el.pouchBar.hidden = kind !== 'cluster';
+  // 바 둘 다 숨기면 "계속 쌓이는 잭팟" 제목만 남는다. 섹션째로 접는다.
+  el.jackpotSection.hidden = el.jackpotBar.hidden && el.pouchBar.hidden;
 }
 
 function vesselOf(key) {
@@ -401,6 +414,28 @@ export function setCharge(filled) {
 export function flashCharge(ms) {
   el.charge.classList.add('charge--fire');
   setTimeout(() => el.charge.classList.remove('charge--fire'), ms);
+}
+
+// ── ways 표시 ────────────────────────────
+// 용문은 릴 높이가 매 스핀 바뀌므로 이번 판에 열린 경로 수를 직접 보여 준다.
+
+export function setWaysVisible(visible) {
+  el.ways.hidden = !visible;
+  if (!visible) el.ways.classList.remove('ways--up');
+}
+
+/**
+ * ways 수를 갱신한다. 이전보다 늘었으면 한 번 튀어오른다.
+ * @param {number} ways
+ * @param {number} previous 직전 스핀의 ways. 비교만 하고 저장하지 않는다.
+ */
+export function setWays(ways, previous = 0) {
+  el.waysValue.textContent = ways.toLocaleString('ko-KR');
+  el.ways.classList.remove('ways--up');
+  if (ways <= previous) return;
+  // 클래스를 지운 직후 다시 붙이면 같은 프레임에서 처리되어 애니메이션이 다시 시작되지 않는다.
+  void el.ways.offsetWidth;
+  el.ways.classList.add('ways--up');
 }
 
 // 어트랙트 모드 표시. 데모라는 사실을 화면에 남긴다.
@@ -1206,27 +1241,29 @@ function paylineGrid(mode) {
     .join('');
 }
 
-function waysPaytableRows() {
+function waysPaytableRows(spec) {
   const counts = [3, 4, 5, 6];
-  return PHARAOH.symbolOrder
+  return spec.symbolOrder
     .map((key) => {
-      if (key === PHARAOH.wild) {
+      if (key === spec.wild) {
         return (
           `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
           `<span>${SYMBOLS[key].label}<small> 아무 심볼로 변신</small></span></div></td>` +
-          '<td colspan="4">오벨리스크만 빼고 어떤 심볼로든 변신합니다</td></tr>'
+          `<td colspan="4">${SYMBOLS[spec.scatter].label}만 빼고 어떤 심볼로든 변신합니다</td></tr>`
         );
       }
-      if (key === PHARAOH.scatter) {
+      if (key === spec.scatter) {
         const shown = [4, 5, 6];
-        const cells = shown.map((n) => `<td>${PHARAOH.scatterPays[n]}배</td>`).join('');
+        const cells = shown.map((n) => `<td>${spec.scatterPays[n]}</td>`).join('');
         return (
           `<tr><td><div class="table__sym">${symbolMarkup(key)}` +
           `<span>${SYMBOLS[key].label}<small> 흩어져도 OK</small></span></div></td>` +
           `<td>-</td>${cells}</tr>`
         );
       }
-      const cells = counts.map((n) => `<td>${PHARAOH.pays[key][n]}배</td>`).join('');
+      // 배수라는 건 표 머리 위 안내문이 말한다. 칸마다 "배"를 붙이면 0.012배처럼
+      // 자릿수가 많은 값에서 두 줄로 접힌다.
+      const cells = counts.map((n) => `<td>${spec.pays[key][n]}</td>`).join('');
       return (
         `<tr><td><div class="table__sym">${symbolMarkup(key)}<span>${SYMBOLS[key].label}</span></div></td>${cells}</tr>`
       );
@@ -1234,25 +1271,44 @@ function waysPaytableRows() {
     .join('');
 }
 
-function openWaysPaytable() {
+// 올웨이즈 게임 두 종(파라오 · 용문)이 같은 표를 쓴다. 규칙 문구만 게임별로 갈린다.
+function openWaysPaytable(gameKey, spec) {
+  const scatterName = SYMBOLS[spec.scatter].label;
+  // 릴 높이가 고정이면 최대 경로 수가 하나로 정해지고, 가변이면 상한만 말할 수 있다.
+  const maxWays = (spec.rows ** spec.reels).toLocaleString('ko-KR');
+  const ragged = spec.heights !== undefined;
+  const scatterLadder = Object.entries(spec.scatterPays)
+    .map(([count, pay]) => `${count}개 ${pay}배`)
+    .join(' · ');
   const rules = [
     `<b>줄이 없습니다.</b> 맨 왼쪽 칸부터 옆 칸으로 계속 같은 심볼이 있으면 위아래 어디든 당첨입니다. ` +
-      `${PHARAOH.minMatch}칸 이상 이어져야 합니다.`,
+      `${spec.minMatch}칸 이상 이어져야 합니다.`,
     '같은 심볼이 여러 개면 <b>경로 수</b>만큼 곱해 받습니다. 예를 들어 첫 칸에 2개, 둘째 칸에 3개, ' +
-      `셋째 칸에 1개면 2 × 3 × 1 = 6배로 받습니다. 최대 ${PHARAOH.rows ** PHARAOH.reels}가지까지 나옵니다.`,
+      `셋째 칸에 1개면 2 × 3 × 1 = 6배로 받습니다.` +
+      (ragged
+        ? ` 이 게임은 릴마다 칸 수가 <b>${spec.minRows}~${spec.rows}칸</b>으로 매번 바뀌어서, 다 열리면 ${maxWays}가지까지 나옵니다.`
+        : ` 최대 ${maxWays}가지까지 나옵니다.`),
     '심볼 종류마다 따로 계산해서 한 번에 다 줍니다.',
     `당첨된 심볼이 <b>사라지고 위에서 새 심볼이 떨어져</b> 다시 따질 수 있습니다(연속 당첨). ` +
-      `연속으로 이어질수록 받는 돈이 ${PHARAOH.multipliers.join('배 → ')}배로 커집니다.`,
-    `오벨리스크가 ${PHARAOH.scatterMin}개 이상 나오면 <b>공짜로 ${PHARAOH.freeSpins}번</b> 더 돌리고, ` +
-      `그동안 당첨금이 ${PHARAOH.freeMultiplier}배가 됩니다.`,
-    `연속 당첨이 <b>${PHARAOH.jackpotChain}번</b>까지 이어지면 잭팟 뽑기 화면이 열립니다.`,
-  ];
+      `연속으로 이어질수록 받는 돈이 ${spec.multipliers.join('배 → ')}배로 커집니다.`,
+    `${scatterName}이 ${spec.scatterMin}개 이상 나오면 <b>공짜로 ${spec.freeSpins}번</b> 더 돌리고, ` +
+      `그동안 당첨금이 ${spec.freeMultiplier}배가 됩니다. ${scatterName} 자체 배당은 ${scatterLadder}입니다.`,
+    spec.freeChainStep !== undefined
+      ? '공짜 스핀 중에는 연속 당첨 배수에 <b>상한이 없습니다</b>. 한 번 이어질 때마다 1배씩 계속 올라갑니다.'
+      : '',
+    spec.jackpotChain !== undefined
+      ? `연속 당첨이 <b>${spec.jackpotChain}번</b>까지 이어지면 잭팟 뽑기 화면이 열립니다.`
+      : '이 게임에는 쌓이는 상금이 없습니다. 경로 수와 연속 당첨 배수가 그 자리를 대신합니다.',
+  ].filter((line) => line !== '');
   openModal({
-    title: `배당표 · ${GAMES.pharaoh.label}`,
+    title: `배당표 · ${GAMES[gameKey].label}`,
     body:
       '<p class="modal__note">경로 1개당 <b>한 번에 거는 돈</b>의 몇 배를 받는지 적은 표입니다.</p>' +
-      '<table class="table"><thead><tr><th>심볼</th><th>3칸</th><th>4칸</th><th>5칸</th><th>6칸</th></tr></thead>' +
-      `<tbody>${waysPaytableRows()}</tbody></table>` +
+      // 6칸 열까지 5열이다. 좁은 화면에서 마지막 열이 잘리므로 덩어리 배당표와 같이
+      // 촘촘한 표(table--bands)에 가로 스크롤을 감싼다.
+      '<div class="table-scroll"><table class="table table--bands">' +
+      '<thead><tr><th>심볼</th><th>3칸</th><th>4칸</th><th>5칸</th><th>6칸</th></tr></thead>' +
+      `<tbody>${waysPaytableRows(spec)}</tbody></table></div>` +
       `<ul class="modal__note" style="padding-left:1.1em">${rules.map((line) => `<li>${line}</li>`).join('')}</ul>`,
   });
 }
@@ -1316,7 +1372,11 @@ function openClusterPaytable() {
 
 export function openPaytable(gameKey, modeKey) {
   if (GAMES[gameKey].kind === 'cascade') {
-    openWaysPaytable();
+    openWaysPaytable(gameKey, PHARAOH);
+    return;
+  }
+  if (GAMES[gameKey].kind === 'gate') {
+    openWaysPaytable(gameKey, GATE);
     return;
   }
   if (GAMES[gameKey].kind === 'cluster') {

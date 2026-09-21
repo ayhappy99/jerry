@@ -28,12 +28,20 @@ function restStyle() {
   return `transform: translateY(calc(var(--cell) * ${-BUFFER_CELLS}))`;
 }
 
-function reelMarkup(reel, cells) {
+// rows를 넘기면 그 릴만 높이가 달라진다(용문). --rows는 .reels에 깔려 있고
+// 인라인으로 덮어쓰면 그 릴에만 적용된다. 높이 계산은 CSS 한 줄이 전부다.
+function reelMarkup(reel, cells, rows) {
+  const style = rows === undefined ? '' : ` style="--rows: ${rows}"`;
   return (
-    `<div class="reel" data-reel="${reel}">` +
+    `<div class="reel" data-reel="${reel}"${style}>` +
     `<div class="reel__strip" style="${restStyle()}">${cells.map(cellMarkup).join('')}</div>` +
     '</div>'
   );
+}
+
+// 이 스핀에서 릴 하나가 보여 줄 행 수. 가변 릴이 아니면 모든 릴이 같다.
+function rowsOf(mode, heights, reel) {
+  return heights === null ? mode.rows : heights[reel];
 }
 
 // 스톱 위치 기준으로 실제 릴 스트립을 잘라낸다. stop 바로 앞 심볼이 여유 셀이 된다.
@@ -50,18 +58,23 @@ function stripOf(host, reel) {
 }
 
 // 정지 상태의 릴을 그린다. 모션 최소화 설정에서 결과를 즉시 보여줄 때도 이 함수를 쓴다.
-export function renderReels(host, mode, stops) {
+export function renderReels(host, mode, stops, heights = null) {
   host.style.setProperty('--rows', String(mode.rows));
+  host.classList.toggle('reels--ragged', heights !== null);
   host.innerHTML = mode.strips
-    .map((strip, reel) => reelMarkup(reel, sliceStrip(strip, stops[reel], BUFFER_CELLS + mode.rows)))
+    .map((strip, reel) => {
+      const rows = rowsOf(mode, heights, reel);
+      return reelMarkup(reel, sliceStrip(strip, stops[reel], BUFFER_CELLS + rows), heights && rows);
+    })
     .join('');
 }
 
 // 그리드를 그대로 그린다. 캐스케이딩은 스톱이 아니라 단계별 그리드를 받는다.
-export function renderGrid(host, mode, grid) {
+export function renderGrid(host, mode, grid, heights = null) {
   host.style.setProperty('--rows', String(mode.rows));
+  host.classList.toggle('reels--ragged', heights !== null);
   host.innerHTML = mode.strips
-    .map((strip, reel) => reelMarkup(reel, [strip[0], ...grid[reel]]))
+    .map((strip, reel) => reelMarkup(reel, [strip[0], ...grid[reel]], heights && grid[reel].length))
     .join('');
 }
 
@@ -98,27 +111,32 @@ export function clearHighlights(host) {
 }
 
 // 현재 화면에 보이는 심볼. 회전 시작 프레임을 이 심볼로 채워 튀는 느낌을 없앤다.
+// 이전 스핀의 릴 높이가 이번과 다를 수 있다. 실제로 그려져 있는 셀 수만 읽는다.
 function visibleSymbols(host, mode) {
-  return mode.strips.map((_, reel) =>
-    Array.from({ length: mode.rows }, (_, row) => cellAt(host, reel, row).dataset.symbol),
-  );
+  return mode.strips.map((_, reel) => {
+    const cells = stripOf(host, reel).children;
+    return Array.from(cells).slice(BUFFER_CELLS).map((cell) => cell.dataset.symbol);
+  });
 }
 
-function scatterCount(grid, untilReel) {
+function scatterCount(grid, untilReel, scatter) {
   let count = 0;
   for (let reel = 0; reel < untilReel; reel += 1) {
     for (const symbol of grid[reel]) {
-      if (symbol === SCATTER) count += 1;
+      if (symbol === scatter) count += 1;
     }
   }
   return count;
 }
 
 // 스캐터가 이미 (최소 개수 - 1)개 나와 있으면 남은 릴부터 느려진다.
+// mode.scatter가 true면 기본 스캐터, 문자열이면 그 게임 고유의 스캐터다.
 function anticipationStart(mode, grid) {
   if (!mode.scatter) return -1;
+  const scatter = mode.scatter === true ? SCATTER : mode.scatter;
+  const min = mode.scatterMin ?? SCATTER_MIN;
   for (let reel = 1; reel < mode.reels; reel += 1) {
-    if (scatterCount(grid, reel) >= SCATTER_MIN - 1) return reel;
+    if (scatterCount(grid, reel, scatter) >= min - 1) return reel;
   }
   return -1;
 }
@@ -163,21 +181,22 @@ function animateReel(reelEl, pitch, travelCells, duration, anticipate) {
  * 릴을 돌려 확정된 결과를 보여준다.
  * @param {{stops: number[], grid: string[][]}} spin 스핀 시작 시점에 확정된 결과
  */
-export async function spinReels(host, mode, spin, { turbo = false, onReelStop = () => {}, onAnticipate = () => {} } = {}) {
+export async function spinReels(host, mode, spin, { turbo = false, heights = null, onReelStop = () => {}, onAnticipate = () => {} } = {}) {
   const previous = visibleSymbols(host, mode);
   const anticipateFrom = anticipationStart(mode, spin.grid);
   const speed = turbo ? TIMING.turboDivisor : 1;
-  const travelCells = mode.rows + SPIN_CELLS;
 
   host.style.setProperty('--rows', String(mode.rows));
+  host.classList.toggle('reels--ragged', heights !== null);
   host.innerHTML = mode.strips
     .map((strip, reel) => {
+      const rows = rowsOf(mode, heights, reel);
       // 위에서부터: 여유 셀 · 최종 결과 · 지나갈 스트립 · 직전 화면
       const cells = [
-        ...sliceStrip(strip, spin.stops[reel], BUFFER_CELLS + mode.rows + SPIN_CELLS),
+        ...sliceStrip(strip, spin.stops[reel], BUFFER_CELLS + rows + SPIN_CELLS),
         ...previous[reel],
       ];
-      return reelMarkup(reel, cells);
+      return reelMarkup(reel, cells, heights && rows);
     })
     .join('');
 
@@ -189,6 +208,8 @@ export async function spinReels(host, mode, spin, { turbo = false, onReelStop = 
       const reelEl = host.querySelector(`.reel[data-reel="${reel}"]`);
       const duration = reelDuration(reel, anticipateFrom, speed);
       const anticipate = anticipateFrom !== -1 && reel >= anticipateFrom;
+      // 높이가 릴마다 다르면 지나갈 셀 수도 릴마다 다르다
+      const travelCells = rowsOf(mode, heights, reel) + SPIN_CELLS;
       return animateReel(reelEl, pitch, travelCells, duration, anticipate).then(() => onReelStop(reel));
     }),
   );
@@ -252,12 +273,12 @@ function dropIn(host, mode, drops, duration) {
  * 연쇄 단계를 순서대로 보여준다. 결과는 이미 확정되어 있고 steps를 재생할 뿐이다.
  * instant=true면 마지막 그리드만 즉시 표시한다.
  */
-export async function playCascade(host, mode, steps, { speed = 1, instant = false, onStep = () => {} } = {}) {
+export async function playCascade(host, mode, steps, { speed = 1, instant = false, heights = null, onStep = () => {} } = {}) {
   if (steps.length === 0) return;
   if (instant) {
     const last = steps[steps.length - 1];
     if (last.wins !== undefined) markCascadeWins(host, last.wins);
-    else renderGrid(host, mode, last.nextGrid);
+    else renderGrid(host, mode, last.nextGrid, heights);
     onStep(last);
     return;
   }
@@ -265,7 +286,7 @@ export async function playCascade(host, mode, steps, { speed = 1, instant = fals
     // 부적 게이지 단계는 당첨이 없다. 와일드가 내려앉는 것만 보여 준다.
     if (step.charge !== undefined) {
       onStep(step);
-      renderGrid(host, mode, step.nextGrid);
+      renderGrid(host, mode, step.nextGrid, heights);
       for (const { reel, row } of step.charge) cellAt(host, reel, row).classList.add('cell--descend');
       await wait(TIMING.chargeDrop / speed);
       continue;
@@ -278,7 +299,7 @@ export async function playCascade(host, mode, steps, { speed = 1, instant = fals
     popCascadeWins(host, step.wins, popDuration);
     await wait(popDuration);
 
-    renderGrid(host, mode, step.nextGrid);
+    renderGrid(host, mode, step.nextGrid, heights);
     dropIn(host, mode, removedPerReel(mode, step.wins.flatMap((win) => win.cells)), TIMING.cascadeDrop / speed);
     await wait(TIMING.cascadeDrop / speed);
   }
@@ -304,6 +325,7 @@ function holdCellMarkup(coin) {
 export function renderHoldGrid(host, mode, coins) {
   const placed = new Map(coins.map((coin) => [`${coin.reel}:${coin.row}`, coin]));
   host.style.setProperty('--rows', String(mode.rows));
+  host.classList.remove('reels--ragged');
   host.innerHTML = mode.strips
     .map((_, reel) => {
       const cells = [holdCellMarkup(undefined)];

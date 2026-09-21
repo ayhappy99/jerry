@@ -9,6 +9,7 @@ import {
   JACKPOT_TIER_KEYS,
   GAMES,
   GAME_KEYS,
+  GATE,
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
@@ -24,6 +25,7 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
+import { drawHeights, spinGate } from './gate.js';
 import { drawBeads } from './bead.js';
 import { contributePouch, countPouches, pouchFeed, spinCluster } from './cluster.js';
 import { spinHold, triggered } from './hold.js';
@@ -42,6 +44,10 @@ const game = {
   mode: null,
   lineBet: 0,
   freeSpinsLeft: 0,
+  // 용문의 이번 판 릴 높이. 스핀마다 다시 뽑고, 화면에 그려진 높이와 항상 같아야 한다.
+  gateHeights: null,
+  // 직전 스핀의 ways. 늘었을 때만 ways 표시가 튀어오른다.
+  gateWays: 0,
   busy: false,
   // 진행 중인 스핀 루프. 체험형 안내가 스핀 종료를 기다릴 때 쓴다.
   loopPromise: Promise.resolve(),
@@ -84,7 +90,13 @@ function countUpDuration(payout, result) {
 function spec() {
   if (game.kind === 'cascade') return PHARAOH;
   if (game.kind === 'cluster') return POUCH;
+  if (game.kind === 'gate') return GATE;
   return game.mode;
+}
+
+// 이번에 그려야 할 릴 높이. 가변 릴 게임이 아니면 null이고 모든 릴이 spec().rows다.
+function heights() {
+  return game.kind === 'gate' ? game.gateHeights : null;
 }
 
 // 줄이 없는 게임은 기본 금액을 정해진 칸 수에 한꺼번에 건다.
@@ -157,6 +169,23 @@ function setupCluster() {
   renderReels(ui.reelsHost(), POUCH, drawStops(POUCH.strips));
   syncMeters();
   storage.save(game.state);
+}
+
+// 가변 릴 게임. 첫 화면에도 높이를 뽑아 둬야 릴이 빈 채로 남지 않는다.
+function setupGate() {
+  game.gateHeights = drawHeights();
+  game.gateWays = 0;
+  renderReels(ui.reelsHost(), GATE, drawStops(GATE.strips), game.gateHeights);
+  showGateWays();
+  syncMeters();
+  storage.save(game.state);
+}
+
+// 이번 판에 열린 경로 수를 띄운다. 직전보다 늘었으면 한 번 튀어오른다.
+function showGateWays() {
+  const ways = game.gateHeights.reduce((product, rows) => product * rows, 1);
+  ui.setWays(ways, game.gateWays);
+  game.gateWays = ways;
 }
 
 // ── 스핀 ──────────────────────────────────
@@ -283,6 +312,12 @@ function readoutText(result, payout) {
     const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
     return `연속 당첨 ${result.cascade.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
   }
+  if (result.gate !== undefined) {
+    const ways = `경로 ${result.gate.ways.toLocaleString('ko-KR')}가지.`;
+    if (payout.totalWin === 0) return `${ways} 당첨 없음`;
+    const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
+    return `${ways} 연속 당첨 ${result.gate.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
+  }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 ${win.lineIndex + 1}번 줄`,
   );
@@ -295,13 +330,20 @@ function readoutText(result, payout) {
   return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
 }
 
+// 프리스핀을 준 심볼이 몇 개였나. 게임마다 그 수를 담는 자리가 다르다.
+function scatterCountOf(result) {
+  if (result.cascade !== undefined) return result.cascade.scatters;
+  if (result.gate !== undefined) return result.gate.scatters;
+  return result.scatter.count;
+}
+
 function resultMessage(result, payout) {
   if (payout.jackpot !== null) {
     const label = payout.jackpot.hits.map((hit) => jackpotTierLabel(hit.tier)).join(' + ');
     return `${label} 잭팟! ${ui.formatCoins(payout.jackpot.amount)} 획득`;
   }
   if (result.freeSpinsAwarded > 0) {
-    const count = result.cascade === undefined ? result.scatter.count : result.cascade.scatters;
+    const count = scatterCountOf(result);
     return `흩어진 심볼 ${count}개! 공짜 스핀 ${result.freeSpinsAwarded}번`;
   }
   if (payout.totalWin === 0) return '';
@@ -311,6 +353,9 @@ function resultMessage(result, payout) {
   }
   if (result.cascade !== undefined) {
     return `연속 당첨 ${result.cascade.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
+  }
+  if (result.gate !== undefined) {
+    return `${result.gate.ways.toLocaleString('ko-KR')}경로 · 연속 ${result.gate.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
   }
   if (result.hold != null) {
     return `골드 코인 ${result.hold.coins.length}개 · ${ui.formatCoins(payout.totalWin)}`;
@@ -412,13 +457,14 @@ async function presentWin(result, payout, coinsBeforeWin) {
 // 모션 최소화 설정이면 릴을 돌리지 않고 결과를 즉시 보여준다.
 async function revealSpin(spin) {
   if (reducedMotion.matches) {
-    renderReels(ui.reelsHost(), spec(), spin.stops);
+    renderReels(ui.reelsHost(), spec(), spin.stops, heights());
     return;
   }
   const lastReel = spec().reels - 1;
   audio.startReelLoop();
   await spinReels(ui.reelsHost(), spec(), spin, {
     turbo: game.state.settings.turbo,
+    heights: heights(),
     onAnticipate: () => audio.playAnticipation(),
     onReelStop: (reel) => {
       if (reel === lastReel) audio.stopReelLoop();
@@ -527,6 +573,39 @@ function drawCascade(isFree, totalBet) {
   };
 }
 
+// 가변 릴 게임 한 스핀. 릴 높이와 연쇄 전체가 여기서 확정된다.
+function drawGate(isFree, totalBet) {
+  const stops = drawStops(GATE.strips);
+  const result = spinGate({ stops, heights: game.gateHeights, totalBet, freeSpin: isFree });
+  return {
+    modeKey: GATE.key,
+    totalBet,
+    freeSpin: isFree,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: result.freeSpinsAwarded,
+    totalWin: result.totalWin,
+    jackpot: { hit: false },
+    gate: result,
+    spin: { stops, grid: result.initialGrid },
+  };
+}
+
+// 연쇄를 단계별로 재생한다. 파라오와 같은 구조지만 릴 높이를 함께 넘긴다.
+async function playGateSteps(result) {
+  const speed = presentationSpeed();
+  await playCascade(ui.reelsHost(), GATE, result.gate.steps, {
+    speed,
+    instant: reducedMotion.matches,
+    heights: result.gate.heights,
+    onStep: (step) => {
+      const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
+      ui.setChainBadge(`연속 ${step.chain}번째 · ${step.chainMultiplier}배 · ${ways}경로`);
+      audio.playLineTick();
+    },
+  });
+}
+
 // 게이지 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
 function syncCharge(result) {
   section().charge = result.cascade.charge;
@@ -573,6 +652,13 @@ async function runSpin() {
   // 화면에 나온 복주머니 심볼 개수로 정해지므로 격자를 먼저 뽑는다.
   const clusterSpin = game.kind === 'cluster' ? drawClusterSpin(totalBet) : null;
 
+  // 릴 높이는 스핀마다 새로 뽑는다. 릴이 돌기 시작하는 프레임에 이미 정해져 있어야
+  // 연출이 결과를 바꾸는 일이 없다.
+  if (game.kind === 'gate') {
+    game.gateHeights = drawHeights();
+    showGateWays();
+  }
+
   let pouchHits = [];
   if (isFree) {
     setFreeSpins(game.freeSpinsLeft - 1);
@@ -590,6 +676,7 @@ async function runSpin() {
   // 결과는 여기서 완전히 확정된다. 이후 연출은 이 결과를 보여줄 뿐이다.
   const result =
     game.kind === 'cascade' ? drawCascade(isFree, totalBet)
+    : game.kind === 'gate' ? drawGate(isFree, totalBet)
     : clusterSpin !== null ? clusterResult(clusterSpin, totalBet, pouchHits)
     : drawLines(isFree);
   // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
@@ -605,6 +692,7 @@ async function runSpin() {
     audio.playBead();
   }
   if (result.cascade !== undefined) await playCascadeSteps(result);
+  if (result.gate !== undefined) await playGateSteps(result);
   if (result.hold != null) await playHoldBonus(result);
 
   const coinsBeforeWin = game.state.wallet.coins;
@@ -908,6 +996,8 @@ const TOUR_RULE = {
     '당첨된 칸은 네모로 표시되고, 그 심볼이 사라지면서 새 심볼이 떨어져 또 당첨될 수 있습니다.',
   cluster: '줄이 없습니다. 같은 심볼이 <b>위아래 옆으로 붙어 5칸 이상</b> 뭉치면 당첨입니다. ' +
     '대각선은 붙은 것으로 보지 않아요. 뭉친 칸이 많을수록 받는 돈이 커집니다.',
+  gate: '맨 왼쪽 칸부터 옆으로 같은 심볼이 <b>3칸 이상</b> 이어지면 당첨입니다. 위아래 위치는 상관없어요. ' +
+    '이 게임은 <b>릴마다 칸 수가 매번 달라집니다</b>. 칸이 많이 열릴수록 당첨 경로가 폭발적으로 늘어나요.',
 };
 
 const TOUR_JACKPOT = {
@@ -920,6 +1010,11 @@ const TOUR_JACKPOT = {
     target: '#jackpot-bar',
     text: '<b>쌓이는 상금</b>입니다. 돌릴 때마다 조금씩 쌓이고, 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
       '럭키 캐비닛과 파라오의 문이 같은 상금을 함께 쌓습니다.',
+  },
+  gate: {
+    target: '#ways',
+    text: '이번 판에 열린 <b>당첨 경로 수</b>입니다. 릴 여섯 개가 모두 높게 열리면 ' +
+      '117,649가지까지 나옵니다. 이 게임에는 쌓이는 상금이 없고, 대신 경로 수와 연속 당첨이 배수를 키웁니다.',
   },
   cluster: {
     target: '#pouch-jackpot-bar',
@@ -1149,6 +1244,7 @@ function enterGame(gameKey) {
   ui.setModesVisible(game.kind === 'lines');
   ui.setJackpotBarKind(game.kind);
   ui.setChargeVisible(game.kind === 'cascade');
+  ui.setWaysVisible(game.kind === 'gate');
   ui.showScreen('cabinet');
   ui.setChainBadge(null);
 
@@ -1156,6 +1252,8 @@ function enterGame(gameKey) {
     setupCascade();
   } else if (game.kind === 'cluster') {
     setupCluster();
+  } else if (game.kind === 'gate') {
+    setupGate();
   } else {
     const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
     selectMode(modeKey);
@@ -1179,6 +1277,7 @@ function boot() {
   ui.renderJackpotBar(ui.el.jackpotBar);
   ui.renderJackpotBar(ui.el.lobbyJackpots);
   ui.renderPouchVessels();
+  ui.mountLobbyCreditNote();
   ui.mountCharge();
 
   game.state = storage.load();
