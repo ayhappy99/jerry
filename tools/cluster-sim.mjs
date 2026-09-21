@@ -8,6 +8,7 @@
 // 판정은 js/cluster.js를 그대로 호출하므로 게임과 계산기가 어긋날 수 없다.
 
 import { POUCH, POUCH_JACKPOT, POUCH_TIER_KEYS } from '../js/config.js';
+import { beadExpectation, drawBeads } from '../js/bead.js';
 import { countPouches, evaluateClusters, payBand, pouchFeed } from '../js/cluster.js';
 import { buildGrid, drawStops } from '../js/rng.js';
 
@@ -43,18 +44,25 @@ export function measureCluster(spins) {
   // 어느 주머니가 몇 번 채워졌는지. 잭팟 환수율은 이 확률에서 나온다.
   const feedCount = Object.fromEntries(POUCH_TIER_KEYS.map((key) => [key, 0]));
   let feedNone = 0;
+  let beadSpins = 0;
+  let beadApplied = 0;
 
   for (let i = 0; i < spins; i += 1) {
     const grid = buildGrid(POUCH.strips, drawStops(POUCH.strips), POUCH.rows);
     const feed = pouchFeed(countPouches(grid));
     if (feed === null) feedNone += 1;
     else feedCount[feed.tier] += 1;
+    const beads = drawBeads({ reels: POUCH.reels, rows: POUCH.rows });
+    if (beads.length > 0) beadSpins += 1;
     const wins = evaluateClusters(grid);
     if (wins.length === 0) continue;
     hits += 1;
+    if (beads.length > 0) beadApplied += 1;
+    // 구슬 배수는 덩어리 합 전체에 곱한다. 심볼별 기여는 배수 없는 값으로 남긴다.
+    const beadMult = beads.reduce((sum, bead) => sum + bead.mult, 0) || 1;
     let pay = 0;
     for (const win of wins) {
-      pay += win.pay;
+      pay += win.pay * beadMult;
       bySymbol[win.symbol] += win.pay;
       const band = payBand(win.size);
       bySize.set(band, (bySize.get(band) ?? 0) + 1);
@@ -75,6 +83,8 @@ export function measureCluster(spins) {
     bySize,
     feedProb: Object.fromEntries(POUCH_TIER_KEYS.map((key) => [key, feedCount[key] / spins])),
     feedNoneProb: feedNone / spins,
+    beadRate: beadSpins / spins,
+    beadAppliedRate: beadApplied / spins,
   };
 }
 
@@ -94,6 +104,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  적중률        ${pct(cl.hitRate)}`);
   console.log(`  1회 최대      ${cl.maxPay.toFixed(1)}배`);
   console.log('');
+  console.log(`  금구슬 등장 ${pct(cl.beadRate)} · 실제로 곱해진 스핀 ${pct(cl.beadAppliedRate)} · 배수 기대값 ${beadExpectation().toFixed(3)}`);
   console.log(`  아무 주머니도 안 채우는 스핀 ${pct(cl.feedNoneProb)}`);
   console.log('');
   console.log('  등급별 잭팟 (복주머니 심볼 개수가 주머니를 정한다)');

@@ -3,6 +3,7 @@
 // 똑같은 함수를 그대로 호출한다.
 
 import { POUCH, POUCH_JACKPOT } from './config.js';
+import { beadMultiple } from './bead.js';
 import { buildGrid } from './rng.js';
 
 const PAY_SYMBOLS = Object.keys(POUCH.pays);
@@ -76,16 +77,22 @@ export function evaluateClusters(grid) {
 }
 
 /**
- * 스핀 1회. 클러스터 판정만 한다. 잭팟은 적립 결과로 따로 정해진다.
- * @param {{stops: number[], totalBet: number}} input
+ * 스핀 1회. 덩어리 판정과 금구슬 배수를 합친다. 잭팟은 적립 결과로 따로 정해진다.
+ * @param {{stops: number[], totalBet: number, beads: object[]}} input
  */
-export function spinCluster({ stops, totalBet }) {
+export function spinCluster({ stops, totalBet, beads = [] }) {
   const grid = buildGrid(POUCH.strips, stops, POUCH.rows);
   const wins = evaluateClusters(grid);
-  const payMultiple = wins.reduce((sum, win) => sum + win.pay, 0);
+  const clusterMultiple = wins.reduce((sum, win) => sum + win.pay, 0);
+  // 구슬은 당첨이 있을 때만 의미가 있다. 당첨이 0이면 곱해도 0이다.
+  const beadMult = beadMultiple(beads);
+  const payMultiple = clusterMultiple * beadMult;
   return {
     grid,
     wins,
+    beads,
+    clusterMultiple,
+    beadMult,
     payMultiple,
     totalBet,
     totalWin: Math.round(payMultiple * totalBet),

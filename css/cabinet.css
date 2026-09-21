@@ -466,6 +466,7 @@ body {
 }
 
 .cell {
+  position: relative;
   width: var(--cell); height: var(--cell);
   padding: calc(var(--cell-gap) / 2);
   flex: 0 0 auto;
@@ -480,6 +481,45 @@ body {
 }
 
 .cell svg { width: 78%; height: 78%; display: block; }
+
+/* ── 금구슬 ────────────────────────────────
+   릴 심볼이 아니라 칸 위에 얹는 배지다. 떨어져 내려와 자리에 붙는다. */
+.bead {
+  position: absolute;
+  inset: auto auto 6% 50%;
+  display: grid;
+  place-items: center;
+  min-width: 52%;
+  padding: 2px 6px;
+  border: 1.5px solid #fff3c4;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 32% 26%, #fffbe8 0%, #f0c85c 34%, #c9962f 62%, #6b4c12 100%);
+  box-shadow: 0 0 12px rgba(240, 200, 92, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #2a1c06;
+  font-family: var(--font-display);
+  /* 칸 크기에 비례해 줄인다. 컨테이너 쿼리를 쓰면 릴 세로 배치에 containment가 걸린다 */
+  font-size: calc(var(--cell) * 0.2);
+  line-height: 1.15;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: bead-drop 380ms cubic-bezier(0.3, 1.5, 0.5, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes bead-drop {
+  0% { transform: translate(-50%, -180%) scale(0.5); opacity: 0; }
+  70% { transform: translate(-50%, 0) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+
+/* 구슬은 .cell__face 밖(.cell 직속)에 붙는다. 안에 넣으면 당첨 아닌 칸을 흐리게 하는
+   .cell__face의 opacity가 그룹으로 걸려 배수를 읽을 수 없다. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bead { animation: none; }
+}
 
 /* 릴 세퍼레이터: 릴 사이에 얇은 황동 기둥을 세운다.
    .reel 이 overflow:hidden 이므로 셀 좌측 여백(--cell-gap / 2) 안에 그린다. */

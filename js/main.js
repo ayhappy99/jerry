@@ -24,10 +24,11 @@ import {
 import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
+import { drawBeads } from './bead.js';
 import { contributePouch, countPouches, pouchFeed, spinCluster } from './cluster.js';
 import { spinHold, triggered } from './hold.js';
 import { buildGrid, buildPickTiles, drawJackpotTier, drawStops } from './rng.js';
-import { clearHighlights, playCascade, playHold, renderReels, spinReels } from './reels.js';
+import { clearBeads, clearHighlights, markBeads, playCascade, playHold, renderReels, spinReels } from './reels.js';
 import * as storage from './storage.js';
 import { mountSymbolSprite } from './symbols.js';
 import * as ui from './ui.js';
@@ -273,7 +274,8 @@ function readoutText(result, payout) {
   if (result.cluster !== undefined) {
     if (payout.totalWin === 0) return '당첨 없음';
     const parts = result.cluster.wins.map((win) => `${SYMBOLS[win.symbol].label} ${win.size}칸`);
-    return `${parts.join(', ')}. ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
+    const bead = result.cluster.beadMult > 1 ? ` 금구슬 ${result.cluster.beadMult}배.` : '';
+    return `${parts.join(', ')}.${bead} ${ui.formatCoins(payout.totalWin)} 코인 획득.`;
   }
   if (result.cascade !== undefined) {
     if (payout.totalWin === 0) return '당첨 없음';
@@ -303,7 +305,8 @@ function resultMessage(result, payout) {
   }
   if (payout.totalWin === 0) return '';
   if (result.cluster !== undefined) {
-    return `${result.cluster.wins.length}덩어리 당첨 · ${ui.formatCoins(payout.totalWin)}`;
+    const bead = result.cluster.beadMult > 1 ? ` · 금구슬 ×${result.cluster.beadMult}` : '';
+    return `${result.cluster.wins.length}덩어리 당첨${bead} · ${ui.formatCoins(payout.totalWin)}`;
   }
   if (result.cascade !== undefined) {
     return `연속 당첨 ${result.cascade.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
@@ -342,6 +345,12 @@ async function presentWin(result, payout, coinsBeforeWin) {
       instant: reducedMotion.matches,
       onWin: () => audio.playLineTick(),
     });
+    // 구슬이 붙었으면 배수를 한 번 크게 보여 준다. 없으면 이 줄을 건너뛴다.
+    if (result.cluster.beadMult > 1) {
+      audio.playBeadHit();
+      ui.showBigWin(`금구슬 ×${result.cluster.beadMult}!`, { speed, tier: 'big', effects });
+      if (effects) await delay(TIMING.beadHold / speed);
+    }
   }
 
   if (result.freeSpinsAwarded > 0) {
@@ -475,7 +484,8 @@ async function playHoldBonus(result) {
 // 여기서 확정된다. 적립은 격자에 달려 있으므로 격자를 먼저 뽑아야 한다.
 function drawClusterSpin(totalBet) {
   const stops = drawStops(POUCH.strips);
-  const result = spinCluster({ stops, totalBet });
+  const beads = drawBeads({ reels: POUCH.reels, rows: POUCH.rows });
+  const result = spinCluster({ stops, totalBet, beads });
   return { stops, result, feed: pouchFeed(countPouches(result.grid)) };
 }
 
@@ -539,6 +549,7 @@ async function runSpin() {
   }
 
   clearHighlights(ui.reelsHost());
+  clearBeads(ui.reelsHost());
   ui.clearLines();
   ui.setWin(0);
   ui.setMessage(isFree ? `공짜 스핀 ${game.freeSpinsLeft}번 남음 · 당첨금 2배` : '', true);
@@ -572,6 +583,11 @@ async function runSpin() {
   const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
   await revealSpin(result.spin);
+  // 금구슬은 릴이 멈춘 뒤 격자 위에 얹는다. 결과는 이미 확정돼 있고 보여 주기만 한다.
+  if (result.cluster !== undefined && result.cluster.beads.length > 0) {
+    markBeads(ui.reelsHost(), result.cluster.beads);
+    audio.playBead();
+  }
   if (result.cascade !== undefined) await playCascadeSteps(result);
   if (result.hold != null) await playHoldBonus(result);
 

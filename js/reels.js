@@ -69,6 +69,26 @@ export function cellAt(host, reel, row) {
   return stripOf(host, reel).children[BUFFER_CELLS + row];
 }
 
+/**
+ * 금구슬을 격자 위에 얹는다. 릴 심볼이 아니라 칸 위에 붙는 배지다.
+ * clearHighlights가 아니라 clearBeads로 따로 지운다 — 당첨을 하나씩 보여 주는 동안
+ * clearHighlights가 여러 번 불리는데 그때 구슬이 같이 사라지면 안 된다.
+ */
+export function markBeads(host, beads) {
+  for (const { reel, row, mult } of beads) {
+    const bead = document.createElement('span');
+    bead.className = 'bead';
+    bead.textContent = `×${mult}`;
+    // .cell__face가 아니라 .cell에 붙인다. face 안에 넣으면 당첨 아닌 칸을 흐리게 하는
+    // face의 opacity가 그룹으로 걸려 배수를 읽을 수 없다.
+    cellAt(host, reel, row).append(bead);
+  }
+}
+
+export function clearBeads(host) {
+  for (const bead of host.querySelectorAll('.bead')) bead.remove();
+}
+
 export function clearHighlights(host) {
   for (const cell of host.querySelectorAll('.cell--win, .cell--scatter')) {
     cell.classList.remove('cell--win', 'cell--scatter');

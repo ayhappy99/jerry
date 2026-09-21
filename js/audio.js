@@ -613,6 +613,24 @@ export function playReelStop() {
   noiseBurst({ dur: 0.02, gain: 0.18, freq: 700, q: 1.2 });
 }
 
+// 금구슬이 격자에 떨어질 때: 유리구슬 부딪는 짧은 고음
+export function playBead() {
+  if (!ready()) return;
+  tone({ freq: 1180, type: 'sine', dur: 0.16, gain: 0.3 });
+  tone({ freq: 1760, type: 'sine', dur: 0.1, gain: 0.16 });
+  noiseBurst({ dur: 0.03, gain: 0.1, freq: 4200, q: 2 });
+}
+
+// 금구슬 배수가 적용될 때: 올라가는 종소리 세 번
+export function playBeadHit() {
+  if (!ready()) return;
+  const base = [880, 1174.7, 1568];
+  base.forEach((freq, i) => {
+    tone({ freq, type: 'triangle', dur: 0.3, gain: 0.34, at: i * 0.11 });
+    tone({ freq: freq * 2, type: 'sine', dur: 0.22, gain: 0.14, at: i * 0.11 });
+  });
+}
+
 // 앤티시페이션: 상승 글리산도
 export function playAnticipation() {
   if (!ready()) return;

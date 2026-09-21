@@ -2,7 +2,8 @@
 // (심볼, 구간)별 계수 = 스핀 1회당 그 조합이 나오는 기대 횟수
 // 계수를 한 번 재면 어떤 배당표의 RTP든 즉시 나온다. 그래서 목표에 맞춰 정확히 풀 수 있다.
 import { POUCH, POUCH_JACKPOT } from '../js/config.js';
-import { evaluateClusters, payBand } from '../js/cluster.js';
+import { beadExpectation } from '../js/bead.js';
+import { countPouches, evaluateClusters, payBand, pouchFeed } from '../js/cluster.js';
 import { buildGrid, drawStops } from '../js/rng.js';
 
 const SPINS = Number(process.argv[2] ?? 3000000);
@@ -11,24 +12,35 @@ const BANDS = POUCH.sizeBands;
 
 const coef = Object.fromEntries(SYMS.map((s) => [s, Object.fromEntries(BANDS.map((b) => [b, 0]))]));
 let hits = 0;
+// 잭팟 기여는 "어느 주머니를 채우는 심볼 개수"의 확률에서 나온다. 같은 루프에서 센다.
+const feedCount = {};
 for (let i = 0; i < SPINS; i += 1) {
   const grid = buildGrid(POUCH.strips, drawStops(POUCH.strips), POUCH.rows);
+  const feed = pouchFeed(countPouches(grid));
+  if (feed !== null) feedCount[feed.tier] = (feedCount[feed.tier] ?? 0) + 1;
   const wins = evaluateClusters(grid);
   if (wins.length > 0) hits += 1;
   for (const win of wins) coef[win.symbol][payBand(win.size)] += 1;
 }
 for (const s of SYMS) for (const b of BANDS) coef[s][b] /= SPINS;
 
-const jpTotal = Object.values(POUCH_JACKPOT.tiers).reduce(
-  (sum, t) => sum + POUCH_JACKPOT.contribRate * t.contribShare * ((t.seed + t.mustHitBy) / (t.mustHitBy - t.seed)), 0);
+// 등급 t의 기여 = P(그 주머니를 채우는 개수) × 한 번에 넣는 배수 × (시드 + 천장) / (천장 − 시드)
+const jpTotal = POUCH_JACKPOT.feed.reduce((sum, entry) => {
+  const tier = POUCH_JACKPOT.tiers[entry.tier];
+  const p = (feedCount[entry.tier] ?? 0) / SPINS;
+  return sum + p * entry.rate * ((tier.seed + tier.mustHitBy) / (tier.mustHitBy - tier.seed));
+}, 0);
 const TARGET = Number(process.argv[3] ?? 0.95);
 const target = TARGET - jpTotal;
 
-const rtpOf = (pays) => SYMS.reduce((sum, s) => sum + BANDS.reduce((t, b) => t + coef[s][b] * (pays[s][b] ?? 0), 0), 0);
+// 금구슬은 당첨 합 전체에 곱하고 등장은 당첨과 독립이다. 그래서 기대값을 한 번 곱하면 된다.
+const BEAD = beadExpectation();
+const rtpOf = (pays) =>
+  BEAD * SYMS.reduce((sum, s) => sum + BANDS.reduce((t, b) => t + coef[s][b] * (pays[s][b] ?? 0), 0), 0);
 const base = rtpOf(POUCH.pays);
 
 console.log(`${SPINS.toLocaleString()} 스핀으로 계수 측정 · 적중률 ${(hits / SPINS * 100).toFixed(2)}%`);
-console.log(`잭팟 기여 ${(jpTotal * 100).toFixed(3)}% → 클러스터 목표 ${(target * 100).toFixed(2)}%`);
+console.log(`잭팟 기여 ${(jpTotal * 100).toFixed(3)}% → 클러스터 목표 ${(target * 100).toFixed(2)}% · 금구슬 배수 기대값 ${BEAD.toFixed(4)}`);
 console.log(`현재 배당표의 클러스터 RTP ${(base * 100).toFixed(2)}% → 필요 배율 ${(target / base).toFixed(4)}\n`);
 
 console.log('(심볼, 구간)별 계수 = 스핀 1회당 기대 횟수');
