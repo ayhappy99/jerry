@@ -2,6 +2,7 @@
 
 import {
   BETS,
+  EFFECTS,
   JACKPOT_CONTRIB_RATE,
   JACKPOT_MATCH,
   JACKPOT_ROLL_MS,
@@ -10,6 +11,7 @@ import {
   GAMES,
   GAME_KEYS,
   GATE,
+  HWATU,
   MODES,
   MODE_KEYS,
   NICKNAME_RULES,
@@ -26,6 +28,7 @@ import * as audio from './audio.js';
 import { evaluateSpin, totalBetOf, winTierOf } from './engine.js';
 import { spinCascade } from './cascade.js';
 import { drawHeights, spinGate } from './gate.js';
+import { spinHwatu } from './hwatu.js';
 import { drawBeads } from './bead.js';
 import { contributePouch, countPouches, pouchFeed, spinCluster } from './cluster.js';
 import { spinHold, triggered } from './hold.js';
@@ -91,6 +94,7 @@ function spec() {
   if (game.kind === 'cascade') return PHARAOH;
   if (game.kind === 'cluster') return POUCH;
   if (game.kind === 'gate') return GATE;
+  if (game.kind === 'hwatu') return HWATU;
   return game.mode;
 }
 
@@ -186,6 +190,14 @@ function showGateWays() {
   const ways = game.gateHeights.reduce((product, rows) => product * rows, 1);
   ui.setWays(ways, game.gateWays);
   game.gateWays = ways;
+}
+
+// 족보 게임. 고 단계는 스핀을 넘겨 이어지므로 들어올 때 저장값을 그대로 띄운다.
+function setupHwatu() {
+  renderReels(ui.reelsHost(), HWATU, drawStops(HWATU.strips));
+  ui.setGo(section().go);
+  syncMeters();
+  storage.save(game.state);
 }
 
 // ── 스핀 ──────────────────────────────────
@@ -318,6 +330,12 @@ function readoutText(result, payout) {
     const free = result.freeSpinsAwarded > 0 ? ` 공짜 스핀 ${result.freeSpinsAwarded}번 획득.` : '';
     return `${ways} 연속 당첨 ${result.gate.chain}번. ${ui.formatCoins(payout.totalWin)} 코인 획득.${free}`;
   }
+  if (result.hwatu !== undefined) {
+    if (payout.totalWin === 0) return `당첨 없음. 고 단계가 0으로 돌아갑니다.`;
+    const names = result.hwatu.hands.map((hand) => `${hand.label} ${hand.pay}배`).join(', ');
+    const go = result.hwatu.go > 0 ? ` ${result.hwatu.go}고로 ${result.hwatu.goMultiple}배.` : '';
+    return `${names}.${go} ${ui.formatCoins(payout.totalWin)} 코인 획득. 다음 판은 ${result.hwatu.nextGo}고입니다.`;
+  }
   const parts = result.lineWins.map(
     (win) => `${SYMBOLS[win.symbol].label} ${win.count}개 ${win.lineIndex + 1}번 줄`,
   );
@@ -357,6 +375,10 @@ function resultMessage(result, payout) {
   if (result.gate !== undefined) {
     return `${result.gate.ways.toLocaleString('ko-KR')}경로 · 연속 ${result.gate.chain}번 · ${ui.formatCoins(payout.totalWin)}`;
   }
+  if (result.hwatu !== undefined) {
+    const go = result.hwatu.go > 0 ? ` · ${result.hwatu.go}고 ×${result.hwatu.goMultiple}` : '';
+    return `${result.hwatu.hands.map((hand) => hand.label).join(' + ')}${go} · ${ui.formatCoins(payout.totalWin)}`;
+  }
   if (result.hold != null) {
     return `골드 코인 ${result.hold.coins.length}개 · ${ui.formatCoins(payout.totalWin)}`;
   }
@@ -379,7 +401,24 @@ async function presentWin(result, payout, coinsBeforeWin) {
 
   // 빅윈 이상은 전용 사운드가 있으므로 일반 당첨음을 겹치지 않게 한다.
   if (tier === 'win') audio.playWin();
-  if (result.cluster === undefined) {
+  if (result.hwatu !== undefined) {
+    // 화투는 금화 대신 꽃잎이 흩날린다
+    if (effects) ui.spawnPetals(EFFECTS.petals[tier] ?? 0, TIMING.petalLife);
+    await ui.playHwatuHands(result.hwatu.hands, {
+      speed,
+      instant: reducedMotion.matches,
+      onHand: () => audio.playLineTick(),
+    });
+    // 고 배수가 붙었으면 그 사실을 한 번 크게 보여 준다
+    if (result.hwatu.goMultiple > 1) {
+      audio.playGo();
+      ui.showBigWin(`${result.hwatu.go}고 · ${result.hwatu.goMultiple}배!`, {
+        speed, tier: 'big', effects, coins: false,
+      });
+      if (effects) ui.spawnPetals(EFFECTS.petals.big, TIMING.petalLife);
+      if (effects) await delay(TIMING.goStamp / speed);
+    }
+  } else if (result.cluster === undefined) {
     await ui.playLineWins(result.lineWins, result.scatter, {
       speed,
       instant: reducedMotion.matches,
@@ -606,6 +645,31 @@ async function playGateSteps(result) {
   });
 }
 
+// 족보 게임 한 스핀. 고 단계를 물려 돌린다 — 들어온 값으로 곱하고 나온 값을 저장한다.
+function drawHwatu(totalBet) {
+  const stops = drawStops(HWATU.strips);
+  const result = spinHwatu({ stops, totalBet, go: section().go });
+  return {
+    modeKey: HWATU.key,
+    totalBet,
+    freeSpin: false,
+    lineWins: [],
+    scatter: null,
+    freeSpinsAwarded: 0,
+    totalWin: result.totalWin,
+    jackpot: { hit: false },
+    hwatu: result,
+    spin: { stops, grid: result.grid },
+  };
+}
+
+// 고 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
+function syncGo(result) {
+  const before = result.hwatu.go;
+  section().go = result.hwatu.nextGo;
+  ui.setGo(result.hwatu.nextGo, before);
+}
+
 // 게이지 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
 function syncCharge(result) {
   section().charge = result.cascade.charge;
@@ -677,6 +741,7 @@ async function runSpin() {
   const result =
     game.kind === 'cascade' ? drawCascade(isFree, totalBet)
     : game.kind === 'gate' ? drawGate(isFree, totalBet)
+    : game.kind === 'hwatu' ? drawHwatu(totalBet)
     : clusterSpin !== null ? clusterResult(clusterSpin, totalBet, pouchHits)
     : drawLines(isFree);
   // 잭팟 티어까지 여기서 확정된다. 픽 화면은 이 결과를 보여주는 연출일 뿐이다.
@@ -686,6 +751,9 @@ async function runSpin() {
 
   await revealSpin(result.spin);
   if (result.cascade !== undefined) syncCharge(result);
+  // 고 단계는 릴이 멈춘 뒤에 올린다. 배수는 이미 적용된 값이고 여기서 보여 주는 것은
+  // "다음 판의 단계"다. 스핀 전에 올리면 이번 판에 쓴 배수와 화면이 어긋난다.
+  if (result.hwatu !== undefined) syncGo(result);
   // 금구슬은 릴이 멈춘 뒤 격자 위에 얹는다. 결과는 이미 확정돼 있고 보여 주기만 한다.
   if (result.cluster !== undefined && result.cluster.beads.length > 0) {
     markBeads(ui.reelsHost(), result.cluster.beads);
@@ -998,6 +1066,8 @@ const TOUR_RULE = {
     '대각선은 붙은 것으로 보지 않아요. 뭉친 칸이 많을수록 받는 돈이 커집니다.',
   gate: '맨 왼쪽 칸부터 옆으로 같은 심볼이 <b>3칸 이상</b> 이어지면 당첨입니다. 위아래 위치는 상관없어요. ' +
     '이 게임은 <b>릴마다 칸 수가 매번 달라집니다</b>. 칸이 많이 열릴수록 당첨 경로가 폭발적으로 늘어나요.',
+  hwatu: '줄도 위치도 보지 않습니다. 깔린 <b>열 장을 한 손으로</b> 보고 족보를 셉니다. ' +
+    '성립한 족보는 모두 한 번에 받아요. 카드가 어디 있든 상관없습니다.',
 };
 
 const TOUR_JACKPOT = {
@@ -1010,6 +1080,12 @@ const TOUR_JACKPOT = {
     target: '#jackpot-bar',
     text: '<b>쌓이는 상금</b>입니다. 돌릴 때마다 조금씩 쌓이고, 조건을 맞추면 쌓인 돈을 전부 받아요. ' +
       '럭키 캐비닛과 파라오의 문이 같은 상금을 함께 쌓습니다.',
+  },
+  hwatu: {
+    target: '#go',
+    text: '<b>고(GO)</b>입니다. 이긴 판 다음에 한 단씩 올라가고, 배수가 1 → 2 → 3 → 5 → <b>10배</b>로 커집니다. ' +
+      '못 딴 판이 나오면 0으로 돌아가요. 작은 족보도 고를 이어 가는 밑돌입니다. ' +
+      '이 게임에는 쌓이는 상금이 없고, 고가 그 자리를 대신합니다.',
   },
   gate: {
     target: '#ways',
@@ -1245,6 +1321,7 @@ function enterGame(gameKey) {
   ui.setJackpotBarKind(game.kind);
   ui.setChargeVisible(game.kind === 'cascade');
   ui.setWaysVisible(game.kind === 'gate');
+  ui.setGoVisible(game.kind === 'hwatu');
   ui.showScreen('cabinet');
   ui.setChainBadge(null);
 
@@ -1254,6 +1331,8 @@ function enterGame(gameKey) {
     setupCluster();
   } else if (game.kind === 'gate') {
     setupGate();
+  } else if (game.kind === 'hwatu') {
+    setupHwatu();
   } else {
     const modeKey = GAMES[gameKey].modeKeys.includes(stored.mode) ? stored.mode : MODE_KEYS[1];
     selectMode(modeKey);
@@ -1278,6 +1357,7 @@ function boot() {
   ui.renderJackpotBar(ui.el.lobbyJackpots);
   ui.renderPouchVessels();
   ui.mountLobbyCreditNote();
+  ui.mountGoLadder();
   ui.mountCharge();
 
   game.state = storage.load();

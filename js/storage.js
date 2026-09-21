@@ -4,6 +4,7 @@
 import {
   GAME_KEYS,
   HISTORY_LIMITS,
+  HWATU,
   JACKPOT_TIERS,
   JACKPOT_TIER_KEYS,
   MODE_KEYS,
@@ -38,6 +39,8 @@ export function defaultGameState() {
     bigWins: [],
     // 부적 게이지(파라오). 스핀을 넘겨 이어지므로 저장한다.
     charge: 0,
+    // 고 단계(화투). 이것도 스핀을 넘겨 이어진다.
+    go: 0,
   };
 }
 
@@ -103,6 +106,7 @@ function mergeGlobalSettings(base, stored) {
 
 function mergeGameSection(base, stored) {
   const charge = stored?.charge;
+  const go = stored?.go;
   return {
     settings: mergeSection(base.settings, stored?.settings),
     stats: mergeSection(base.stats, stored?.stats),
@@ -112,6 +116,7 @@ function mergeGameSection(base, stored) {
     charge: Number.isInteger(charge) && charge >= 0 && charge < PHARAOH.charge.capacity
       ? charge
       : base.charge,
+    go: Number.isInteger(go) && go >= 0 && go < HWATU.go.multipliers.length ? go : base.go,
   };
 }
 

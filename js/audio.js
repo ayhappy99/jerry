@@ -641,6 +641,20 @@ export function playCharge() {
   noiseBurst({ dur: 0.5, gain: 0.12, freq: 2600, q: 0.8 });
 }
 
+// 고(GO) 도장이 찍힐 때: 나무 판에 인장을 누르는 둔탁한 타격 + 장구 가락 두 번.
+// 화투의 "탁" 하고 패를 때리는 소리를 노린다.
+export function playGo() {
+  if (!ready()) return;
+  // 인장이 눌리는 타격: 낮은 임펄스 + 나무 울림
+  tone({ freq: 150, endFreq: 62, type: 'sine', dur: 0.16, gain: 0.5 });
+  noiseBurst({ dur: 0.05, gain: 0.26, freq: 900, q: 1.2 });
+  // 장구 가락 두 번 (덩 - 덕)
+  tone({ freq: 220, endFreq: 150, type: 'triangle', dur: 0.2, gain: 0.3, at: 0.2 });
+  noiseBurst({ dur: 0.04, gain: 0.16, freq: 1800, q: 2, at: 0.2 });
+  tone({ freq: 330, endFreq: 240, type: 'triangle', dur: 0.14, gain: 0.24, at: 0.36 });
+  noiseBurst({ dur: 0.03, gain: 0.12, freq: 2600, q: 2, at: 0.36 });
+}
+
 // 앤티시페이션: 상승 글리산도
 export function playAnticipation() {
   if (!ready()) return;

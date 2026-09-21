@@ -30,8 +30,11 @@ function restStyle() {
 
 // rows를 넘기면 그 릴만 높이가 달라진다(용문). --rows는 .reels에 깔려 있고
 // 인라인으로 덮어쓰면 그 릴에만 적용된다. 높이 계산은 CSS 한 줄이 전부다.
-function reelMarkup(reel, cells, rows) {
-  const style = rows === undefined ? '' : ` style="--rows: ${rows}"`;
+function reelMarkup(reel, cells, rows = null) {
+  // null이면 인라인 변수를 아예 쓰지 않는다. `--rows: null`을 넣으면
+  // calc(var(--cell) * null)이 무효가 되어 height 선언이 통째로 버려지고
+  // 릴이 내용 높이로 늘어난다(overflow:hidden이 잘라 낼 것이 없어진다).
+  const style = rows === null ? '' : ` style="--rows: ${rows}"`;
   return (
     `<div class="reel" data-reel="${reel}"${style}>` +
     `<div class="reel__strip" style="${restStyle()}">${cells.map(cellMarkup).join('')}</div>` +

@@ -12,7 +12,8 @@ export const STORAGE_KEY = 'lucky-cabinet:v1';
 //   7: pouchJackpot(복주머니 전용 풀 + 터질 지점) 추가. 공유 풀과 별개다
 //   8: games[게임키].charge(부적 게이지) 추가. 스핀을 넘겨 이어진다
 //   9: 게임 4종째(용문) 추가. games.gate 섹션이 기본값으로 생긴다
-export const SCHEMA_VERSION = 9;
+//  10: 게임 5종째(화투) 추가 + games[게임키].go(고 단계). 스핀을 넘겨 이어진다
+export const SCHEMA_VERSION = 10;
 
 export const WILD = 'crown';
 export const SCATTER = 'star';
@@ -58,6 +59,21 @@ export const SYMBOLS = {
   dragon: { key: 'dragon', label: '용', kind: 'normal' },
   orb: { key: 'orb', label: '여의주', kind: 'wild' },
   gate: { key: 'gate', label: '용문', kind: 'scatter' },
+  // 화투 13종. 광 5 · 열끗 4 · 띠 3 · 피 1. 상표를 쓰지 않으려고 그림은 모두 새로 그렸다.
+  songhak: { key: 'songhak', label: '송학', kind: 'normal' },
+  byeotggot: { key: 'byeotggot', label: '벚꽃', kind: 'normal' },
+  gongsan: { key: 'gongsan', label: '공산', kind: 'normal' },
+  odong: { key: 'odong', label: '오동', kind: 'normal' },
+  bigwang: { key: 'bigwang', label: '비광', kind: 'normal' },
+  maejo: { key: 'maejo', label: '매조', kind: 'normal' },
+  girogi: { key: 'girogi', label: '기러기', kind: 'normal' },
+  sasum: { key: 'sasum', label: '사슴', kind: 'normal' },
+  yeoltkkeut: { key: 'yeoltkkeut', label: '열끗', kind: 'normal' },
+  hongdan: { key: 'hongdan', label: '홍단', kind: 'normal' },
+  cheongdan: { key: 'cheongdan', label: '청단', kind: 'normal' },
+  chodan: { key: 'chodan', label: '초단', kind: 'normal' },
+  pi: { key: 'pi', label: '피', kind: 'normal' },
+
   rank10: { key: 'rank10', label: '10', kind: 'normal' },
   rankj: { key: 'rankj', label: 'J', kind: 'normal' },
   rankq: { key: 'rankq', label: 'Q', kind: 'normal' },
@@ -73,6 +89,9 @@ export const SYMBOL_ORDER = [
   'ankh', 'lotus', 'papyrus', 'cobra', 'falcon', 'scarab', 'mask', 'eye', 'obelisk',
   'yeopjeon', 'maedeup', 'moran', 'cheongja', 'crane', 'toad', 'tiger', 'pouch',
   'shell', 'minnow', 'crayfish', 'turtle', 'carp', 'dragon', 'orb', 'gate',
+  'songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang',
+  'maejo', 'girogi', 'sasum', 'yeoltkkeut',
+  'hongdan', 'cheongdan', 'chodan', 'pi',
 ];
 
 // 5릴 라인 배당 (라인 베팅 배수)
@@ -203,6 +222,8 @@ export const EFFECTS = {
   // 파동이 겹쳐 노드가 쌓이지 않게 한다.
   coinWaveMs: 2200,
   coinLifeMs: 2400,
+  // 화투는 금화 대신 꽃잎이 흩날린다. 등급별 개수다.
+  petals: { win: 14, big: 30, mega: 44, jackpot: 52 },
 };
 
 export const HISTORY_LIMITS = { jackpotHistory: 20, bigWins: 10 };
@@ -245,6 +266,11 @@ export const TIMING = {
   vesselFeed: 900,        // 채워진 주머니를 밝히는 시간
   pouchReveal: 420,       // 잭팟 바를 화면 안으로 들이는 시간
   pouchBurst: 1100,       // 복주머니가 팡 하고 터지는 시간
+
+  jokboHold: 900,         // 족보 이름표를 띄워 두는 시간
+  jokboGap: 200,          // 다음 족보로 넘어가는 간격
+  goStamp: 720,           // 고 도장이 찍히는 시간
+  petalLife: 3200,        // 꽃잎이 화면을 지나가는 시간
 
   // 어트랙트 모드: 실제 캐비닛처럼 손을 떼면 혼자 돌며 손님을 부른다.
   attractIdle: 30000,
@@ -642,6 +668,77 @@ export const POUCH_JACKPOT = {
   },
 };
 
+// ── 화투 (5릴 2행 족보 판정) ───────────────
+// 줄도 덩어리도 없다. 화면에 깔린 카드 10장을 한 손으로 보고 족보를 센다.
+// 성립한 족보는 모두 동시에 지급한다(고스톱의 점수 계산과 같다).
+//
+// 판정이 심볼의 "개수"에만 의존하므로 환수율을 해석적으로 정확히 계산할 수 있다.
+// 릴별 2칸 창의 분포를 개수 벡터로 접어 5릴을 합성하면(도달 상태 ≤ 646,646)
+// 모든 족보의 확률이 오차 없이 나온다. 이 게임이 프로젝트에서 가장 정확하게 잡힌 게임이다.
+export const HWATU = {
+  key: 'hwatu',
+  reels: 5,
+  rows: 2,
+  betUnits: 15,
+  symbolOrder: [
+    'songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang',
+    'maejo', 'girogi', 'sasum', 'yeoltkkeut',
+    'hongdan', 'cheongdan', 'chodan', 'pi',
+  ],
+  // 족보 판정이 세는 심볼 묶음. 규칙은 hwatu.js가, 묶음과 배당은 여기가 정한다.
+  groups: {
+    gwang: ['songhak', 'byeotggot', 'gongsan', 'odong', 'bigwang'],
+    // 비광이 섞이면 같은 장수라도 한 단계 낮은 족보가 된다(비삼광·비사광·비오광).
+    rain: 'bigwang',
+    godori: ['maejo', 'girogi', 'sasum'],
+    // 고도리 석 장도 열끗이다. 고스톱과 같다.
+    yeol: ['yeoltkkeut', 'maejo', 'girogi', 'sasum'],
+    tti: ['hongdan', 'cheongdan', 'chodan'],
+    pi: ['pi'],
+  },
+  // 족보. 한 번에 거는 돈의 배수다. 성립한 족보를 모두 더해 지급한다.
+  // 광과 장수 구간은 서로 배타적이라 각 묶음에서 하나씩만 걸린다.
+  hands: [
+    { key: 'gwang5', label: '오광', pay: 600 },
+    { key: 'bi5', label: '비오광', pay: 150 },
+    { key: 'gwang4', label: '사광', pay: 50 },
+    { key: 'bi4', label: '비사광', pay: 15 },
+    { key: 'gwang3', label: '삼광', pay: 6 },
+    { key: 'bi3', label: '비삼광', pay: 2 },
+    { key: 'godori', label: '고도리', pay: 2.5 },
+    { key: 'hongdan', label: '홍단', pay: 0.4 },
+    { key: 'cheongdan', label: '청단', pay: 0.4 },
+    { key: 'chodan', label: '초단', pay: 0.4 },
+    { key: 'yeol7', label: '열끗 7장', pay: 1 },
+    { key: 'yeol6', label: '열끗 6장', pay: 0.4 },
+    { key: 'yeol5', label: '열끗 5장', pay: 0.2 },
+    { key: 'tti7', label: '띠 7장', pay: 1 },
+    { key: 'tti6', label: '띠 6장', pay: 0.3 },
+    { key: 'tti5', label: '띠 5장', pay: 0.2 },
+    { key: 'pi8', label: '피 8장', pay: 0.6 },
+    { key: 'pi7', label: '피 7장', pay: 0.25 },
+    { key: 'pi6', label: '피 6장', pay: 0.2 },
+  ],
+  // 고(GO): 당첨된 스핀 다음에 배수가 한 단계 오른다. 꽝이 나오면 0으로 돌아간다.
+  // 이 배수는 스핀에 "들어갈 때"의 단계로 곱한다. 그래서 마르코프 정상분포로
+  // 기대 배수를 정확히 계산할 수 있고, 배당을 그 값으로 나누면 환수율이 유지된다.
+  go: { multipliers: [1, 2, 3, 5, 10] },
+  // 비율은 1:1:1:1:2 · 3:3:3:12 · 8:8:8 · 30이고, 전체를 8배로 키웠다.
+  // 8배로 키운 이유: 81칸 스트립에서는 가중치가 같은 홍단·청단·초단의 족보 확률이
+  // 15.4%나 벌어졌다. 2칸 창으로 보기 때문에 같은 심볼이 우연히 이웃하는지가
+  // 족보 성립을 좌우한다. 648칸으로 늘리자 그 편차가 1.8%로 줄었다.
+  weights: {
+    songhak: 8, byeotggot: 8, gongsan: 8, odong: 8, bigwang: 16,
+    maejo: 24, girogi: 24, sasum: 24, yeoltkkeut: 96,
+    hongdan: 64, cheongdan: 64, chodan: 64,
+    pi: 240,
+  },
+  reelWeights: [],
+  seedOffset: 606,
+};
+
+HWATU.strips = buildStrips(HWATU.reels, HWATU.weights, HWATU.reelWeights, STRIP_SEED + HWATU.seedOffset);
+
 // ── 게임 레지스트리 ───────────────────────
 // 코인과 잭팟 풀은 게임 사이에 공유하고, 통계·기록은 게임별로 따로 쌓는다.
 export const GAMES = {
@@ -679,6 +776,17 @@ export const GAMES = {
     artSymbols: ['pouch', 'tiger', 'toad'],
   },
 
+  hwatu: {
+    key: 'hwatu',
+    label: '화투',
+    tagline: '5릴 2행에 깔린 열 장을 한 손으로 본다. 성립한 족보는 모두 동시에 지급하고, 이긴 판마다 고가 한 단 오른다.',
+    // 족보(개수) 판정 엔진을 쓴다.
+    kind: 'hwatu',
+    modeKeys: [],
+    badge: '열 장 족보 · 고 4단 10배',
+    artSymbols: ['songhak', 'sasum', 'hongdan'],
+  },
+
   gate: {
     key: 'gate',
     label: '용문',
@@ -691,4 +799,4 @@ export const GAMES = {
   },
 };
 
-export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch', 'gate'];
+export const GAME_KEYS = ['cabinet', 'pharaoh', 'pouch', 'gate', 'hwatu'];

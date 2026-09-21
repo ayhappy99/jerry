@@ -424,6 +424,7 @@ body {
 /* ── 릴 윈도우 ──────────────────────────── */
 /* 프레임은 릴 개수에 맞춰 줄어든다. 3릴 모드에서 빈 유리면이 남지 않게 하려는 것이다. */
 .cabinet__frame {
+  position: relative;
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
@@ -1201,6 +1202,129 @@ body {
   .ways--up .ways__value { animation: none; }
 }
 
+/* ── 화투 (5릴 2행) ───────────────────────
+   2행뿐이라 세로 여유가 크다. 카드가 크게 보여야 족보를 셀 수 있으므로 셀을 키운다. */
+.screen--cabinet[data-game="hwatu"] { --cell: 104px; }
+
+@media (max-width: 900px) { .screen--cabinet[data-game="hwatu"] { --cell: 92px; } }
+@media (max-width: 680px) { .screen--cabinet[data-game="hwatu"] { --cell: 78px; } }
+@media (max-width: 480px) { .screen--cabinet[data-game="hwatu"] { --cell: 66px; } }
+@media (max-width: 360px) { .screen--cabinet[data-game="hwatu"] { --cell: 56px; } }
+
+/* 화투판은 한지(닥종이) 바닥이다. 다른 게임의 검은 유리창과 갈린다.
+   섬유 질감은 아주 촘촘한 반복 그라디언트 두 겹으로 만든다(이미지 파일 없이). */
+.screen--cabinet[data-game="hwatu"] .cabinet__window {
+  background:
+    repeating-linear-gradient(92deg, rgba(122, 96, 54, 0.05) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(2deg, rgba(122, 96, 54, 0.04) 0 1px, transparent 1px 7px),
+    radial-gradient(ellipse at 28% 18%, #fbf3dd 0%, #f0e3c2 44%, #d9c69c 78%, #b8a074 100%);
+}
+
+/* 카드는 그림 안에 자기 테두리가 있다. 셀의 유리판 배경을 지운다. */
+.screen--cabinet[data-game="hwatu"] .cell__face {
+  background: none;
+  box-shadow: none;
+}
+
+.screen--cabinet[data-game="hwatu"] .cell svg { width: 94%; height: 94%; }
+
+/* 릴 사이의 황동 기둥도 화투판에서는 어울리지 않는다 */
+.screen--cabinet[data-game="hwatu"] .reel + .reel::before { display: none; }
+
+/* 당첨되지 않은 카드는 한지에 눌린 듯 흐려진다 */
+.screen--cabinet[data-game="hwatu"] .reels--focus .cell:not(.cell--win) .cell__face {
+  opacity: 0.32;
+}
+
+/* ── 고(GO) 사다리 ────────────────────────
+   잭팟 바와 같은 자리, 같은 문법을 쓴다. 화투에는 쌓이는 상금이 없고
+   이 사다리가 그 자리를 대신한다. 지금 칸은 주단(朱丹) 인장처럼 찍힌다. */
+.gobar {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #2a0a14 0%, #14060a 100%);
+  text-align: center;
+}
+
+.gobar[hidden] { display: none; }
+
+.gobar__label {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs); letter-spacing: 0.3em;
+  color: var(--neon); opacity: 0.9;
+}
+
+.gobar__ladder {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-1);
+}
+
+.gopip {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: var(--sp-1) 2px;
+  border: 1.5px solid rgba(201, 150, 47, 0.28);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  transition: background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.gopip__step {
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  color: var(--cream);
+  opacity: 0.5;
+}
+
+.gopip__mult {
+  font-size: 0.62rem; letter-spacing: 0.06em;
+  color: var(--brass);
+  font-style: normal;
+  opacity: 0.7;
+}
+
+/* 지나온 칸: 불이 들어와 있다 */
+.gopip--past {
+  border-color: rgba(247, 226, 163, 0.5);
+  background: rgba(109, 74, 16, 0.4);
+}
+
+.gopip--past .gopip__step { opacity: 0.85; }
+.gopip--past .gopip__mult { opacity: 0.9; }
+
+/* 지금 칸: 붉은 인장 */
+.gopip--on {
+  border-color: #fff3d8;
+  background: linear-gradient(160deg, rgba(240, 64, 42, 0.95), rgba(153, 12, 10, 0.96));
+  box-shadow: 0 0 20px rgba(240, 64, 42, 0.65);
+}
+
+.gopip--on .gopip__step { color: #fff8ec; opacity: 1; }
+.gopip--on .gopip__mult { color: #ffe066; opacity: 1; }
+
+/* 상한(마지막 칸)에 닿으면 금테로 바뀐다 */
+.gobar--max .gopip--on {
+  border-color: #ffe066;
+  box-shadow: 0 0 32px rgba(255, 224, 102, 0.85);
+}
+
+.gobar--max .gopip--on .gopip__mult { animation: go-max 0.8s ease-in-out infinite alternate; }
+
+.gopip--stamp { animation: go-stamp 0.42s cubic-bezier(0.2, 1.9, 0.35, 1); }
+
+@keyframes go-stamp {
+  0% { transform: scale(1.6) rotate(-6deg); }
+  45% { transform: scale(0.94) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes go-max {
+  from { text-shadow: none; }
+  to { text-shadow: 0 0 12px rgba(255, 224, 102, 0.95); }
+}
+
 /* ── 부적 게이지 ──────────────────────────
    연쇄 한 단계마다 한 칸 찬다. 스핀을 넘겨 이어진다. */
 .charge {
@@ -1438,6 +1562,11 @@ body {
      바닥을 낮게 깔아 두고 넘치는 만큼은 스크롤에 맡긴다. */
   .screen--cabinet[data-game="gate"] {
     --cell: max(38px, min(54px, (100svh - 149px) / 7, (100vw - 302px) / 6));
+  }
+
+  /* 화투는 2행뿐이라 세로가 남는다. 폭이 병목이므로 상한을 폭에서 받는다. */
+  .screen--cabinet[data-game="hwatu"] {
+    --cell: max(64px, min(104px, (100svh - 109px) / 2, (100vw - 302px) / 5));
   }
 }
 
