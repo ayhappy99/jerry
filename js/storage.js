@@ -7,6 +7,7 @@ import {
   JACKPOT_TIERS,
   JACKPOT_TIER_KEYS,
   MODE_KEYS,
+  PHARAOH,
   POUCH_JACKPOT,
   POUCH_TIER_KEYS,
   SCHEMA_VERSION,
@@ -35,6 +36,8 @@ export function defaultGameState() {
     },
     jackpotHistory: [],
     bigWins: [],
+    // 부적 게이지(파라오). 스핀을 넘겨 이어지므로 저장한다.
+    charge: 0,
   };
 }
 
@@ -99,11 +102,16 @@ function mergeGlobalSettings(base, stored) {
 }
 
 function mergeGameSection(base, stored) {
+  const charge = stored?.charge;
   return {
     settings: mergeSection(base.settings, stored?.settings),
     stats: mergeSection(base.stats, stored?.stats),
     jackpotHistory: mergeList(base.jackpotHistory, stored?.jackpotHistory),
     bigWins: mergeList(base.bigWins, stored?.bigWins),
+    // 손으로 고친 값이나 용량이 줄어든 경우를 걸러 낸다
+    charge: Number.isInteger(charge) && charge >= 0 && charge < PHARAOH.charge.capacity
+      ? charge
+      : base.charge,
   };
 }
 

@@ -65,6 +65,8 @@ export const el = {
   lines: document.getElementById('lines'),
   freespinBadge: document.getElementById('freespin-badge'),
   chainBadge: document.getElementById('chain-badge'),
+  charge: document.getElementById('charge'),
+  chargePips: document.getElementById('charge-pips'),
   attract: document.getElementById('attract'),
   holdBadge: document.getElementById('hold-badge'),
   readout: document.getElementById('reel-readout'),
@@ -372,6 +374,33 @@ export function setGameTheme(gameKey) {
 export function setChainBadge(text) {
   el.chainBadge.hidden = text === null;
   if (text !== null) el.chainBadge.textContent = text;
+}
+
+// ── 부적 게이지 ───────────────────────────
+// 연쇄 한 단계마다 한 칸 찬다. 스핀을 넘겨 이어지므로 못 딴 스핀도 헛되지 않다.
+
+export function mountCharge() {
+  el.chargePips.innerHTML = Array.from(
+    { length: PHARAOH.charge.capacity },
+    (_, i) => `<i class="charge__pip" data-pip="${i}"></i>`,
+  ).join('');
+}
+
+export function setChargeVisible(visible) {
+  el.charge.hidden = !visible;
+}
+
+export function setCharge(filled) {
+  for (const pip of el.chargePips.querySelectorAll('.charge__pip')) {
+    pip.classList.toggle('charge__pip--on', Number(pip.dataset.pip) < filled);
+  }
+  el.charge.classList.toggle('charge--full', filled >= PHARAOH.charge.capacity - 1);
+}
+
+// 게이지가 터질 때 한 번 번쩍인다.
+export function flashCharge(ms) {
+  el.charge.classList.add('charge--fire');
+  setTimeout(() => el.charge.classList.remove('charge--fire'), ms);
 }
 
 // 어트랙트 모드 표시. 데모라는 사실을 화면에 남긴다.

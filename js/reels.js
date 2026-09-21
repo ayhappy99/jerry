@@ -256,11 +256,20 @@ export async function playCascade(host, mode, steps, { speed = 1, instant = fals
   if (steps.length === 0) return;
   if (instant) {
     const last = steps[steps.length - 1];
-    markCascadeWins(host, last.wins);
+    if (last.wins !== undefined) markCascadeWins(host, last.wins);
+    else renderGrid(host, mode, last.nextGrid);
     onStep(last);
     return;
   }
   for (const step of steps) {
+    // 부적 게이지 단계는 당첨이 없다. 와일드가 내려앉는 것만 보여 준다.
+    if (step.charge !== undefined) {
+      onStep(step);
+      renderGrid(host, mode, step.nextGrid);
+      for (const { reel, row } of step.charge) cellAt(host, reel, row).classList.add('cell--descend');
+      await wait(TIMING.chargeDrop / speed);
+      continue;
+    }
     markCascadeWins(host, step.wins);
     onStep(step);
     await wait(TIMING.cascadeHold / speed);

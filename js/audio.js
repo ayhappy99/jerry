@@ -631,6 +631,16 @@ export function playBeadHit() {
   });
 }
 
+// 부적 게이지 발동: 낮은 곳에서 솟구치는 금관 화음
+export function playCharge() {
+  if (!ready()) return;
+  tone({ freq: 196, endFreq: 784, type: 'sawtooth', dur: 0.7, gain: 0.26 });
+  [392, 523.3, 659.3].forEach((freq, i) => {
+    tone({ freq, type: 'triangle', dur: 0.55, gain: 0.3, at: 0.34 + i * 0.05 });
+  });
+  noiseBurst({ dur: 0.5, gain: 0.12, freq: 2600, q: 0.8 });
+}
+
 // 앤티시페이션: 상승 글리산도
 export function playAnticipation() {
   if (!ready()) return;

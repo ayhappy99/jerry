@@ -147,6 +147,7 @@ function changeBet(nextIdx) {
 // 캐스케이딩 게임은 모드가 없다. 릴만 그려 두고 탭 줄을 숨긴다.
 function setupCascade() {
   renderReels(ui.reelsHost(), PHARAOH, drawStops(PHARAOH.strips));
+  ui.setCharge(section().charge);
   syncMeters();
   storage.save(game.state);
 }
@@ -510,7 +511,8 @@ function clusterResult(spin, totalBet, pouchHits) {
 // 캐스케이딩 게임 한 스핀. 연쇄 전체가 여기서 확정된다.
 function drawCascade(isFree, totalBet) {
   const stops = drawStops(PHARAOH.strips);
-  const result = spinCascade({ stops, totalBet, freeSpin: isFree });
+  // 부적 게이지는 스핀을 넘겨 이어진다. 들어온 값으로 시작해 나온 값을 다시 저장한다.
+  const result = spinCascade({ stops, totalBet, freeSpin: isFree, charge: section().charge });
   return {
     modeKey: PHARAOH.key,
     totalBet,
@@ -525,6 +527,12 @@ function drawCascade(isFree, totalBet) {
   };
 }
 
+// 게이지 결과를 저장하고 화면에 반영한다. 결과는 이미 확정돼 있고 값을 옮길 뿐이다.
+function syncCharge(result) {
+  section().charge = result.cascade.charge;
+  ui.setCharge(result.cascade.charge);
+}
+
 // 연쇄를 단계별로 재생한다. 각 단계의 ways와 배수를 배지에 띄운다.
 async function playCascadeSteps(result) {
   const speed = presentationSpeed();
@@ -532,6 +540,13 @@ async function playCascadeSteps(result) {
     speed,
     instant: reducedMotion.matches,
     onStep: (step) => {
+      if (step.charge !== undefined) {
+        ui.setChainBadge('부적 발동 · 호루스의 눈 강림');
+        ui.flashCharge(TIMING.chargeDrop);
+        ui.setCharge(0);
+        audio.playCharge();
+        return;
+      }
       const ways = step.wins.reduce((sum, win) => sum + win.ways, 0);
       ui.setChainBadge(`연속 ${step.chain}번째 · ${step.chainMultiplier}배 · ${ways}경로`);
       audio.playLineTick();
@@ -583,6 +598,7 @@ async function runSpin() {
   const payout = { totalWin, jackpot, tier: winTierOf(totalWin, result.totalBet) };
 
   await revealSpin(result.spin);
+  if (result.cascade !== undefined) syncCharge(result);
   // 금구슬은 릴이 멈춘 뒤 격자 위에 얹는다. 결과는 이미 확정돼 있고 보여 주기만 한다.
   if (result.cluster !== undefined && result.cluster.beads.length > 0) {
     markBeads(ui.reelsHost(), result.cluster.beads);
@@ -1132,6 +1148,7 @@ function enterGame(gameKey) {
   ui.setGameTheme(gameKey);
   ui.setModesVisible(game.kind === 'lines');
   ui.setJackpotBarKind(game.kind);
+  ui.setChargeVisible(game.kind === 'cascade');
   ui.showScreen('cabinet');
   ui.setChainBadge(null);
 
@@ -1162,6 +1179,7 @@ function boot() {
   ui.renderJackpotBar(ui.el.jackpotBar);
   ui.renderJackpotBar(ui.el.lobbyJackpots);
   ui.renderPouchVessels();
+  ui.mountCharge();
 
   game.state = storage.load();
   game.key = GAME_KEYS.includes(game.state.settings.game) ? game.state.settings.game : GAME_KEYS[0];

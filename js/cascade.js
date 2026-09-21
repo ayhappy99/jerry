@@ -88,11 +88,41 @@ function chainMultiplierOf(chain) {
 }
 
 /**
+ * 부적 게이지가 꽉 찼을 때: 와일드가 아닌 칸 중 몇 개를 골라 와일드로 바꾼다.
+ * 격자를 바꾸지 않고 새 격자를 만들어 돌려준다.
+ */
+export function dropWilds(grid, count) {
+  const open = [];
+  grid.forEach((column, reel) => {
+    // 1번 릴에는 와일드를 놓지 않는다. 스트립도 같은 규칙이다(reelWeights의 eye: 0).
+    // ways 판정은 왼쪽 릴부터 세므로 1번 릴 와일드 하나가 모든 심볼의 당첨을 연다.
+    if (PHARAOH.reelWeights[reel]?.[PHARAOH.wild] === 0) return;
+    column.forEach((cell, row) => {
+      if (cell !== PHARAOH.wild) open.push({ reel, row });
+    });
+  });
+  const take = Math.min(count, open.length);
+  // 앞에서 take개만 필요하므로 그만큼만 섞는다
+  for (let i = 0; i < take; i += 1) {
+    const pick = i + Math.floor(Math.random() * (open.length - i));
+    [open[i], open[pick]] = [open[pick], open[i]];
+  }
+  const next = cloneGrid(grid);
+  const cells = open.slice(0, take);
+  for (const { reel, row } of cells) next[reel][row] = PHARAOH.wild;
+  return { grid: next, cells };
+}
+
+/**
  * 스핀 1회. 연쇄가 끝날 때까지 돌려 단계별 결과를 모두 담아 반환한다.
  * 연출은 steps를 순서대로 보여주기만 하면 된다.
- * @param {{stops: number[], totalBet: number, freeSpin: boolean}} input
+ *
+ * charge는 스핀을 넘겨 이어지는 부적 게이지다. 연쇄 한 단계마다 1칸 차고,
+ * 용량에 닿으면 그 자리에서 와일드가 내려앉아 연쇄가 이어진다. 게이지가 차는 시점도
+ * 와일드가 앉는 자리도 전부 이 함수 안에서 확정되고, 연출은 steps를 재생만 한다.
+ * @param {{stops: number[], totalBet: number, freeSpin: boolean, charge: number}} input
  */
-export function spinCascade({ stops, totalBet, freeSpin = false }) {
+export function spinCascade({ stops, totalBet, freeSpin = false, charge = 0 }) {
   const initialGrid = buildGrid(PHARAOH.strips, stops, PHARAOH.rows);
   const scatters = countScatters(initialGrid);
   const multiplier = freeSpin ? PHARAOH.freeMultiplier : 1;
@@ -102,6 +132,8 @@ export function spinCascade({ stops, totalBet, freeSpin = false }) {
   const steps = [];
   let chain = 0;
   let payMultiple = 0;
+  let chargeLeft = charge;
+  let chargeFired = 0;
 
   while (chain < PHARAOH.maxChain) {
     const wins = evaluateWays(grid);
@@ -116,6 +148,18 @@ export function spinCascade({ stops, totalBet, freeSpin = false }) {
     steps.push({ grid: before, wins, chain, chainMultiplier, stepMultiple, nextGrid: next.grid });
     grid = next.grid;
     cursors = next.cursors;
+
+    chargeLeft += 1;
+    // 한 스핀에 한 번만 발동한다. 막지 않으면 발동이 연쇄를 늘리고 그 연쇄가 게이지를
+    // 다시 채워 끝없이 이어진다(막기 전 실측 환수율 387%). 발동 뒤 쌓인 칸은
+    // 다음 스핀으로 넘어간다.
+    if (chargeLeft < PHARAOH.charge.capacity || chargeFired > 0) continue;
+    // 게이지가 꽉 찼다. 와일드가 내려앉고 연쇄는 끊기지 않고 이어진다.
+    chargeLeft = 0;
+    chargeFired += 1;
+    const dropped = dropWilds(grid, PHARAOH.charge.wilds);
+    steps.push({ grid: cloneGrid(grid), charge: dropped.cells, nextGrid: dropped.grid });
+    grid = dropped.grid;
   }
 
   const scatterMultiple =
@@ -135,6 +179,8 @@ export function spinCascade({ stops, totalBet, freeSpin = false }) {
     totalBet,
     totalWin,
     freeSpin,
+    charge: chargeLeft,
+    chargeFired,
     // 연쇄가 기준 단계에 닿으면 잭팟 픽 보너스가 열린다.
     jackpot: { hit: chain >= PHARAOH.jackpotChain },
   };

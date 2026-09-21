@@ -21,9 +21,14 @@ export function simulate(count) {
   let jackpotTriggers = 0;
   let best = 0;
   const chains = [];
+  // 부적 게이지는 스핀을 넘겨 이어진다. 게임과 같게 물려 돌린다.
+  let charge = 0;
+  let chargeFired = 0;
 
   const play = (freeSpin) => {
-    const result = spinCascade({ stops: drawStops(PHARAOH.strips), totalBet, freeSpin });
+    const result = spinCascade({ stops: drawStops(PHARAOH.strips), totalBet, freeSpin, charge });
+    charge = result.charge;
+    chargeFired += result.chargeFired;
     chains[result.chain] = (chains[result.chain] ?? 0) + 1;
     if (result.jackpot.hit) jackpotTriggers += 1;
     return result;
@@ -64,6 +69,7 @@ export function simulate(count) {
     freeSpinsPerSpin: freeSpinsPlayed / count,
     retriggerRate: freeSpinsPlayed === 0 ? 0 : retriggers / freeSpinsPlayed,
     jackpotRate: jackpotTriggers / count,
+    chargeRate: chargeFired / count,
     bestMultiple: best / totalBet,
     chains,
     count,
@@ -79,6 +85,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  적중률       ${pct(r.hitRate)}`);
   console.log(`  프리스핀 발동 ${pct(r.freeTriggerRate)} (1/${Math.round(1 / r.freeTriggerRate)}), 스핀당 ${r.freeSpinsPerSpin.toFixed(3)}회, 리트리거 ${pct(r.retriggerRate)}`);
   console.log(`  잭팟 트리거(연쇄 ${PHARAOH.jackpotChain}단) ${pct(r.jackpotRate)} (1/${Math.round(1 / r.jackpotRate)})`);
+  console.log(`  부적 게이지 발동 1/${(1 / r.chargeRate).toFixed(1)}스핀 (와일드 ${PHARAOH.charge.wilds}개 · 용량 ${PHARAOH.charge.capacity})`);
   console.log(`  최고 당첨    ${r.bestMultiple.toFixed(0)}x`);
   console.log('  연쇄 분포:');
   r.chains.forEach((n, chain) => {
